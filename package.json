@@ -1,0 +1,30 @@
+{
+  "name": "gmp-dune-buggy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dune-buggy.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/greghutch/gmp-dune-buggy.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache 2.0",
+  "bugs": {
+    "url": "https://github.com/greghutch/gmp-dune-buggy/issues"
+  },
+  "homepage": "https://github.com/greghutch/gmp-dune-buggy#readme",
+  "dependencies": {
+    "@google-cloud/logging": "^9.6.1",
+    "googleapis": "^88.2.0",
+    "lodash": "^4.17.21",
+    "open": "^8.2.1",
+    "yargs": "^17.2.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0"
+  }
+}
