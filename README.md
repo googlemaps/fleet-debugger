@@ -44,7 +44,7 @@ Generate sharable artifact
 ```
 # Generate data files
 dune-buggy.js historical --apikey <your api key> --vehicle=my-vehicle-id
-# start UI (should open up browser to localhost:3000
+# build sharable, static artifact.  Any webserver should be able to host this.
 npm run build
 tar -czf support-dump.tgz build
 ```
