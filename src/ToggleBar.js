@@ -34,6 +34,9 @@ function ToggleBar(props) {
       <ButtonToggle active={props.showSpeed} onClick={props.onClickSpeed}>
         Speed
       </ButtonToggle>
+      <ButtonToggle active={props.showTraffic} onClick={props.onClickTraffic}>
+        Traffic
+      </ButtonToggle>
     </ButtonGroup>
   );
 }
