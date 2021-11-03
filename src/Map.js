@@ -264,7 +264,7 @@ toggleHandlers["showHeading"] = GenerateBubbles(
     if (!(heading && accuracy)) {
       return;
     }
-    return new google.maps.Polyline({
+    const headingLine = new google.maps.Polyline({
       strokeColor: "#0000F0",
       strokeOpacity: 0.6,
       strokeWeight: 2,
@@ -273,6 +273,7 @@ toggleHandlers["showHeading"] = GenerateBubbles(
           icon: {
             path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
             strokeColor: "#0000FF",
+            strokeWeight: 4,
           },
           offset: "100%",
         },
@@ -287,6 +288,23 @@ toggleHandlers["showHeading"] = GenerateBubbles(
         ),
       ],
     });
+    google.maps.event.addListener(headingLine, "click", () => {
+      console.log("gots click on", heading, rawLocationLatLng);
+      const panorama = new google.maps.StreetViewPanorama(
+        document.getElementById("map"),
+        {
+          position: rawLocationLatLng,
+          pov: { heading: heading, pitch: 10 },
+          addressControlOptions: {
+            position: google.maps.ControlPosition.BOTTOM_CENTER,
+          },
+          linksControl: false,
+          panControl: false,
+          enableCloseButton: true,
+        }
+      );
+    });
+    return headingLine;
   }
 );
 
