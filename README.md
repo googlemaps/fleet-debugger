@@ -1,6 +1,6 @@
 # Fleet Debugger Tool
 
-A debugging tool for use with the stateful Last Mile Fleet Solutions and On Demaind Rides and
+A debugging tool for use with the stateful Last Mile Fleet Solutions and On Demand Rides and
 Deliveries solutions.
 
 ## Disclaimer
@@ -15,6 +15,7 @@ Download & install node
 Download & install gcloud
 
 ### Setup authentication
+
 ```
 gcloud config set project <your project id>
 gcloud auth login
@@ -27,20 +28,39 @@ gcloud auth application-default login
 npm install
 ```
 
-
 ## Examples
 
-View current data from my-vehicle-id via journey sharing SDK
+View historical data from my-vehicle-id via journey sharing SDK
 
 ```
-herbie.js live --apikey <your api key> --vehicle=my-vehicle-id
+# Generate data files
+dune-buggy.js historical --apikey <your api key> --vehicle=my-vehicle-id
+# start UI (should open up browser to localhost:3000
+npm start
 ```
 
-View historical data from my-vehicle-id
+Generate sharable artifact
+
 ```
-herbie.js historical --apikey <your api key> --vehicle=my-vehicle-id
+# Generate data files
+dune-buggy.js historical --apikey <your api key> --vehicle=my-vehicle-id
+# start UI (should open up browser to localhost:3000
+npm run build
+tar -czf support-dump.tgz build
 ```
 
-## UI
+## Key Features
+
+Filter & Inspect log messages
+
+Customize which fields are shown in table view
+
+View important status changes: vehicle status, trip status, navigation status
+
+View raw GPS information, including location, accuracy & heading
+
+Visualize multiple trips for one vehicle
+
+Visualize vehicle speeds
 
 ![Screenshot](docs/screenshots/fleetdebugger.png)
