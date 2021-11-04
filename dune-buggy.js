@@ -79,8 +79,6 @@ async function main() {
   let tripLogs = [];
   if (trip_ids.length > 0) {
     console.log("gots trip_ids", trip_ids);
-    // TODO: handle multiple trips, instead of just trip_ids[0]
-    // TODO: fix sorting of log entries
     tripLogs = await logging.fetchLogs(
       "trip_id",
       trip_ids,
