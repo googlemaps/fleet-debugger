@@ -17,6 +17,7 @@ let map;
 let pathCoords;
 let rawLogs;
 let dataMakers = [];
+let trafficLayer;
 const bubbleMap = {};
 const toggleHandlers = {};
 
@@ -334,8 +335,19 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
   }
 );
 
-function updateMapToggles(toggleName, enabbled) {
-  toggleHandlers[toggleName](enabbled);
+toggleHandlers["showTraffic"] = function(enabled) {
+   if (!trafficLayer) {
+      trafficLayer = new google.maps.TrafficLayer();
+   }
+   if (enabled) {
+      trafficLayer.setMap(map);
+   } else {
+      trafficLayer.setMap(null);
+   }
+}
+
+function updateMapToggles(toggleName, enabled) {
+  toggleHandlers[toggleName](enabled);
 }
 
 export {

@@ -31,6 +31,7 @@ class App extends React.Component {
         showGPSBubbles: false,
         showHeading: false,
         showSpeed: false,
+        showTraffic: false,
       },
     };
     // Realtime updates are too heavy.  There must be a better/ react way
@@ -92,6 +93,13 @@ class App extends React.Component {
   }
 
   /*
+   * Updates react state assocated with the traffic layer
+   */
+  onClickTraffic() {
+    this.updateColumns("showTraffic", []);
+  }
+
+  /*
    * Updates react state associated with the slider and calls into
    * the non-react map code to do the same.
    */
@@ -149,6 +157,8 @@ class App extends React.Component {
           onClickSpeed={() => this.onClickSpeed()}
           showHeading={this.state.toggleOptions.showHeading}
           onClickHeading={() => this.onClickHeading()}
+          showTraffic={this.state.toggleOptions.showTraffic}
+          onClickTraffic={() => this.onClickTraffic()}
         />
         <div style={{ width: "100%", marginTop: "20px" }}>
           <div style={{ width: "65%", overflowX: "scroll", float: "left" }}>
