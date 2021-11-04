@@ -20,6 +20,7 @@ let dataMakers = [];
 let trafficLayer;
 const bubbleMap = {};
 const toggleHandlers = {};
+let panorama;
 
 const render = (status: Status): ReactElement => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
@@ -290,8 +291,9 @@ toggleHandlers["showHeading"] = GenerateBubbles(
       ],
     });
     google.maps.event.addListener(headingLine, "click", () => {
-      console.log("gots click on", heading, rawLocationLatLng);
-      const panorama = new google.maps.StreetViewPanorama(
+      // TODO: allow updating panorama based on forward/back
+      // stepper buttons (ie at each updatevehicle log we have a heading)
+      panorama = new google.maps.StreetViewPanorama(
         document.getElementById("map"),
         {
           position: rawLocationLatLng,
