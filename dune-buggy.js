@@ -68,7 +68,7 @@ async function main() {
   console.log("Loading logs for ", argv.vehicle);
   const rawVehicleLogs = await logging.fetchLogs(
     "vehicle_id",
-    argv.vehicle,
+    [argv.vehicle],
     argv.daysAgo
   );
   const trip_ids = _(rawVehicleLogs)
@@ -76,16 +76,25 @@ async function main() {
     .uniq()
     .compact()
     .value();
-  console.log("gots trip_ids", trip_ids);
-  // TODO: handle multiple trips, instead of just trip_ids[0]
-  // TODO: fix sorting of log entries
-  const tripLogs = await logging.fetchLogs(
-    "trip_id",
-    trip_ids[0],
-    argv.daysAgo,
-    "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
-  );
-  const rawLogs = _(rawVehicleLogs).concat(tripLogs).value(); //.sortBy(x => new Date(x.timestamp).getTime()).value();
+  let tripLogs = [];
+  if (trip_ids.length > 0) {
+    console.log("gots trip_ids", trip_ids);
+    // TODO: handle multiple trips, instead of just trip_ids[0]
+    // TODO: fix sorting of log entries
+    tripLogs = await logging.fetchLogs(
+      "trip_id",
+      trip_ids,
+      argv.daysAgo,
+      "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
+    );
+  } else {
+    console.log(`no trips associated with vehicle ${argv.vehicle}`);
+  }
+  const rawLogs = _(rawVehicleLogs)
+    .concat(tripLogs)
+    .sortBy((x) => new Date(x.timestamp).getTime())
+    .reverse()
+    .value();
   const filePath = `src/rawData.js`;
   const params = {
     APIKEY: argv.apikey,

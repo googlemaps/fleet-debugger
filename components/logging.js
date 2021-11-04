@@ -21,34 +21,38 @@ const _ = require("lodash");
 const fs = require("fs");
 
 /*
- * For now, the get_trip/get_task logs are too noisy and don't have any visualization 
+ * For now, the get_trip/get_task logs are too noisy and don't have any visualization
  * integrations.
  */
 const interestingLogs = [
-   // ODRD
-   'create_vehicle',
-   'update_vehicle',
-   'get_vehicle',
-   'create_trip',
-   'update_trip',
-   // LMFS
-   'create_task',
-   'update_task',
-   'create_delivery_vehicle',
-   'update_delivery_vehicle',
+  // ODRD
+  "create_vehicle",
+  "update_vehicle",
+  "get_vehicle",
+  "create_trip",
+  "update_trip",
+  // LMFS
+  "create_task",
+  "update_task",
+  "create_delivery_vehicle",
+  "update_delivery_vehicle",
 ];
 
 /**
  * Uses cloud logging APIs to list log entries from the
  * fleet engine resource matching the specified label.
  */
-async function fetchLogs(label, lableValue, daysAgo = 2, extra = "") {
-  const endPoint = 'fleetengine.googleapis.com';
+async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
+  const endPoint = "fleetengine.googleapis.com";
   const resourceName = "projects/" + auth.getProjectId();
   // TODO better handling of date range for search: allow start/end
   let startDate = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
-  const logFilterString = _.map(interestingLogs, logName => `${resourceName}/logs/${endPoint}%2F${logName}`).join(' OR ');
-  const filterString = `resource.type=fleetengine.googleapis.com/Fleet labels.${label}=${lableValue} timestamp>="${startDate.toISOString()}" ${extra} log_name=(${logFilterString})`;
+  const logFilterString = _.map(
+    interestingLogs,
+    (logName) => `${resourceName}/logs/${endPoint}%2F${logName}`
+  ).join(" OR ");
+  const labelFilterString = labelValues.join(" OR ");
+  const filterString = `resource.type=fleetengine.googleapis.com/Fleet labels.${label}=(${labelFilterString}) timestamp>="${startDate.toISOString()}" ${extra} log_name=(${logFilterString})`;
   console.log("log filter", filterString);
   let entries = [];
   try {

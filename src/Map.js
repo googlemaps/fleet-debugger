@@ -337,16 +337,16 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
   }
 );
 
-toggleHandlers["showTraffic"] = function(enabled) {
-   if (!trafficLayer) {
-      trafficLayer = new google.maps.TrafficLayer();
-   }
-   if (enabled) {
-      trafficLayer.setMap(map);
-   } else {
-      trafficLayer.setMap(null);
-   }
-}
+toggleHandlers["showTraffic"] = function (enabled) {
+  if (!trafficLayer) {
+    trafficLayer = new google.maps.TrafficLayer();
+  }
+  if (enabled) {
+    trafficLayer.setMap(map);
+  } else {
+    trafficLayer.setMap(null);
+  }
+};
 
 function updateMapToggles(toggleName, enabled) {
   toggleHandlers[toggleName](enabled);
