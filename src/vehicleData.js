@@ -35,5 +35,7 @@ _.map(rawLogs, (le) => {
 });
 
 const apikey = parsedJsonData.APIKEY;
+const jwt = parsedJsonData.jwt;
+const projectId = parsedJsonData.projectId;
 
-export { rawLogs as default, pathCoords, apikey };
+export { rawLogs as default, pathCoords, apikey, jwt, projectId };

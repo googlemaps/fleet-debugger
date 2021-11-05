@@ -33,6 +33,7 @@ class App extends React.Component {
         showSpeed: false,
         showTraffic: false,
         showDwellLocations: false,
+        showLiveJS: false,
       },
     };
     // Realtime updates are too heavy.  There must be a better/ react way
@@ -108,6 +109,13 @@ class App extends React.Component {
   }
 
   /*
+   * Updates react state assocated with the live journey sharing
+   */
+  onClickLiveJS() {
+    this.updateColumns("showLiveJS", []);
+  }
+
+  /*
    * Updates react state associated with the slider and calls into
    * the non-react map code to do the same.
    */
@@ -169,6 +177,8 @@ class App extends React.Component {
           onClickTraffic={() => this.onClickTraffic()}
           showDwellLocations={this.state.toggleOptions.showDwellLocations}
           onClickDwellLocations={() => this.onClickDwellLocations()}
+          showLiveJS={this.state.toggleOptions.showLiveJS}
+          onClickLiveJS={() => this.onClickLiveJS()}
         />
         <div style={{ width: "100%", marginTop: "20px" }}>
           <div

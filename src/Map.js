@@ -22,6 +22,9 @@ let trafficLayer;
 const bubbleMap = {};
 const toggleHandlers = {};
 let panorama;
+let jwt;
+let projectId;
+let locationProvider;
 
 const render = (status) => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
@@ -88,11 +91,42 @@ function addTripPolys(map) {
   return vehicleBounds;
 }
 
+/*
+ * Creates the map object using a journeySharing location
+ * provider.
+ */
+function initializeMapObject(element) {
+  // In a more normal implementation authTokenFetcher
+  // would actually be making a RPC to a backend to generate
+  // the jwt.  For debugging use cases the jwt gets bundled into
+  // the extracted log data.
+  function authTokenFetcher(options) {
+    // TODO #25 - bake in actual expiration time -- and give a
+    // better error message for expired jwts
+    console.log("Ignoring options using prebuilt jwt", options);
+    const authToken = {
+      token: jwt,
+    };
+    return authToken;
+  }
+
+  locationProvider =
+    new google.maps.journeySharing.FleetEngineTripLocationProvider({
+      projectId,
+      authTokenFetcher,
+    });
+  const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
+    element: element,
+    locationProvider,
+  });
+  return jsMapView.map;
+}
+
 function MyMapComponent() {
   const ref = useRef();
 
   useEffect(() => {
-    map = new window.google.maps.Map(ref.current, {});
+    map = initializeMapObject(ref.current);
     const vehicleBounds = addTripPolys(map);
     map.fitBounds(vehicleBounds);
   });
@@ -124,9 +158,16 @@ function Map(props) {
   rawLogs = props.logData.rawLogs;
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
+  jwt = props.logData.jwt;
+  projectId = props.logData.projectId;
 
   return (
-    <Wrapper apiKey={apikey} render={render} libraries={["geometry"]}>
+    <Wrapper
+      apiKey={apikey}
+      render={render}
+      version="beta"
+      libraries={["geometry", "journeySharing"]}
+    >
       <MyMapComponent />
     </Wrapper>
   );
@@ -333,6 +374,9 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
   }
 );
 
+/*
+ * Enable/disables live traffic layer
+ */
 toggleHandlers["showTraffic"] = function (enabled) {
   if (!trafficLayer) {
     trafficLayer = new google.maps.TrafficLayer();
@@ -406,6 +450,25 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
         radius: dl.updates * 3, // make dwell times more obvious
       });
     });
+  }
+};
+
+/*
+ * Enable/disables live journey sharing view
+ */
+toggleHandlers["showLiveJS"] = function (enabled) {
+  if (!jwt) {
+    console.log("Issue #25 -- no/invalid jwt");
+    return;
+  }
+  // call into js to set the trip
+  if (enabled) {
+    const trips = _(pathCoords).map("trip_id").uniq().value();
+    if (trips.length > 0) {
+      locationProvider.tripId = trips[0];
+    }
+  } else {
+    locationProvider.tripId = "";
   }
 };
 

@@ -42,6 +42,9 @@ function ToggleBar(props) {
       <ButtonToggle active={props.showTraffic} onClick={props.onClickTraffic}>
         Traffic
       </ButtonToggle>
+      <ButtonToggle active={props.showLiveJS} onClick={props.onClickLiveJS}>
+        Start Live Journey Sharing for newest trip
+      </ButtonToggle>
     </ButtonGroup>
   );
 }
