@@ -9,12 +9,23 @@
 import _ from "lodash";
 import parsedJsonData from "./rawData";
 const rawLogs = parsedJsonData.rawLogs;
+const jwt = parsedJsonData.jwt;
+const projectId = parsedJsonData.projectId;
+const apikey = parsedJsonData.APIKEY;
+const solutionType = parsedJsonData.solutionType;
+
+//TODO refactor log processing, remove logic from
+//Map.js, expose things ilke groupingLabel?
+//const groupingLabel = solutionType === "ODRD" ? "trip_id" : "task_id";
+const updateVehicleSuffix =
+  solutionType === "LMFS" ? "update_delivery_vehicle" : "update_vehicle";
+
 // TODO: handle non-trip segments (ie online, but not trip
 // assigned).
 const pathCoords = _(parsedJsonData.rawLogs)
   .filter(
     (l) =>
-      l.logName.endsWith("update_vehicle") &&
+      l.logName.endsWith(updateVehicleSuffix) &&
       _.get(l, "jsonPayload.response.lastLocation.rawLocation")
   )
   .map((l) => {
@@ -23,6 +34,7 @@ const pathCoords = _(parsedJsonData.rawLogs)
       lat: lastLocation.rawLocation.latitude,
       lng: lastLocation.rawLocation.longitude,
       trip_id: l.labels.trip_id,
+      task_id: l.labels.task_id,
       date: new Date(l.timestamp),
     };
   })
@@ -34,8 +46,4 @@ _.map(rawLogs, (le) => {
   le.timestampMS = le.date.getTime();
 });
 
-const apikey = parsedJsonData.APIKEY;
-const jwt = parsedJsonData.jwt;
-const projectId = parsedJsonData.projectId;
-
-export { rawLogs as default, pathCoords, apikey, jwt, projectId };
+export { rawLogs as default, pathCoords, apikey, jwt, projectId, solutionType };

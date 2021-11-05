@@ -25,6 +25,7 @@ let panorama;
 let jwt;
 let projectId;
 let locationProvider;
+let solutionType;
 
 const render = (status) => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
@@ -38,12 +39,17 @@ function addTripPolys(map) {
   _.forEach(allMarkers, (m) => m.setMap(null));
   allMarkers = [];
 
-  const trips = _(pathCoords).map("trip_id").uniq().value();
+  const groupingLabel = solutionType === "LMFS" ? "task_id" : "trip_id";
+
+  const trips = _(pathCoords).map(groupingLabel).uniq().value();
   const vehicleBounds = new window.google.maps.LatLngBounds();
 
   let firstPoly = true;
   _.forEach(trips, (trip_id) => {
-    const fullTripCoords = _.filter(pathCoords, (c) => c.trip_id === trip_id);
+    const fullTripCoords = _.filter(
+      pathCoords,
+      (c) => c[groupingLabel] === trip_id
+    );
     const tripCoords = _.filter(
       fullTripCoords,
       (c) => !minDate || (c.date >= minDate && c.date <= maxDate)
@@ -160,6 +166,7 @@ function Map(props) {
   apikey = urlParams.get("apikey") || props.logData.apikey;
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
+  solutionType = props.logData.solutionType;
 
   return (
     <Wrapper
