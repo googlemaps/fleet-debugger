@@ -56,7 +56,7 @@ function Table({ columns, data, onSelectionChange }) {
         ))}
       </thead>
       <tbody {...getTableBodyProps()}>
-        {rows.map((row, i) => {
+        {rows.map((row) => {
           prepareRow(row);
           return (
             <tr
