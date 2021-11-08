@@ -30,8 +30,8 @@ function openPage(filePath) {
  */
 function servePage(filePath) {
   http
-    .createServer(function (req, res) {
-      fs.readFile(filePath, function (err, data) {
+    .createServer((req, res) => {
+      fs.readFile(filePath, (err, data) => {
         if (err) {
           res.writeHead(404);
           res.end(JSON.stringify(err));
