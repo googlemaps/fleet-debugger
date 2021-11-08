@@ -3,7 +3,6 @@
  *
  * Row of buttons that configure visualization options on the map
  */
-import React from "react";
 import styled from "styled-components";
 const Button = styled.button``;
 const ButtonToggle = styled(Button)`

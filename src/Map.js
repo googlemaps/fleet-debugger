@@ -6,7 +6,7 @@
  * act like a normal react component.
  */
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
-import React, { useEffect, useRef, ReactElement } from "react";
+import { useEffect, useRef } from "react";
 import _ from "lodash";
 
 let minDate;
@@ -22,7 +22,7 @@ const bubbleMap = {};
 const toggleHandlers = {};
 let panorama;
 
-const render = (status: Status): ReactElement => {
+const render = (status) => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
   if (status === Status.FAILURE) return <h3>{status} ...</h3>;
   return null;
@@ -38,7 +38,7 @@ function addTripPolys(map) {
   const vehicleBounds = new window.google.maps.LatLngBounds();
 
   let firstPoly = true;
-  _.forEach(trips, (trip_id, trip_idx) => {
+  _.forEach(trips, (trip_id) => {
     const fullTripCoords = _.filter(pathCoords, (c) => c.trip_id === trip_id);
     const tripCoords = _.filter(
       fullTripCoords,
@@ -87,13 +87,7 @@ function addTripPolys(map) {
   return vehicleBounds;
 }
 
-function MyMapComponent({
-  center,
-  zoom,
-}: {
-  center: google.maps.LatLngLiteral,
-  zoom: number,
-}) {
+function MyMapComponent() {
   const ref = useRef();
 
   useEffect(() => {
@@ -106,7 +100,7 @@ function MyMapComponent({
 }
 
 function getPolyBounds(bounds, p) {
-  p.getPath().forEach(function (e) {
+  p.getPath().forEach((e) => {
     bounds.extend(e);
   });
   return bounds;
@@ -226,7 +220,7 @@ function GenerateBubbles(bubbleName, cb) {
  */
 toggleHandlers["showGPSBubbles"] = GenerateBubbles(
   "showGPSBubbles",
-  (rawLocationLatLng, lastLocation, logEntry) => {
+  (rawLocationLatLng, lastLocation) => {
     const accuracy = lastLocation.rawLocationAccuracy;
     if (accuracy) {
       return new google.maps.Circle({
@@ -306,6 +300,7 @@ toggleHandlers["showHeading"] = GenerateBubbles(
           enableCloseButton: true,
         }
       );
+      console.log("loaded panorama", panorama);
     });
     return headingLine;
   }
@@ -317,7 +312,7 @@ toggleHandlers["showHeading"] = GenerateBubbles(
  */
 toggleHandlers["showSpeed"] = GenerateBubbles(
   "showSpeed",
-  (rawLocationLatLng, lastLocation, logEntry) => {
+  (rawLocationLatLng, lastLocation) => {
     const speed = lastLocation.speed;
     if (lastLocation.speed === undefined) {
       return;
