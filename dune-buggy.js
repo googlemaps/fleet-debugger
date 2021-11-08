@@ -51,10 +51,11 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
 const argv = yargs.argv;
 
 /*
- * Extract trip_ids from vehicle logs, and query again to 
+ * Extract trip_ids from vehicle logs, and query again to load
+ * create trip logs -- which aren't labeled by vehicle_id.
  */
 async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
-   console.log('Loading trip logs for vehicle', vehicle_id);
+   console.log('Loading trip logs for vehicle id', vehicle_id);
      const trip_ids = _(vehicleLogs)
        .map((x) => _.get(x, "labels.trip_id"))
        .uniq()
