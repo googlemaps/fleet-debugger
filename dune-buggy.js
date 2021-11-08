@@ -50,12 +50,42 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
   });
 const argv = yargs.argv;
 
+/*
+ * Extract trip_ids from vehicle logs, and query again to load
+ * create trip logs -- which aren't labeled by vehicle_id.
+ */
+async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
+   console.log('Loading trip logs for vehicle id', vehicle_id);
+     const trip_ids = _(vehicleLogs)
+       .map((x) => _.get(x, "labels.trip_id"))
+       .uniq()
+       .compact()
+       .value();
+     let tripLogs = [];
+     if (trip_ids.length > 0) {
+       console.log("gots trip_ids", trip_ids);
+       tripLogs = await logging.fetchLogs(
+         "trip_id",
+         trip_ids,
+         argv.daysAgo,
+         "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
+       );
+     } else {
+       console.log(`no trips associated with vehicle ${argv.vehicle}`);
+     }
+   return tripLogs;
+}
+
+let label, labelVal;
 async function main() {
   if (argv.vehicle) {
-    console.log("the vehicle id is:", argv.vehicle);
+    console.log("Fetching logs for vehicle id", argv.vehicle);
+    label = 'vehicle_id';
+    labelVal = argv.vehicle;
   } else if (argv.trip) {
-    console.log("Not implemented yet: the trip id is:", argv.trip);
-    return;
+    console.log("Fetching logs for trip id", argv.trip);
+    label = 'trip_id';
+    labelVal = argv.trip;
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
@@ -65,38 +95,24 @@ async function main() {
   }
 
   await auth.init();
-  console.log("Loading logs for ", argv.vehicle);
-  const rawVehicleLogs = await logging.fetchLogs(
-    "vehicle_id",
-    [argv.vehicle],
+  let rawLogs = await logging.fetchLogs(
+    label,
+    [labelVal],
     argv.daysAgo
   );
-  const trip_ids = _(rawVehicleLogs)
-    .map((x) => _.get(x, "labels.trip_id"))
-    .uniq()
-    .compact()
-    .value();
-  let tripLogs = [];
-  if (trip_ids.length > 0) {
-    console.log("gots trip_ids", trip_ids);
-    tripLogs = await logging.fetchLogs(
-      "trip_id",
-      trip_ids,
-      argv.daysAgo,
-      "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
-    );
-  } else {
-    console.log(`no trips associated with vehicle ${argv.vehicle}`);
+  let tripLogs =[];
+  if (argv.vehicle) {
+     tripLogs = await fetchTripLogsForVehicle(rawLogs, argv.vehicle);
   }
-  const rawLogs = _(rawVehicleLogs)
+  rawLogs = _(rawLogs)
     .concat(tripLogs)
     .sortBy((x) => new Date(x.timestamp).getTime())
     .reverse()
     .value();
+
   const filePath = `src/rawData.js`;
   const params = {
     APIKEY: argv.apikey,
-    // Sorting happens when writing out logs
     rawLogs: rawLogs,
     jwt: await auth.mintJWT(),
     projectId: auth.getProjectId(),
