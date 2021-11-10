@@ -123,7 +123,11 @@ function Map(props) {
   rawLogs = props.logData.rawLogs;
 
   return (
-    <Wrapper apiKey="AIzaSyACBHVQLegKXY5TOX0RcY0A_ugq3cAMmv4" render={render}>
+    <Wrapper
+      apiKey="AIzaSyACBHVQLegKXY5TOX0RcY0A_ugq3cAMmv4"
+      render={render}
+      libraries={["geometry"]}
+    >
       <MyMapComponent />
     </Wrapper>
   );
@@ -338,6 +342,71 @@ toggleHandlers["showTraffic"] = function (enabled) {
     trafficLayer.setMap(map);
   } else {
     trafficLayer.setMap(null);
+  }
+};
+
+/*
+ * Rudimentary dwell location compution.  A lot of issues:
+ *    - Uses size of circle to represent dwell times ... which is confusing
+ *      w.r.t which points make up this cluster. (ie overlapping circles when
+ *      dwell locations are close by).  Should those dwell locations merged?
+ *    - Doesn't compute an actual dwell time, instead assumes UpdateVehicle requests
+ *      are 10 seconds apart
+ *    - A cluster should be within maxDistance as well as maxTime in order to be considered
+ *      (right now clusters can be created at a location where multiple trips over days cross)
+ *    - dwell times are fuzzy. Sliders for the time & distance components might be interesting
+ *    - Doesn't respect min/max time filters from the time slider
+ *    - computation of dwell times is slow -- should cache results when turning on & off to avoid
+ *      unnecessary precomputation
+ *    - dwellLocations could be sarted by time to improve cluster lookup
+ *
+ *  See https://stackoverflow.com/questions/36928654/leader-clustering-algorithm-explanation for a
+ *  description of the very simplistic algo used here.
+ */
+function computeDwellLocations() {
+  const maxDistance = 20; // meters
+  const requiredUpdates = 12; // aka 2 minute assuming update vehicle request at 10 seconds
+
+  const dwellLocations = [];
+  _.forEach(pathCoords, (coord) => {
+    const cluster = _.find(
+      dwellLocations,
+      (dl) =>
+        google.maps.geometry.spherical.computeDistanceBetween(
+          dl.leaderCoords,
+          new google.maps.LatLng(coord)
+        ) <= maxDistance
+    );
+    if (cluster) {
+      cluster.updates++;
+    } else {
+      dwellLocations.push({
+        leaderCoords: new google.maps.LatLng(coord),
+        updates: 1,
+      });
+    }
+  });
+
+  return _.filter(dwellLocations, (dl) => dl.updates >= requiredUpdates);
+}
+
+toggleHandlers["showDwellLocations"] = function (enabled) {
+  const bubbleName = "dwellLocations";
+  const dwellLocations = computeDwellLocations();
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+  if (enabled) {
+    bubbleMap[bubbleName] = _.map(dwellLocations, (dl) => {
+      return new google.maps.Circle({
+        strokeColor: "#000000",
+        strokeOpacity: 0.25,
+        fillColor: "#FFFF00",
+        fillOpacity: 0.25,
+        map,
+        center: dl.leaderCoords,
+        radius: dl.updates * 3, // make dwell times more obvious
+      });
+    });
   }
 };
 
