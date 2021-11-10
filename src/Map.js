@@ -317,9 +317,7 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
     if (lastLocation.speed === undefined) {
       return;
     }
-    // multiple by 3 to attempt to use full range
-    const clampedSpeed = 255 - Math.min(255, Math.round(Math.abs(speed) * 3));
-    const color = "#50" + clampedSpeed.toString(16).padStart(2, "0") + "50";
+    const color = speed < 0 ? "#FF0000" : "#00FF00";
     return new google.maps.Circle({
       strokeColor: color,
       strokeOpacity: 0.5,
@@ -327,7 +325,7 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
       fillOpacity: 0.5,
       map,
       center: rawLocationLatLng,
-      radius: 10,
+      radius: Math.abs(speed),
     });
   }
 );
