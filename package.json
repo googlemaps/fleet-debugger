@@ -52,7 +52,8 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "format": "eslint . --fix",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "docs": "echo NOT IMPLEMENTED"
   },
   "eslintConfig": {
     "extends": [
