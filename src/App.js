@@ -161,7 +161,15 @@ class App extends React.Component {
           onClickTraffic={() => this.onClickTraffic()}
         />
         <div style={{ width: "100%", marginTop: "20px" }}>
-          <div style={{ width: "65%", overflowX: "scroll", float: "left" }}>
+          <div
+            style={{
+              width: "65%",
+              overflowX: "scroll",
+              overFlowY: "scroll",
+              height: "100%",
+              float: "left",
+            }}
+          >
             <LogTable
               logData={this.logData}
               style={{ width: "100%" }}
@@ -172,7 +180,14 @@ class App extends React.Component {
               }
             />
           </div>
-          <div style={{ marginLeft: "65%" }}>
+          <div
+            style={{
+              marginLeft: "65%",
+              overFlowX: "scroll",
+              overFlowY: "scroll",
+              height: "100%",
+            }}
+          >
             <Dataframe
               featuredObject={this.state.featuredObject}
               onClick={(select) => this.onDataframePropClick(select)}

@@ -55,36 +55,36 @@ const argv = yargs.argv;
  * create trip logs -- which aren't labeled by vehicle_id.
  */
 async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
-   console.log('Loading trip logs for vehicle id', vehicle_id);
-     const trip_ids = _(vehicleLogs)
-       .map((x) => _.get(x, "labels.trip_id"))
-       .uniq()
-       .compact()
-       .value();
-     let tripLogs = [];
-     if (trip_ids.length > 0) {
-       console.log("gots trip_ids", trip_ids);
-       tripLogs = await logging.fetchLogs(
-         "trip_id",
-         trip_ids,
-         argv.daysAgo,
-         "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
-       );
-     } else {
-       console.log(`no trips associated with vehicle ${argv.vehicle}`);
-     }
-   return tripLogs;
+  console.log("Loading trip logs for vehicle id", vehicle_id);
+  const trip_ids = _(vehicleLogs)
+    .map((x) => _.get(x, "labels.trip_id"))
+    .uniq()
+    .compact()
+    .value();
+  let tripLogs = [];
+  if (trip_ids.length > 0) {
+    console.log("gots trip_ids", trip_ids);
+    tripLogs = await logging.fetchLogs(
+      "trip_id",
+      trip_ids,
+      argv.daysAgo,
+      "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
+    );
+  } else {
+    console.log(`no trips associated with vehicle ${argv.vehicle}`);
+  }
+  return tripLogs;
 }
 
 let label, labelVal;
 async function main() {
   if (argv.vehicle) {
     console.log("Fetching logs for vehicle id", argv.vehicle);
-    label = 'vehicle_id';
+    label = "vehicle_id";
     labelVal = argv.vehicle;
   } else if (argv.trip) {
     console.log("Fetching logs for trip id", argv.trip);
-    label = 'trip_id';
+    label = "trip_id";
     labelVal = argv.trip;
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
@@ -95,14 +95,10 @@ async function main() {
   }
 
   await auth.init();
-  let rawLogs = await logging.fetchLogs(
-    label,
-    [labelVal],
-    argv.daysAgo
-  );
-  let tripLogs =[];
+  let rawLogs = await logging.fetchLogs(label, [labelVal], argv.daysAgo);
+  let tripLogs = [];
   if (argv.vehicle) {
-     tripLogs = await fetchTripLogsForVehicle(rawLogs, argv.vehicle);
+    tripLogs = await fetchTripLogsForVehicle(rawLogs, argv.vehicle);
   }
   rawLogs = _(rawLogs)
     .concat(tripLogs)
