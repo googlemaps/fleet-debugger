@@ -57,7 +57,8 @@ const argv = yargs.argv;
 async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
   console.log("Loading trip logs for vehicle id", vehicle_id);
   const trip_ids = _(vehicleLogs)
-    .map((x) => _.get(x, "labels.trip_id"))
+    .map((x) => _.split(_.get(x, "labels.trip_id"), ","))
+    .flatten()
     .uniq()
     .compact()
     .value();
