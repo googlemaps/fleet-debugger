@@ -32,6 +32,7 @@ class App extends React.Component {
         showHeading: false,
         showSpeed: false,
         showTraffic: false,
+        showDwellLocations: false,
       },
     };
     // Realtime updates are too heavy.  There must be a better/ react way
@@ -100,6 +101,13 @@ class App extends React.Component {
   }
 
   /*
+   * Updates react state assocated with the dwellLocations layer
+   */
+  onClickDwellLocations() {
+    this.updateColumns("showDwellLocations", []);
+  }
+
+  /*
    * Updates react state associated with the slider and calls into
    * the non-react map code to do the same.
    */
@@ -159,6 +167,8 @@ class App extends React.Component {
           onClickHeading={() => this.onClickHeading()}
           showTraffic={this.state.toggleOptions.showTraffic}
           onClickTraffic={() => this.onClickTraffic()}
+          showDwellLocations={this.state.toggleOptions.showDwellLocations}
+          onClickDwellLocations={() => this.onClickDwellLocations()}
         />
         <div style={{ width: "100%", marginTop: "20px" }}>
           <div
