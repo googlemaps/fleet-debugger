@@ -122,7 +122,8 @@ function getColor(trip_id) {
 function Map(props) {
   pathCoords = props.logData.pathCoords;
   rawLogs = props.logData.rawLogs;
-  apikey = props.logData.apikey;
+  const urlParams = new URLSearchParams(window.location.search);
+  apikey = urlParams.get("apikey") || props.logData.apikey;
 
   return (
     <Wrapper apiKey={apikey} render={render} libraries={["geometry"]}>
