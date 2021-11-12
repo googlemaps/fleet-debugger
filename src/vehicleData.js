@@ -34,4 +34,6 @@ _.map(rawLogs, (le) => {
   le.timestampMS = le.date.getTime();
 });
 
-export { rawLogs as default, pathCoords };
+const apikey = parsedJsonData.APIKEY;
+
+export { rawLogs as default, pathCoords, apikey };

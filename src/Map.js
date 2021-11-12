@@ -16,6 +16,7 @@ let allMarkers = [];
 let map;
 let pathCoords;
 let rawLogs;
+let apikey;
 let dataMakers = [];
 let trafficLayer;
 const bubbleMap = {};
@@ -121,13 +122,10 @@ function getColor(trip_id) {
 function Map(props) {
   pathCoords = props.logData.pathCoords;
   rawLogs = props.logData.rawLogs;
+  apikey = props.logData.apikey;
 
   return (
-    <Wrapper
-      apiKey="AIzaSyACBHVQLegKXY5TOX0RcY0A_ugq3cAMmv4"
-      render={render}
-      libraries={["geometry"]}
-    >
+    <Wrapper apiKey={apikey} render={render} libraries={["geometry"]}>
       <MyMapComponent />
     </Wrapper>
   );
