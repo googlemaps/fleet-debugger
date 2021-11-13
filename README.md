@@ -3,6 +3,8 @@
 A debugging tool for use with the stateful Last Mile Fleet Solutions and On Demand Rides and
 Deliveries solutions.
 
+![Screenshot](docs/screenshots/fleetdebugger.png)
+
 ## Disclaimer
 
 This is not an officially supported Google product
@@ -59,8 +61,13 @@ View important status changes: vehicle status, trip status, navigation status
 
 View raw GPS information, including location, accuracy & heading
 
-Visualize multiple trips for one vehicle
+### Comprehensive, Pre-built Visualizations
+* Visualize multiple trips for one vehicle
+* [Replay Vehicle Movement](docs/ReplaceVehicleMovement.md)
+* [GPS Accuracy](docs/GPSAccuracy.md)
+* [Vehicle Speed](docs/Speed.md)
+* [Vehicle Heading](docs/Heading.md)
+* [Dwell Times](docs/DwellTimes.md)
 
-Visualize vehicle speeds
-
-![Screenshot](docs/screenshots/fleetdebugger.png)
+### Extensibility
+   * Easily add aditional related data from cloud logging
