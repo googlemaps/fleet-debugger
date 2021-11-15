@@ -16,7 +16,6 @@
  */
 const process = require("process");
 const auth = require("./components/auth.js");
-//const browser = require("./components/browser.js");
 const logging = require("./components/logging.js");
 const _ = require("lodash");
 
@@ -95,38 +94,37 @@ async function main() {
     return;
   }
 
-  await auth.init();
-  let rawLogs = await logging.fetchLogs(label, [labelVal], argv.daysAgo);
+  const params = {
+    APIKEY: argv.apikey,
+    live: commands.live,
+    vehicle: argv.vehicle,
+  };
+
+  if (commands.historical) {
+    await auth.init();
+  } else if (commands.live) {
+    await auth.init();
+    params.jwt = await auth.mintJWT();
+    params.projectId = auth.getProjectId();
+  } else {
+    yargs.showHelp();
+    return;
+  }
+
+  const rawLogs = await logging.fetchLogs(label, [labelVal], argv.daysAgo);
   let tripLogs = [];
   if (argv.vehicle) {
     tripLogs = await fetchTripLogsForVehicle(rawLogs, argv.vehicle);
   }
-  rawLogs = _(rawLogs)
+  params.rawLogs = _(rawLogs)
     .concat(tripLogs)
     .sortBy((x) => new Date(x.timestamp).getTime())
     .reverse()
     .value();
 
   const filePath = `src/rawData.js`;
-  const params = {
-    APIKEY: argv.apikey,
-    rawLogs: rawLogs,
-    jwt: await auth.mintJWT(),
-    projectId: auth.getProjectId(),
-    live: commands.live,
-    vehicle: argv.vehicle,
-  };
 
   logging.writeLogs(filePath, params);
-  if (commands.historical) {
-    //TODO: call 'npm start' to fire up react front end
-    //browser.openPage(filePath);
-  } else if (commands.live) {
-    //TODO: call 'npm start' to fire up react front end
-    //browser.servePage(filePath);
-  } else {
-    yargs.showHelp();
-  }
 }
 
 main();
