@@ -14,8 +14,6 @@ let maxDate;
 let allPaths = [];
 let allMarkers = [];
 let map;
-let pathCoords;
-let rawLogs;
 let apikey;
 let dataMakers = [];
 let trafficLayer;
@@ -26,6 +24,8 @@ let jwt;
 let projectId;
 let locationProvider;
 let solutionType;
+let tripLogs;
+let setFeaturedObject;
 
 const render = (status) => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
@@ -39,61 +39,53 @@ function addTripPolys(map) {
   _.forEach(allMarkers, (m) => m.setMap(null));
   allMarkers = [];
 
-  const groupingLabel = solutionType === "LMFS" ? "task_id" : "trip_id";
-
-  const trips = _(pathCoords).map(groupingLabel).uniq().value();
+  const trips = tripLogs.getTrips();
   const vehicleBounds = new window.google.maps.LatLngBounds();
-
-  let firstPoly = true;
-  _.forEach(trips, (trip_id) => {
-    const fullTripCoords = _.filter(
-      pathCoords,
-      (c) => c[groupingLabel] === trip_id
-    );
-    const tripCoords = _.filter(
-      fullTripCoords,
-      (c) => !minDate || (c.date >= minDate && c.date <= maxDate)
-    );
+  let lastVehicleCoords;
+  _.forEach(trips, (trip) => {
+    const tripCoords = trip.getPathCoords(minDate, maxDate);
     if (tripCoords.length > 0) {
-      let icons = [];
-
-      //Add marker for "current vehicle location"  This isn't quite correct:
-      //it doesn't handle non-trip segements properly
-      if (firstPoly) {
-        firstPoly = false;
-        icons.push({
-          icon: {
-            path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-            strokeColor: "#0000FF",
-          },
-          offset: "0%",
-        });
-      }
-
+      lastVehicleCoords = _.last(tripCoords);
       const path = new window.google.maps.Polyline({
         path: tripCoords,
-        icons: icons,
         geodesic: true,
-        strokeColor: getColor(trip_id),
-        strokeOpacity: 0.75,
+        strokeColor: getColor(trip.tripIdx),
+        strokeOpacity: 0.5,
         strokeWeight: 6,
+      });
+      google.maps.event.addListener(path, "mouseover", () => {
+        path.setOptions({
+          strokeOpacity: 1,
+          strokeWeight: 8,
+        });
+      });
+      google.maps.event.addListener(path, "mouseout", () => {
+        path.setOptions({
+          strokeOpacity: 0.5,
+          strokeWeight: 6,
+        });
+      });
+      google.maps.event.addListener(path, "click", () => {
+        setFeaturedObject(trip.getFeaturedData());
       });
       getPolyBounds(vehicleBounds, path);
       path.setMap(map);
-      const startCoords = fullTripCoords[0];
-      // TODO: add symbols to polyline to indicate important parts of polyline
-      // (ie trip or vehicle status changes)
-      if (startCoords.date >= minDate && startCoords.date <= maxDate) {
-        const startTrip = new window.google.maps.Marker({
-          position: startCoords,
-          map: map,
-          title: "Start Trip " + trip_id,
-        });
-        allMarkers.push(startTrip);
-      }
       allPaths.push(path);
     }
   });
+  if (lastVehicleCoords) {
+    const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
+    const lastVehicleLocMark = new window.google.maps.Marker({
+      position: lastVehicleCoords,
+      map: map,
+      icon: {
+        url: urlBase + (solutionType === "LMFS" ? "truck.png" : "cabs.png"),
+        scaledSize: new google.maps.Size(25, 25),
+      },
+      title: "Last Location",
+    });
+    allMarkers.push(lastVehicleLocMark);
+  }
   return vehicleBounds;
 }
 
@@ -148,20 +140,23 @@ function getPolyBounds(bounds, p) {
 }
 
 /*
- * Deterministically assign a color per trip by hasing the tripid.
+ * Deterministically assign a color per trip using tripIdx
  * Colors were chosen for visibility
  */
-function getColor(trip_id) {
-  const colors = ["#2d7dd2", "#97cc04", "#eeb902", "#f45d01", "#474647"];
-  const simpleHash = _(trip_id)
-    .map((x) => x.charCodeAt(0))
-    .sum();
-  return colors[simpleHash % colors.length];
+function getColor(tripIdx) {
+  const colors = [
+    "#2d7dd2",
+    "#97cc04",
+    "#eeb902",
+    "#f45d01",
+    "#474647",
+    "00aa00",
+  ];
+  return colors[tripIdx % colors.length];
 }
 
 function Map(props) {
-  pathCoords = props.logData.pathCoords;
-  rawLogs = props.logData.rawLogs;
+  tripLogs = props.logData.tripLogs;
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
   jwt = props.logData.jwt;
@@ -241,8 +236,8 @@ function GenerateBubbles(bubbleName, cb) {
     _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
     delete bubbleMap[bubbleName];
     if (showBubble) {
-      bubbleMap[bubbleName] = _(rawLogs)
-        .filter((le) => !minDate || (le.date >= minDate && le.date <= maxDate))
+      bubbleMap[bubbleName] = tripLogs
+        .getRawLogs_(minDate, maxDate)
         .map((le) => {
           const lastLocation = _.get(le, "jsonPayload.response.lastLocation");
           let rawLocation;
@@ -395,54 +390,9 @@ toggleHandlers["showTraffic"] = function (enabled) {
   }
 };
 
-/*
- * Rudimentary dwell location compution.  A lot of issues:
- *    - Uses size of circle to represent dwell times ... which is confusing
- *      w.r.t which points make up this cluster. (ie overlapping circles when
- *      dwell locations are close by).  Should those dwell locations merged?
- *    - Doesn't compute an actual dwell time, instead assumes UpdateVehicle requests
- *      are 10 seconds apart
- *    - A cluster should be within maxDistance as well as maxTime in order to be considered
- *      (right now clusters can be created at a location where multiple trips over days cross)
- *    - dwell times are fuzzy. Sliders for the time & distance components might be interesting
- *    - Doesn't respect min/max time filters from the time slider
- *    - computation of dwell times is slow -- should cache results when turning on & off to avoid
- *      unnecessary precomputation
- *    - dwellLocations could be sarted by time to improve cluster lookup
- *
- *  See https://stackoverflow.com/questions/36928654/leader-clustering-algorithm-explanation for a
- *  description of the very simplistic algo used here.
- */
-function computeDwellLocations() {
-  const maxDistance = 20; // meters
-  const requiredUpdates = 12; // aka 2 minute assuming update vehicle request at 10 seconds
-
-  const dwellLocations = [];
-  _.forEach(pathCoords, (coord) => {
-    const cluster = _.find(
-      dwellLocations,
-      (dl) =>
-        google.maps.geometry.spherical.computeDistanceBetween(
-          dl.leaderCoords,
-          new google.maps.LatLng(coord)
-        ) <= maxDistance
-    );
-    if (cluster) {
-      cluster.updates++;
-    } else {
-      dwellLocations.push({
-        leaderCoords: new google.maps.LatLng(coord),
-        updates: 1,
-      });
-    }
-  });
-
-  return _.filter(dwellLocations, (dl) => dl.updates >= requiredUpdates);
-}
-
 toggleHandlers["showDwellLocations"] = function (enabled) {
-  const bubbleName = "dwellLocations";
-  const dwellLocations = computeDwellLocations();
+  const bubbleName = "showDwellLocations";
+  const dwellLocations = tripLogs.getDwellLocations(minDate, maxDate);
   _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
   delete bubbleMap[bubbleName];
   if (enabled) {
@@ -470,10 +420,7 @@ toggleHandlers["showLiveJS"] = function (enabled) {
   }
   // call into js to set the trip
   if (enabled) {
-    const trips = _(pathCoords).map("trip_id").uniq().value();
-    if (trips.length > 0) {
-      locationProvider.tripId = trips[0];
-    }
+    locationProvider.tripId = _.last(tripLogs.getTripIDs());
   } else {
     locationProvider.tripId = "";
   }
@@ -483,9 +430,20 @@ function updateMapToggles(toggleName, enabled) {
   toggleHandlers[toggleName](enabled);
 }
 
+/*
+ * Register handlers that allow this code to call
+ * into react components.  (ie display trip data
+ * in the object viewer component when a vehicle track
+ * polyline  is clicked on).
+ */
+function registerHandlers(featureObject) {
+  setFeaturedObject = featureObject;
+}
+
 export {
   Map as default,
   onSliderChangeMap,
   addMarkersToMapForData,
   updateMapToggles,
+  registerHandlers,
 };

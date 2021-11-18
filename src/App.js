@@ -9,6 +9,7 @@ import {
   onSliderChangeMap,
   addMarkersToMapForData,
   updateMapToggles,
+  registerHandlers,
 } from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
@@ -41,6 +42,9 @@ class App extends React.Component {
       (timeRange) => this.onSliderChange(timeRange),
       25
     );
+
+    // Allow map code to set which object is featured
+    registerHandlers((fo) => this.setFeaturedObject(fo));
   }
 
   updateColumns(toggleName, jsonPaths) {
@@ -136,7 +140,14 @@ class App extends React.Component {
    */
   onSelectionChange(selectedRow) {
     addMarkersToMapForData(selectedRow);
-    this.setState({ featuredObject: selectedRow });
+    this.setFeaturedObject(selectedRow);
+  }
+
+  /*
+   * Set the featured object
+   */
+  setFeaturedObject(featuredObject) {
+    this.setState({ featuredObject: featuredObject });
   }
 
   /*

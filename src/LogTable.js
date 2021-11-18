@@ -85,14 +85,8 @@ const TrimCell = ({ value, trim }) => {
 function LogTable(props) {
   const minDate = props.timeRange.minDate;
   const maxDate = props.timeRange.maxDate;
-  // Filter entries to specified time range
-  const data = _(props.logData.rawLogs)
-    .filter((le) => {
-      return (
-        !minDate || (le.timestampMS >= minDate && le.timestampMS <= maxDate)
-      );
-    })
-    .reverse()
+  const data = props.logData.tripLogs
+    .getRawLogs_(new Date(minDate), new Date(maxDate))
     .value();
 
   const columns = React.useMemo(() => {
