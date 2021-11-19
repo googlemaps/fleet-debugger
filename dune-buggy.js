@@ -50,10 +50,14 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
 const argv = yargs.argv;
 
 /*
- * Extract trip_ids from vehicle logs, and query again to load
- * create trip logs -- which aren't labeled by vehicle_id.
+ * Extract trip_ids from vehicle logs, and query again to
+ * get the createTrip/update trip calls that may not be labeled
+ * with a vehicle
  */
-async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
+async function fetchTripLogsForVehicle(vehicle_id, vehicleLogs) {
+  if (!vehicle_id) {
+    return [];
+  }
   console.log("Loading trip logs for vehicle id", vehicle_id);
   const trip_ids = _(vehicleLogs)
     .map((x) => _.split(_.get(x, "labels.trip_id"), ","))
@@ -63,7 +67,7 @@ async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
     .value();
   let tripLogs = [];
   if (trip_ids.length > 0) {
-    console.log("gots trip_ids", trip_ids);
+    console.log("trip_ids found", trip_ids);
     tripLogs = await logging.fetchLogs(
       "trip_id",
       trip_ids,
@@ -71,21 +75,74 @@ async function fetchTripLogsForVehicle(vehicleLogs, vehicle_id) {
       "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
     );
   } else {
-    console.log(`no trips associated with vehicle ${argv.vehicle}`);
+    console.log(`no trips associated with vehicle id ${argv.vehicle}`);
   }
   return tripLogs;
 }
 
-let label, labelVal;
+/*
+ * Extract task_ids from vehicle logs, and query again to
+ * get the createTask/updateTask calls that may not be labeled
+ * with a vehicle
+ */
+async function fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
+  if (!vehicle_id) {
+    return [];
+  }
+  console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
+  const task_ids = _(vehicleLogs)
+    .map((logEntry) =>
+      _.get(logEntry, "jsonPayload.response.remainingVehicleJourneySegments")
+    )
+    .flatten()
+    .map((segment) => _.get(segment, "stop.tasks"))
+    .flatten()
+    .map((tasks) => _.get(tasks, "taskId"))
+    .flatten()
+    .uniq()
+    .compact()
+    .value();
+  let taskLogs = [];
+  if (task_ids.length > 0) {
+    console.log("gots task_ids", task_ids);
+    taskLogs = await logging.fetchLogs("task_id", task_ids, argv.daysAgo);
+  } else {
+    console.log(`no tasks associated with vehicle id ${argv.vehicle}`);
+  }
+  return taskLogs;
+}
+
+async function fetchVehicleLogs(vehicle, trip) {
+  const label = vehicle ? "vehicle_id" : "trip_id";
+  const labelVal = vehicle ? vehicle : trip;
+
+  console.log(`Fetching logs for ${label} = ${labelVal}`);
+  return await logging.fetchLogs(label, [labelVal], argv.daysAgo);
+}
+
+async function fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs) {
+  if (vehicleLogs.length !== 0) {
+    // regular vehicle logs found, not a deliveryVehicle
+    return [];
+  }
+  // TODO: is it more efficient to run the log query twice
+  // or to update the log filter with an OR?
+  //
+  // Could also force the user to specify which type of vehicle they're interested
+  // in on the command line -- but that seems unfriendly & error prone
+  console.log("fetching logs for deliveryVehicle", deliveryVehicle);
+  return await logging.fetchLogs(
+    "delivery_vehicle_id",
+    [deliveryVehicle],
+    argv.daysAgo
+  );
+}
+
 async function main() {
   if (argv.vehicle) {
     console.log("Fetching logs for vehicle id", argv.vehicle);
-    label = "vehicle_id";
-    labelVal = argv.vehicle;
   } else if (argv.trip) {
     console.log("Fetching logs for trip id", argv.trip);
-    label = "trip_id";
-    labelVal = argv.trip;
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
@@ -93,6 +150,7 @@ async function main() {
     yargs.showHelp();
     return;
   }
+  // TODO: error if both trip & vehicle being set
 
   const params = {
     APIKEY: argv.apikey,
@@ -111,17 +169,35 @@ async function main() {
     return;
   }
 
-  const rawLogs = await logging.fetchLogs(label, [labelVal], argv.daysAgo);
-  let tripLogs = [];
-  if (argv.vehicle) {
-    tripLogs = await fetchTripLogsForVehicle(rawLogs, argv.vehicle);
-  }
-  params.rawLogs = _(rawLogs)
+  // TOOD: handle lookup by task -- task logs are trickier in than
+  // updateDeliveryVehicleLogs aren't labeled with the task, since there
+  // are many tasks at any given time(unlike how
+  // relevant updateVehicleLogs are labeled by a trip_id)
+  const vehicleLogs = await fetchVehicleLogs(argv.vehicle, argv.trip);
+  const deliveryVehicleLogs = await fetchDeliveryVehicleLogs(
+    argv.vehicle,
+    vehicleLogs
+  );
+  const taskLogs = await fetchTaskLogsForVehicle(
+    argv.vehicle,
+    deliveryVehicleLogs
+  );
+  const tripLogs = await fetchTripLogsForVehicle(argv.vehicle, vehicleLogs);
+
+  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
+
+  params.rawLogs = _(vehicleLogs)
     .concat(tripLogs)
+    .concat(deliveryVehicleLogs)
+    .concat(taskLogs)
     .sortBy((x) => new Date(x.timestamp).getTime())
     .reverse()
     .value();
 
+  if (params.rawLogs.length === 0) {
+    console.error("\n\nError:No log entries found\n\n");
+    return;
+  }
   const filePath = `src/rawData.js`;
 
   logging.writeLogs(filePath, params);
