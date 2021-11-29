@@ -9,6 +9,14 @@ Deliveries solutions.
 
 This is not an officially supported Google product
 
+## Demos
+
+
+* [Demo with GPS accurracy issues](https://greghutch.github.io/fleet-debugger-demos/jump/)
+* [Demo with multiple trips](https://greghutch.github.io/fleet-debugger-demos/multiple-trips/)
+* [Demo with LMFS tasks](https://greghutch.github.io/fleet-debugger-demos/lmfs/)
+
+
 ## Getting Started
 
 ### Dependencies
@@ -68,6 +76,7 @@ View raw GPS information, including location, accuracy & heading
 * [Vehicle Speed](docs/Speed.md)
 * [Vehicle Heading](docs/Heading.md)
 * [Dwell Times](docs/DwellTimes.md)
+
 
 ### Extensibility
    * Easily add aditional related data from cloud logging

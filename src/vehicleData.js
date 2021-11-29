@@ -7,12 +7,12 @@
  * to be regenerated each time
  */
 import _ from "lodash";
-import parsedJsonData from "./rawData";
-const rawLogs = _.reverse(parsedJsonData.rawLogs);
-const jwt = parsedJsonData.jwt;
-const projectId = parsedJsonData.projectId;
-const apikey = parsedJsonData.APIKEY;
-const solutionType = parsedJsonData.solutionType;
+import { parsedData } from "./rawData";
+const rawLogs = _.reverse(parsedData.rawLogs);
+const jwt = parsedData.jwt;
+const projectId = parsedData.projectId;
+const apikey = parsedData.APIKEY;
+const solutionType = parsedData.solutionType;
 import TripLogs from "./TripLogs";
 
 //  annotate with Dates & timestapms
