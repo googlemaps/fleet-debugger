@@ -15,49 +15,31 @@ const { createSliderWithTooltip } = Slider;
 const Range = createSliderWithTooltip(Slider.Range);
 
 const style = { width: "100%" };
-const marks = {};
 
 function TimeSlider(props) {
-  const rawLogs = props.logData.rawLogs;
-  let lastState = undefined;
-  let lastStatus = undefined;
-  const stateChanges = [];
-  const statusChanges = [];
-  // TODO: Ideally separetly styled marks for the main status changes:
-  // vehicle status, trip state, navigation status
-  //
-  // TODO State and status changes really need a view of the logs
-  // processed for an entire trip.   With that information
-  // it might be possible to color the ranges in the slider
-  // separately (ie green or enroute to pickup, red for enroute to dropoff)
-  _.forEach(rawLogs, (le) => {
-    const state = _.get(le, "jsonPayload.response.state");
-    if (state !== lastState) {
-      stateChanges.push({
-        timestampMS: le.timestampMS,
-        newState: state,
-      });
-      lastState = state;
-    }
-    const status = _.get(le, "jsonPayload.response.status");
-    if (status !== lastStatus) {
-      statusChanges.push({
-        timestampMS: le.timestampMS,
-        newStatus: status,
-      });
-      marks[le.timestampMS] = {};
-      lastStatus = status;
-    }
+  const tripLogs = props.logData.tripLogs;
+  const marks = {};
+
+  // Add marks showing when trip status changed.
+  // Ideally label by trip status change ... but labels overrun & look ugly
+  _.map(tripLogs.getTripStatusChanges(), (change) => {
+    marks[change.date.getTime()] = {};
   });
 
-  const maxVal = rawLogs[0].timestampMS;
-  const minVal = _.last(rawLogs).timestampMS;
+  const minVal = tripLogs.minDate.getTime();
+  const maxVal = tripLogs.maxDate.getTime();
 
   function onChange(value) {
     props.onSliderChange({
       minDate: value[0],
       maxDate: value[1],
     });
+  }
+
+  function formatTooltip(value) {
+    const d = new Date(value);
+    const tripStatus = tripLogs.getTripStatusAtDate(new Date(value));
+    return `${d}${tripStatus}`;
   }
 
   return (
@@ -69,7 +51,7 @@ function TimeSlider(props) {
         step={1}
         onChange={onChange}
         defaultValue={[minVal, maxVal]}
-        tipFormatter={(value) => `${new Date(value)}%`}
+        tipFormatter={formatTooltip}
       />
     </div>
   );
