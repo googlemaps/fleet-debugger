@@ -12,9 +12,9 @@ This is not an officially supported Google product
 ## Demos
 
 
-* [Demo with GPS accurracy issues](https://greghutch.github.io/fleet-debugger-demos/jump/)
-* [Demo with multiple trips](https://greghutch.github.io/fleet-debugger-demos/multiple-trips/)
-* [Demo with LMFS tasks](https://greghutch.github.io/fleet-debugger-demos/lmfs/)
+* [Demo with GPS accurracy issues](https://googlemaps.github.io/fleet-debugger/demos/jump/)
+* [Demo with multiple trips](https://googlemaps.github.io/fleet-debugger/demos/multiple-trips/)
+* [Demo with LMFS tasks](https://googlemaps.github.io/fleet-debugger/demos/lmfs/)
 
 
 ## Getting Started
