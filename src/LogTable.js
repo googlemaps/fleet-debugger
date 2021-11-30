@@ -83,10 +83,10 @@ const TrimCell = ({ value, trim }) => {
 };
 
 function LogTable(props) {
-  const minDate = props.timeRange.minDate;
-  const maxDate = props.timeRange.maxDate;
+  const minTime = props.timeRange.minTime;
+  const maxTime = props.timeRange.maxTime;
   const data = props.logData.tripLogs
-    .getRawLogs_(new Date(minDate), new Date(maxDate))
+    .getLogs_(new Date(minTime), new Date(maxTime))
     .value();
 
   const columns = React.useMemo(() => {

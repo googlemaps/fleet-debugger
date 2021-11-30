@@ -7,6 +7,8 @@
  */
 import _ from "lodash";
 import Trip from "./Trip";
+import HighVelocityJump from "./HighVelocityJump";
+import MissingUpdate from "./MissingUpdate";
 
 const maxDistanceForDwell = 20; // meters
 const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle request at 10 seconds
@@ -14,10 +16,15 @@ const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle requ
 class TripLogs {
   constructor(rawLogs, solutionType) {
     this.solutionType = solutionType;
-    this.updateVehicleSuffix =
-      this.solutionType === "LMFS"
-        ? "update_delivery_vehicle"
-        : "update_vehicle";
+    if (this.solutionType === "LMFS") {
+      this.updateVehicleSuffix = "update_delivery_vehicle";
+      this.lastLocationPath =
+        "jsonPayload.request.deliveryVehicle.lastLocation";
+    } else {
+      this.updateVehicleSuffix = "update_vehicle";
+      this.vehicleName = "vehicle";
+      this.lastLocationPath = "jsonPayload.request.vehicle.lastLocation";
+    }
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
@@ -25,6 +32,9 @@ class TripLogs {
     this.processTripSegments();
     this.minDate = new Date(rawLogs[0].timestamp);
     this.maxDate = new Date(_.last(rawLogs).timestamp);
+    this.velocityJumps = [];
+    this.missingUpdates = [];
+    this.dwellLocations = [];
   }
 
   getRawLogs_(minDate, maxDate) {
@@ -33,6 +43,14 @@ class TripLogs {
     return _(this.rawLogs).filter(
       (le) => le.date >= minDate && le.date <= maxDate
     );
+  }
+
+  getLogs_(minDate, maxDate) {
+    return this.getRawLogs_(minDate, maxDate)
+      .concat(this.velocityJumps.map((j) => j.getLogViewerEntry()))
+      .concat(this.missingUpdates.map((u) => u.getLogViewerEntry()))
+      .filter((le) => le.date >= minDate && le.date <= maxDate)
+      .sortBy("timestampMS");
   }
 
   getTripStatusChanges() {
@@ -57,6 +75,56 @@ class TripLogs {
   }
 
   /*
+   * Vehicles should be updating positions every 5 seconds
+   * (configurable?).  Compute places where updates are missing.
+   * aka "Temporal jumps".  This will be places where the
+   * app crashed, the user went off line, lost cell signal, etc.
+   */
+  getMissingUpdates(minDate, maxDate) {
+    let prevEntry;
+    let entries = this.getRawLogs_(minDate, maxDate)
+      .filter((le) => _.get(le, this.lastLocationPath + ".rawLocation"))
+      .map((curEntry) => {
+        let ret;
+        if (prevEntry) {
+          ret = new MissingUpdate(curEntry.idx, prevEntry, curEntry);
+        }
+
+        prevEntry = curEntry;
+        return ret;
+      })
+      .compact()
+      .value();
+
+    this.missingUpdates = MissingUpdate.getSignificantMissingUpdates(entries);
+    return this.missingUpdates;
+  }
+
+  /*
+   * Computes & returns jumps where the vehicle moved
+   * at an unrealistic velocity.
+   */
+  getHighVelocityJumps(minDate, maxDate) {
+    let prevEntry;
+    let entries = this.getRawLogs_(minDate, maxDate)
+      .filter((le) => _.get(le, this.lastLocationPath + ".rawLocation"))
+      .map((curEntry) => {
+        let ret;
+        if (prevEntry) {
+          ret = new HighVelocityJump(curEntry.idx, prevEntry, curEntry);
+        }
+
+        prevEntry = curEntry;
+        return ret;
+      })
+      .compact()
+      .value();
+
+    this.velocityJumps = HighVelocityJump.getSignificantJumps(entries);
+    return this.velocityJumps;
+  }
+
+  /*
    * Rudimentary dwell location compution.  A lot of issues:
    *    - Uses size of circle to represent dwell times ... which is confusing
    *      w.r.t which points make up this cluster. (ie overlapping circles when
@@ -77,10 +145,7 @@ class TripLogs {
   getDwellLocations(minDate, maxDate) {
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
-      const lastLocation = _.get(
-        le,
-        "jsonPayload.request.vehicle.lastLocation"
-      );
+      const lastLocation = _.get(le, this.lastLocationPath);
       if (
         !lastLocation ||
         !lastLocation.rawLocation ||
@@ -111,10 +176,12 @@ class TripLogs {
       }
     });
 
-    return _.filter(
+    this.dwellLocations = _.filter(
       dwellLocations,
       (dl) => dl.updates >= requiredUpdatesForDwell
     );
+
+    return this.dwellLocations;
   }
 
   getSegmentID(logEntry) {
@@ -157,15 +224,12 @@ class TripLogs {
             nonTripIdx++;
           }
         } else {
-          curTripData.lastUpdateTime = new Date(le.timestamp);
+          curTripData.lastUpdate = new Date(le.timestamp);
           curTripData.tripDuration =
-            curTripData.lastUpdateTime - curTripData.firstUpdateTime;
+            curTripData.lastUpdate - curTripData.firstUpdate;
           curTripData.updateRequests++;
         }
-        const lastLocation = _.get(
-          le,
-          "jsonPayload.request.vehicle.lastLocation"
-        );
+        const lastLocation = _.get(le, this.lastLocationPath);
         if (lastLocation && lastLocation.rawLocation) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
