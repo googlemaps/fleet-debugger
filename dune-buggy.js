@@ -163,11 +163,14 @@ async function main() {
   } else if (commands.live) {
     await auth.init();
     params.jwt = await auth.mintJWT();
-    params.projectId = auth.getProjectId();
   } else {
     yargs.showHelp();
     return;
   }
+
+  // Always include project id -- it's used
+  // by utils/clean-demos.js
+  params.projectId = auth.getProjectId();
 
   // TOOD: handle lookup by task -- task logs are trickier in than
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
