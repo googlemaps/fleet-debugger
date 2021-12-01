@@ -77,7 +77,10 @@ class TripLogs {
   getDwellLocations(minDate, maxDate) {
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
-      const lastLocation = _.get(le, "jsonPayload.response.lastLocation");
+      const lastLocation = _.get(
+        le,
+        "jsonPayload.request.vehicle.lastLocation"
+      );
       if (
         !lastLocation ||
         !lastLocation.rawLocation ||
@@ -159,7 +162,10 @@ class TripLogs {
             curTripData.lastUpdateTime - curTripData.firstUpdateTime;
           curTripData.updateRequests++;
         }
-        const lastLocation = le.jsonPayload.response.lastLocation;
+        const lastLocation = _.get(
+          le,
+          "jsonPayload.request.vehicle.lastLocation"
+        );
         if (lastLocation && lastLocation.rawLocation) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
