@@ -209,7 +209,7 @@ function addMarkersToMapForData(data) {
 
   const rawLocation = _.get(
     data,
-    "jsonPayload.response.lastLocation.rawLocation"
+    "jsonPayload.request.vehicle.lastLocation.rawLocation"
   );
   if (rawLocation) {
     const status = _.get(data, "jsonPayload.response.status");
@@ -239,7 +239,10 @@ function GenerateBubbles(bubbleName, cb) {
       bubbleMap[bubbleName] = tripLogs
         .getRawLogs_(minDate, maxDate)
         .map((le) => {
-          const lastLocation = _.get(le, "jsonPayload.response.lastLocation");
+          const lastLocation = _.get(
+            le,
+            "jsonPayload.request.vehicle.lastLocation"
+          );
           let rawLocation;
           let bubble = undefined;
           if (lastLocation && (rawLocation = lastLocation.rawLocation)) {
