@@ -51,6 +51,12 @@ function ToggleBar(props) {
       >
         Jumps (Temporal)
       </ButtonToggle>
+      <ButtonToggle
+        active={props.showClientServerTimeDeltas}
+        onClick={props.onClickClientServerTimeDeltas}
+      >
+        Client/Server Time Deltas
+      </ButtonToggle>
       <ButtonToggle active={props.showTraffic} onClick={props.onClickTraffic}>
         Traffic
       </ButtonToggle>

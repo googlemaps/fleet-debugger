@@ -39,6 +39,7 @@ class App extends React.Component {
         showHighVelocityJumps: false,
         showMissingUpdates: false,
         showLiveJS: false,
+        showClientServerTimeDeltas: false,
       },
     };
     // Realtime updates are too heavy.  There must be a better/ react way
@@ -82,6 +83,7 @@ class App extends React.Component {
   onClickGPSBubbles() {
     this.updateColumns("showGPSBubbles", [
       "jsonPayload.request.vehicle.lastLocation.rawLocationAccuracy",
+      "jsonPayload.request.vehicle.lastLocation.locSensor",
     ]);
   }
 
@@ -134,6 +136,16 @@ class App extends React.Component {
    */
   onClickMissingUpdates() {
     this.updateColumns("showMissingUpdates", ["jsonPayload.temporal_gap"]);
+  }
+
+  /*
+   * Updates react state assocated with the missing updates layer
+   */
+  onClickClientServerTimeDeltas() {
+    this.updateColumns("showClientServerTimeDeltas", [
+      "jsonPayload.response.lastLocation.rawLocationTime",
+      "jsonPayload.response.lastLocation.serverTime",
+    ]);
   }
 
   /*
@@ -227,6 +239,12 @@ class App extends React.Component {
           onClickMissingUpdates={() => this.onClickMissingUpdates()}
           showLiveJS={this.state.toggleOptions.showLiveJS}
           onClickLiveJS={() => this.onClickLiveJS()}
+          showClientServerTimeDeltas={
+            this.state.toggleOptions.showClientServerTimeDeltas
+          }
+          onClickClientServerTimeDeltas={() =>
+            this.onClickClientServerTimeDeltas()
+          }
         />
         <div style={{ width: "100%", marginTop: "20px" }}>
           <div
