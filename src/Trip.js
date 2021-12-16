@@ -5,40 +5,22 @@
  * about the trip
  */
 import _ from "lodash";
+import Utils from "./Utils";
 
 class Trip {
-  constructor(tripIdx, tripName, firstUpdateTime) {
+  constructor(tripIdx, tripName, firstUpdate) {
     this.tripIdx = tripIdx;
     this.tripName = tripName;
-    this.firstUpdateTime = firstUpdateTime;
     this.updateRequests = 1;
     this.pathCoords = [];
     this.tripDuration = 0;
     this.creationTime = "Unknown";
-    this.lastUpdateTime = "Unknown";
+    this.firstUpdate = firstUpdate;
+    this.lastUpdate = "Unknown";
   }
 
   getTraveledDistance() {
     return window.google.maps.geometry.spherical.computeLength(this.pathCoords);
-  }
-
-  getFormatDuration() {
-    let sec_num = this.tripDuration / 1000;
-    let hours = Math.floor(sec_num / 3600);
-    let minutes = Math.floor((sec_num - hours * 3600) / 60);
-    let seconds = Math.floor(sec_num - hours * 3600 - minutes * 60);
-    let timeStr = "";
-
-    if (hours > 0) {
-      timeStr += hours + " hours ";
-    }
-    if (minutes > 0) {
-      timeStr += minutes + " minutes ";
-    }
-    if (seconds > 0) {
-      timeStr += seconds + " seconds";
-    }
-    return timeStr;
   }
 
   /*
@@ -48,12 +30,12 @@ class Trip {
     return {
       updateRequests: this.updateRequests,
       tripName: this.tripName,
-      duration: this.getFormatDuration(),
+      duration: Utils.formatDuration(this.tripDuration),
       creationTime: this.creationTime,
-      firstUpdateTime: this.firstUpdateTime,
-      lastUpdateTime: this.lastUpdateTime,
       traveledDistanceKilometers: this.getTraveledDistance() / 1000,
       traveledDistanceMiles: this.getTraveledDistance() / 1609,
+      firstUpdate: this.firstUpdate,
+      lastUpdate: this.lastUpdate,
     };
   }
 

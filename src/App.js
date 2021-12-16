@@ -20,11 +20,13 @@ import _ from "lodash";
 class App extends React.Component {
   constructor(props) {
     super(props);
+    const nowDate = new Date();
     this.logData = props.logData;
     this.state = {
       timeRange: {
-        minDate: 0,
-        maxDate: new Date("1/1/2050").getTime(),
+        minTime: 0,
+        // default max time to 1 year in the future
+        maxTime: nowDate.setFullYear(nowDate.getFullYear() + 1),
       },
       featuredObject: { msg: "Click a table row to select object" },
       extraColumns: [],
@@ -34,6 +36,8 @@ class App extends React.Component {
         showSpeed: false,
         showTraffic: false,
         showDwellLocations: false,
+        showHighVelocityJumps: false,
+        showMissingUpdates: false,
         showLiveJS: false,
       },
     };
@@ -43,8 +47,12 @@ class App extends React.Component {
       25
     );
 
-    // Allow map code to set which object is featured
-    registerHandlers((fo) => this.setFeaturedObject(fo));
+    // Allow map code to set which object is featured, and
+    // adjust the timerange filtering
+    registerHandlers(
+      (fo) => this.setFeaturedObject(fo),
+      (minTime, maxTime) => this.setTimeRange(minTime, maxTime)
+    );
   }
 
   updateColumns(toggleName, jsonPaths) {
@@ -113,6 +121,22 @@ class App extends React.Component {
   }
 
   /*
+   * Updates react state assocated with the high velocity jumps layer
+   */
+  onClickHighVelocityJumps() {
+    this.updateColumns("showHighVelocityJumps", [
+      "jsonPayload.request.vehicle.lastLocation.speed",
+    ]);
+  }
+
+  /*
+   * Updates react state assocated with the missing updates layer
+   */
+  onClickMissingUpdates() {
+    this.updateColumns("showMissingUpdates", ["jsonPayload.temporal_gap"]);
+  }
+
+  /*
    * Updates react state assocated with the live journey sharing
    */
   onClickLiveJS() {
@@ -124,15 +148,7 @@ class App extends React.Component {
    * the non-react map code to do the same.
    */
   onSliderChange(timeRange) {
-    this.setState({
-      timeRange: {
-        minDate: timeRange.minDate,
-        maxDate: timeRange.maxDate,
-      },
-    });
-
-    // Handle Map component separately from standard state update
-    onSliderChangeMap(timeRange.minDate, timeRange.maxDate);
+    this.setTimeRange(timeRange.minTime, timeRange.maxTime);
   }
 
   /*
@@ -148,6 +164,21 @@ class App extends React.Component {
    */
   setFeaturedObject(featuredObject) {
     this.setState({ featuredObject: featuredObject });
+  }
+
+  /*
+   * exposes editing of the timeRange state
+   */
+  setTimeRange(minTime, maxTime) {
+    this.setState({
+      timeRange: {
+        minTime: minTime,
+        maxTime: maxTime,
+      },
+    });
+
+    // Handle Map component separately from standard state update
+    onSliderChangeMap(minTime, maxTime);
   }
 
   /*
@@ -175,6 +206,8 @@ class App extends React.Component {
       <div>
         <TimeSlider
           logData={this.logData}
+          curMin={this.state.timeRange.minTime}
+          curMax={this.state.timeRange.maxTime}
           onSliderChange={this.onSliderChangeDebounced}
         />
         <ToggleBar
@@ -188,6 +221,10 @@ class App extends React.Component {
           onClickTraffic={() => this.onClickTraffic()}
           showDwellLocations={this.state.toggleOptions.showDwellLocations}
           onClickDwellLocations={() => this.onClickDwellLocations()}
+          showHighVelocityJumps={this.state.toggleOptions.showHighVelocityJumps}
+          onClickHighVelocityJumps={() => this.onClickHighVelocityJumps()}
+          showMissingUpdates={this.state.toggleOptions.showMissingUpdates}
+          onClickMissingUpdates={() => this.onClickMissingUpdates()}
           showLiveJS={this.state.toggleOptions.showLiveJS}
           onClickLiveJS={() => this.onClickLiveJS()}
         />

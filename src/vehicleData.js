@@ -16,10 +16,11 @@ const solutionType = parsedData.solutionType;
 import TripLogs from "./TripLogs";
 
 //  annotate with Dates & timestapms
-_.map(rawLogs, (le) => {
+_.map(rawLogs, (le, idx) => {
   le.date = new Date(le.timestamp);
-  le.formattedDate = le.date.toString();
+  le.formattedDate = le.date.toISOString();
   le.timestampMS = le.date.getTime();
+  le.idx = idx;
 });
 
 const tripLogs = new TripLogs(rawLogs, solutionType);

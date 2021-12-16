@@ -26,6 +26,7 @@ let locationProvider;
 let solutionType;
 let tripLogs;
 let setFeaturedObject;
+let setTimeRange;
 
 const render = (status) => {
   if (status === Status.LOADING) return <h3>{status} ..</h3>;
@@ -66,7 +67,11 @@ function addTripPolys(map) {
         });
       });
       google.maps.event.addListener(path, "click", () => {
-        setFeaturedObject(trip.getFeaturedData());
+        const fd = trip.getFeaturedData();
+        setFeaturedObject(fd);
+        // TODO: https://github.com/googlemaps/fleet-debugger/issues/79
+        // this time range won't capture the createTrip logs
+        setTimeRange(fd.firstUpdate.getTime(), fd.lastUpdate.getTime());
       });
       getPolyBounds(vehicleBounds, path);
       path.setMap(map);
@@ -157,6 +162,8 @@ function getColor(tripIdx) {
 
 function Map(props) {
   tripLogs = props.logData.tripLogs;
+  minDate = tripLogs.minDate.getTime();
+  maxDate = tripLogs.maxDate.getTime();
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
   jwt = props.logData.jwt;
@@ -237,7 +244,7 @@ function GenerateBubbles(bubbleName, cb) {
     delete bubbleMap[bubbleName];
     if (showBubble) {
       bubbleMap[bubbleName] = tripLogs
-        .getRawLogs_(minDate, maxDate)
+        .getLogs_(minDate, maxDate)
         .map((le) => {
           const lastLocation = _.get(
             le,
@@ -393,6 +400,10 @@ toggleHandlers["showTraffic"] = function (enabled) {
   }
 };
 
+/*
+ * Draws circles on the map. Size indicates dwell time at that
+ * location.
+ */
 toggleHandlers["showDwellLocations"] = function (enabled) {
   const bubbleName = "showDwellLocations";
   const dwellLocations = tripLogs.getDwellLocations(minDate, maxDate);
@@ -410,6 +421,192 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
         radius: dl.updates * 3, // make dwell times more obvious
       });
     });
+  }
+};
+
+/*
+ * Draws arrows on the map showing where a vehicle jumped
+ * from one location to another at an unrealistic velocity.
+ */
+toggleHandlers["showHighVelocityJumps"] = function (enabled) {
+  const bubbleName = "showHighVelocityJumps";
+  const jumps = tripLogs.getHighVelocityJumps(minDate, maxDate);
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+  if (enabled) {
+    bubbleMap[bubbleName] = _(jumps)
+      .map((jump) => {
+        function getStrokeWeight(velocity) {
+          if (velocity <= 100) {
+            return 2;
+          } else if (velocity < 1000) {
+            return 6;
+          } else if (velocity < 2000) {
+            return 10;
+          } else {
+            return 14;
+          }
+        }
+        const path = new window.google.maps.Polyline({
+          path: [jump.startLoc, jump.endLoc],
+          geodesic: true,
+          strokeColor: getColor(jump.jumpIdx),
+          strokeOpacity: 0.8,
+          strokeWeight: getStrokeWeight(jump.velocity),
+          map: map,
+          icons: [
+            {
+              icon: {
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                strokeColor: getColor(jump.jumpIdx),
+                strokeWeight: getStrokeWeight(jump.velocity),
+              },
+              offset: "100%",
+            },
+          ],
+        });
+        google.maps.event.addListener(path, "mouseover", () => {
+          setFeaturedObject(jump.getFeaturedData());
+        });
+        google.maps.event.addListener(path, "click", () => {
+          setFeaturedObject(jump.getFeaturedData());
+          // show a minute +/- on each side of a jump
+          setTimeRange(
+            jump.startDate.getTime() - 60 * 1000,
+            jump.endDate.getTime() + 60 * 1000
+          );
+        });
+        return [path];
+      })
+      .flatten()
+      .value();
+  } else {
+    // TODO: ideally reset to timerange that was selected before enabling
+    // jump view
+    setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
+  }
+};
+
+/*
+ * Marks locations on the map where we did not get the expected
+ * updateVehicle requests
+ */
+toggleHandlers["showMissingUpdates"] = function (enabled) {
+  const bubbleName = "showMissingUpdates";
+  const missingUpdates = tripLogs.getMissingUpdates(minDate, maxDate);
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+  if (enabled) {
+    bubbleMap[bubbleName] = _(missingUpdates)
+      .map((update) => {
+        function getStrokeWeight(interval) {
+          if (interval <= 60 * 1000) {
+            return 2;
+          } else if (interval < 60 * 10 * 1000) {
+            return 6;
+          } else if (interval < 60 * 60 * 10 * 1000) {
+            return 10;
+          } else {
+            return 14;
+          }
+        }
+        const heading = google.maps.geometry.spherical.computeHeading(
+          update.startLoc,
+          update.endLoc
+        );
+        const offsetHeading = ((heading + 360 + 90) % 360) - 180;
+        const points = [
+          update.startLoc,
+          google.maps.geometry.spherical.computeOffset(
+            update.startLoc,
+            1000, //TODO compute based on viewport?
+            offsetHeading
+          ),
+          google.maps.geometry.spherical.computeOffset(
+            update.startLoc,
+            900, //TODO compute based on viewport?
+            offsetHeading
+          ),
+          google.maps.geometry.spherical.computeOffset(
+            update.endLoc,
+            900, //TODO compute based on viewport?
+            offsetHeading
+          ),
+          google.maps.geometry.spherical.computeOffset(
+            update.endLoc,
+            1000, //TODO compute based on viewport?
+            offsetHeading
+          ),
+          update.endLoc,
+        ];
+        const path = new window.google.maps.Polyline({
+          path: points,
+          geodesic: true,
+          strokeColor: "#008B8B",
+          strokeOpacity: 0.5,
+          strokeWeight: getStrokeWeight(update.interval),
+          map: map,
+          icons: [
+            {
+              icon: {
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                strokeColor: "#008B8B",
+                strokeWeight: getStrokeWeight(update.interval),
+                scale: 6,
+              },
+              offset: "50%",
+            },
+            {
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 6,
+                strokeColor: "#000000",
+                strokeWeight: 1,
+                strokeOpacity: 0.5,
+              },
+              offset: "0%",
+            },
+            {
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 6,
+                strokeColor: "#000000",
+                strokeWeight: 1,
+                strokeOpacity: 0.5,
+              },
+              offset: "100%",
+            },
+          ],
+        });
+        google.maps.event.addListener(path, "mouseover", () => {
+          setFeaturedObject(update.getFeaturedData());
+          path.setOptions({
+            strokeOpacity: 1,
+            strokeWeight: 1.5 * getStrokeWeight(update.interval),
+          });
+        });
+        google.maps.event.addListener(path, "mouseout", () => {
+          path.setOptions({
+            strokeOpacity: 0.5,
+            strokeWeight: getStrokeWeight(update.interval),
+          });
+        });
+        google.maps.event.addListener(path, "click", () => {
+          setFeaturedObject(update.getFeaturedData());
+          // show a minute +/- on each side of a update
+          setTimeRange(
+            update.startDate.getTime() - 60 * 1000,
+            update.endDate.getTime() + 60 * 1000
+          );
+        });
+        return [path];
+      })
+      .flatten()
+      .value();
+  } else {
+    // TODO: ideally reset to timerange that was selected before enabling
+    // jump view
+    setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
   }
 };
 
@@ -439,8 +636,9 @@ function updateMapToggles(toggleName, enabled) {
  * in the object viewer component when a vehicle track
  * polyline  is clicked on).
  */
-function registerHandlers(featureObject) {
+function registerHandlers(featureObject, timeRange) {
   setFeaturedObject = featureObject;
+  setTimeRange = timeRange;
 }
 
 export {

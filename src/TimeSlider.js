@@ -29,10 +29,13 @@ function TimeSlider(props) {
   const minVal = tripLogs.minDate.getTime();
   const maxVal = tripLogs.maxDate.getTime();
 
+  const curMin = _.max([minVal, props.curMin]);
+  const curMax = _.min([maxVal, props.curMax]);
+
   function onChange(value) {
     props.onSliderChange({
-      minDate: value[0],
-      maxDate: value[1],
+      minTime: value[0],
+      maxTime: value[1],
     });
   }
 
@@ -51,6 +54,7 @@ function TimeSlider(props) {
         step={1}
         onChange={onChange}
         defaultValue={[minVal, maxVal]}
+        value={[curMin, curMax]}
         tipFormatter={formatTooltip}
       />
     </div>

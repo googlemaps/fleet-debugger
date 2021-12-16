@@ -39,6 +39,18 @@ function ToggleBar(props) {
       >
         Dwell Locations
       </ButtonToggle>
+      <ButtonToggle
+        active={props.showHighVelocityJumps}
+        onClick={props.onClickHighVelocityJumps}
+      >
+        Jumps (unrealistic velocity)
+      </ButtonToggle>
+      <ButtonToggle
+        active={props.showMissingUpdates}
+        onClick={props.onClickMissingUpdates}
+      >
+        Jumps (Temporal)
+      </ButtonToggle>
       <ButtonToggle active={props.showTraffic} onClick={props.onClickTraffic}>
         Traffic
       </ButtonToggle>
