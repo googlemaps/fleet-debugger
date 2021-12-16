@@ -28,13 +28,21 @@ class TripLogs {
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    this.rawLogs = rawLogs;
+    this.rawLogs = _.reverse(rawLogs);
     this.processTripSegments();
     this.minDate = new Date(rawLogs[0].timestamp);
     this.maxDate = new Date(_.last(rawLogs).timestamp);
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
+
+    //  annotate with Dates & timestapms
+    _.map(this.rawLogs, (le, idx) => {
+      le.date = new Date(le.timestamp);
+      le.formattedDate = le.date.toISOString();
+      le.timestampMS = le.date.getTime();
+      le.idx = idx;
+    });
   }
 
   getRawLogs_(minDate, maxDate) {
