@@ -18,6 +18,10 @@ class Trip {
     this.lastUpdateTime = "Unknown";
   }
 
+  getTraveledDistance() {
+    return window.google.maps.geometry.spherical.computeLength(this.pathCoords);
+  }
+
   getFormatDuration() {
     let sec_num = this.tripDuration / 1000;
     let hours = Math.floor(sec_num / 3600);
@@ -48,6 +52,8 @@ class Trip {
       creationTime: this.creationTime,
       firstUpdateTime: this.firstUpdateTime,
       lastUpdateTime: this.lastUpdateTime,
+      traveledDistanceKilometers: this.getTraveledDistance() / 1000,
+      traveledDistanceMiles: this.getTraveledDistance() / 1609,
     };
   }
 
