@@ -277,18 +277,95 @@ function GenerateBubbles(bubbleName, cb) {
 toggleHandlers["showGPSBubbles"] = GenerateBubbles(
   "showGPSBubbles",
   (rawLocationLatLng, lastLocation) => {
+    let color;
+    switch (lastLocation.locSensor) {
+      case "LOCATION_SENSOR_GPS":
+        color = "#11FF11";
+        break;
+      case "LOCATION_SENSOR_NETWORK":
+        color = "#FF1111";
+        break;
+      case "LOCATION_SENSOR_PASSIVE":
+        color = "#FF0000";
+        break;
+      case "LOCATION_SENSOR_ROAD_SNAPPED_LOCATION_PROVIDER":
+        color = "#00FF00";
+        break;
+      case "LOCATION_SENSOR_FUSED_LOCATION_PROVIDER":
+        color = "#11FF11";
+        break;
+      case "LOCATION_SENSOR_LOG_UNSPECIFIED":
+      default:
+        color = "#000000";
+    }
     const accuracy = lastLocation.rawLocationAccuracy;
     if (accuracy) {
-      return new google.maps.Circle({
-        strokeColor: "#0000F0",
+      let circ = new google.maps.Circle({
+        strokeColor: color,
         strokeOpacity: 0.6,
         strokeWeight: 2,
-        fillColor: "#0000F0",
+        fillColor: color,
         fillOpacity: 0.2,
         map,
         center: rawLocationLatLng,
         radius: accuracy, // units is this actually meters?
       });
+      google.maps.event.addListener(circ, "mouseover", () => {
+        setFeaturedObject({
+          rawLocationAccuracy: lastLocation.rawLocationAccuracy,
+          locSensor: lastLocation.locSensor,
+        });
+      });
+      return circ;
+    }
+  }
+);
+
+/*
+ * Draws circles on map with a radius equal to the
+ * time delta (1 meter radius = 1 second of delta)
+ */
+toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
+  "showClientServerTimeDeltas",
+  (rawLocationLatLng, lastLocation, logEntry) => {
+    const clientTimeStr = _.get(
+      logEntry,
+      "jsonPayload.response.lastLocation.rawLocationTime"
+    );
+    const serverTimeStr = _.get(
+      logEntry,
+      "jsonPayload.response.lastLocation.serverTime"
+    );
+    if (clientTimeStr && serverTimeStr) {
+      const clientDate = new Date(clientTimeStr);
+      const serverDate = new Date(serverTimeStr);
+      const timeDeltaSeconds =
+        Math.abs(clientDate.getTime() - serverDate.getTime()) / 1000;
+      let color;
+      if (clientDate > serverDate) {
+        color = "#0000F0";
+      } else {
+        color = "#0F0000";
+      }
+
+      let circ = new google.maps.Circle({
+        strokeColor: color,
+        strokeOpacity: 0.6,
+        strokeWeight: 2,
+        fillColor: color,
+        fillOpacity: 0.2,
+        map,
+        center: rawLocationLatLng,
+        radius: timeDeltaSeconds,
+      });
+      google.maps.event.addListener(circ, "mouseover", () => {
+        setFeaturedObject({
+          timeDeltaSeconds: timeDeltaSeconds,
+          serverDate: serverDate,
+          clientDate: clientDate,
+        });
+      });
+      return circ;
     }
   }
 );
