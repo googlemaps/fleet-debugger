@@ -201,7 +201,7 @@ async function main() {
     console.error("\n\nError:No log entries found\n\n");
     return;
   }
-  const filePath = `src/rawData.js`;
+  const filePath = `public/data.json`;
 
   logging.writeLogs(filePath, params);
 }

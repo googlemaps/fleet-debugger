@@ -5,18 +5,18 @@
 
 rm -rf build
 rm -rf demos/jump
-cp datasets/jump-demo.js src/rawData.js
+cp datasets/jump-demo.json public/data.json
 npm run build
 cp -a build demos/jump
 
 rm -rf build
 rm -rf demos/lmfs
-cp datasets/lmfs.js src/rawData.js
+cp datasets/lmfs.json public/data.json
 npm run build
 cp -a build demos/lmfs
 
 rm -rf build
 rm -rf demos/multiple-trips
-cp datasets/multiple-trips-sf.js src/rawData.js
+cp datasets/multiple-trips-sf.json public/data.json
 npm run build
 cp -a build demos/multiple-trips

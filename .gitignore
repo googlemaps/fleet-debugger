@@ -108,4 +108,5 @@ dist
 
 # generated files
 src/rawData.js
+public/data.json
 build/

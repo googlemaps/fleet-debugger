@@ -2,17 +2,26 @@
  * vehicleData.js
  *
  * Load raw log data for easier consumption by other components.
- * In theory this could be done serverside & placed into rawData, but
- * it's easier to iterate on features when the raw log data doesn't need
- * to be regenerated each time
  */
-import { parsedData } from "./rawData";
-const rawLogs = parsedData.rawLogs;
-const jwt = parsedData.jwt;
-const projectId = parsedData.projectId;
-const apikey = parsedData.APIKEY;
-const solutionType = parsedData.solutionType;
 import TripLogs from "./TripLogs";
+let jwt;
+let projectId;
+let apikey;
+let solutionType;
+let tripLogs;
 
-const tripLogs = new TripLogs(rawLogs, solutionType);
-export { tripLogs, apikey, jwt, projectId, solutionType };
+/**
+ * This function must be called (and awaited on) to load the raw data before
+ * any of the other exported fields are accessed.
+ */
+async function loadData() {
+  const response = await fetch("./data.json");
+  const parsedData = await response.json();
+  jwt = parsedData.jwt;
+  projectId = parsedData.projectId;
+  apikey = parsedData.APIKEY;
+  solutionType = parsedData.solutionType;
+  tripLogs = new TripLogs(parsedData.rawLogs, solutionType);
+}
+
+export { loadData, tripLogs, apikey, jwt, projectId, solutionType };
