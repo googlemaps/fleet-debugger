@@ -85,33 +85,7 @@ async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
  * will be overwritten.
  */
 function writeLogs(filePath, data) {
-  const fileStr = `
-// Generated File.  Do not edit/submit
-const appData = '${JSON.stringify(data)}';
-const parsedData = JSON.parse(appData);
-// Universal module.  See https://github.com/umdjs/umd
-(function (root, factory) {
-    /* eslint-disable no-undef */
-    if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define([], factory);
-    } else if (typeof module === 'object' && module.exports) {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like environments that support module.exports,
-        // like Node.
-        module.exports = factory();
-    } else {
-        // Browser globals (root is window)
-        root.returnExports = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, () => {
-
-    // Just return a value to define the module export.
-    // This example returns an object, but the module
-    // can return a function as the exported value.
-    return {parsedData};
-}));`;
-  fs.writeFileSync(filePath, fileStr);
+  fs.writeFileSync(filePath, JSON.stringify(data));
 }
 
 exports.fetchLogs = fetchLogs;

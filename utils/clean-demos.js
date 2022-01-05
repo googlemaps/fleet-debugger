@@ -21,6 +21,7 @@
  */
 const process = require("process");
 const logging = require("../components/logging.js");
+const fs = require("fs");
 
 const yargs = require("yargs/yargs")(process.argv.slice(2)).options({
   source: {
@@ -35,7 +36,8 @@ const yargs = require("yargs/yargs")(process.argv.slice(2)).options({
 const argv = yargs.argv;
 
 async function main() {
-  const params = require(argv.source).parsedData;
+  const data = fs.readFileSync(argv.source);
+  const params = JSON.parse(data);
   const genericProjectId = "sample-project-id";
   const genericVehicle = "sample-vehicle-id";
   delete params.APIKEY;

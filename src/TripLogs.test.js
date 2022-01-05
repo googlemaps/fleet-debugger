@@ -1,13 +1,13 @@
 import TripLogs from "./TripLogs";
+import fs from "fs";
 
 async function loadTripLogs(dataset) {
-  const module = await import(dataset);
-  const parsedData = module.parsedData;
+  const parsedData = JSON.parse(fs.readFileSync(dataset));
   return new TripLogs(parsedData.rawLogs, parsedData.solutionType);
 }
 
 test("basic odrd trip log loading", async () => {
-  const tripLogs = await loadTripLogs("../datasets/jump-demo.js");
+  const tripLogs = await loadTripLogs("./datasets/jump-demo.json");
 
   expect(tripLogs.getTripIDs()).toStrictEqual([
     "non-trip-segment-0",
@@ -23,7 +23,7 @@ test("basic odrd trip log loading", async () => {
 });
 
 test("basic lmfs trip log loading", async () => {
-  const tripLogs = await loadTripLogs("../datasets/lmfs.js");
+  const tripLogs = await loadTripLogs("./datasets/lmfs.json");
 
   expect(tripLogs.getTripIDs()).toStrictEqual([
     "Stops Left 10",
