@@ -25,6 +25,7 @@
     "lodash": "^4.17.21",
     "open": "^8.3.0",
     "prettier": "^2.4.1",
+    "query-string": "^7.1.0",
     "rc-slider": "^9.7.4",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
