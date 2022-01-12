@@ -8,6 +8,15 @@
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
 import { useEffect, useRef } from "react";
 import _ from "lodash";
+import { getQueryStringValue, setQueryStringValue } from "./queryString";
+
+/*
+ * Expose a promise that resolves when the map is fully instantiated
+ */
+let mapLoadedResolver;
+const mapLoadPromise = new Promise((resolve) => {
+  mapLoadedResolver = resolve;
+});
 
 let minDate;
 let maxDate;
@@ -129,9 +138,28 @@ function MyMapComponent() {
   const ref = useRef();
 
   useEffect(() => {
+    const urlZoom = getQueryStringValue("zoom");
+    const urlCenter = getQueryStringValue("center");
     map = initializeMapObject(ref.current);
+    mapLoadedResolver();
     const vehicleBounds = addTripPolys(map);
-    map.fitBounds(vehicleBounds);
+    if (urlZoom && urlCenter) {
+      console.log("setting zoom & center from url", urlZoom, urlCenter);
+      map.setZoom(parseInt(urlZoom));
+      map.setCenter(JSON.parse(urlCenter));
+    } else {
+      map.fitBounds(vehicleBounds);
+    }
+    map.addListener("zoom_changed", () => {
+      setQueryStringValue("zoom", map.getZoom());
+    });
+
+    map.addListener(
+      "center_changed",
+      _.debounce(() => {
+        setQueryStringValue("center", JSON.stringify(map.getCenter().toJSON()));
+      }, 100)
+    );
   });
 
   return <div ref={ref} id="map" style={{ height: "500px" }} />;
@@ -724,4 +752,5 @@ export {
   addMarkersToMapForData,
   updateMapToggles,
   registerHandlers,
+  mapLoadPromise,
 };
