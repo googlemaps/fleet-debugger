@@ -176,10 +176,12 @@ class TripLogs {
       );
       if (cluster) {
         cluster.updates++;
+        cluster.endDate = le.date;
       } else {
         dwellLocations.push({
           leaderCoords: new window.google.maps.LatLng(coord),
           updates: 1,
+          startDate: le.date,
         });
       }
     });
