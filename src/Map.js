@@ -9,6 +9,7 @@ import { Wrapper, Status } from "@googlemaps/react-wrapper";
 import { useEffect, useRef } from "react";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
+import Utils from "./Utils";
 
 /*
  * Expose a promise that resolves when the map is fully instantiated
@@ -516,7 +517,7 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
   delete bubbleMap[bubbleName];
   if (enabled) {
     bubbleMap[bubbleName] = _.map(dwellLocations, (dl) => {
-      return new google.maps.Circle({
+      const circ = new google.maps.Circle({
         strokeColor: "#000000",
         strokeOpacity: 0.25,
         fillColor: "#FFFF00",
@@ -525,6 +526,14 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
         center: dl.leaderCoords,
         radius: dl.updates * 3, // make dwell times more obvious
       });
+      google.maps.event.addListener(circ, "mouseover", () => {
+        setFeaturedObject({
+          startDate: dl.startDate,
+          duration: Utils.formatDuration(dl.endDate - dl.startDate),
+          endDate: dl.endDate,
+        });
+      });
+      return circ;
     });
   }
 };
