@@ -1,7 +1,7 @@
 # Fleet Debugger Tool
 
-A debugging tool for use with the stateful Last Mile Fleet Solutions and On Demand Rides and
-Deliveries solutions.
+A debugging tool for use with the stateful Last Mile Fleet Solutions and [On Demand Rides and
+Deliveries](https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution) solutions.
 
 ![Screenshot](docs/screenshots/fleetdebugger.png)
 
