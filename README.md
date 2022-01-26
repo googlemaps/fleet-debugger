@@ -40,7 +40,7 @@ npm install
 
 ## Examples
 
-View historical data from my-vehicle-id via journey sharing SDK
+View historical data from my-vehicle-id via [Trip and Order Progress SDKs](https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution/trip-order-progress)
 
 ```
 # Generate data files
