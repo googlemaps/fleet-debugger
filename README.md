@@ -1,7 +1,7 @@
 # Fleet Debugger Tool
 
 A debugging tool for use with the stateful Last Mile Fleet Solutions and [On Demand Rides and
-Deliveries](https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution) solutions.
+Deliveries](https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution) solutions.   Fleet debugger does not yet directly support the [Google Navigation SDK](https://developers.google.com/maps/documentation/navigation-sdk?hl=en) users must integrate with the [Trip and Order Progress SDKs](https://developers.google.com/maps/documentation/transportation-logistics/on-demand-rides-deliveries-solution/trip-order-progress).
 
 ![Screenshot](docs/screenshots/fleetdebugger.png)
 
