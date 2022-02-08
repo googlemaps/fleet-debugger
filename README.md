@@ -80,3 +80,16 @@ View raw GPS information, including location, accuracy & heading
 
 ### Extensibility
    * Easily add aditional related data from cloud logging
+
+# Running On Windows
+
+Fleet debugger has been verified to run on Windows 10 in the command shell.  git, node and gcloud
+need to be installed first.
+
+Example
+```
+node dune-buggy.js historical --apikey <your api key> --vehicle=my-vehicle-id
+# address line ending format issues
+npm run format 
+npm start
+```
