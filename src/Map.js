@@ -656,6 +656,40 @@ toggleHandlers["showNavStatus"] = GenerateBubbles(
 );
 
 /*
+ * Draws circles on the map. Size indicates delta in seconds at that
+ * location.
+ */
+toggleHandlers["showETADeltas"] = function (enabled) {
+  const bubbleName = "showETADeltas";
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+  const etaDeltas = tripLogs.getETADeltas(minDate, maxDate);
+  if (enabled) {
+    bubbleMap[bubbleName] = _.map(etaDeltas, (etaDelta) => {
+      const circ = new google.maps.Circle({
+        strokeColor: "#000000",
+        strokeOpacity: 0.25,
+        fillColor: "FF0000",
+        fillOpacity: 0.25,
+        map,
+        center: etaDelta.coords,
+        // cap radius to 300 meters to avoid coloring the whole
+        // screen when there is a very large delta.  Definitely
+        // needs tuning ... and likely better to consider adjusting
+        // color as well.
+        radius: _.min([etaDelta.deltaInSeconds, 300]),
+      });
+      google.maps.event.addListener(circ, "mouseover", () => {
+        setFeaturedObject({
+          etaDeltaInSeconds: etaDelta.deltaInSeconds,
+        });
+      });
+      return circ;
+    });
+  }
+};
+
+/*
  * Draws arrows on the map showing where a vehicle jumped
  * from one location to another at an unrealistic velocity.
  */

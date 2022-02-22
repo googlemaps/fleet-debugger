@@ -18,13 +18,13 @@ class TripLogs {
     this.solutionType = solutionType;
     if (this.solutionType === "LMFS") {
       this.updateVehicleSuffix = "update_delivery_vehicle";
-      this.lastLocationPath =
-        "jsonPayload.request.deliveryVehicle.lastLocation";
+      this.vehiclePath = "jsonPayload.request.deliveryVehicle";
     } else {
       this.updateVehicleSuffix = "update_vehicle";
       this.vehicleName = "vehicle";
-      this.lastLocationPath = "jsonPayload.request.vehicle.lastLocation";
+      this.vehiclePath = "jsonPayload.request.vehicle";
     }
+    this.lastLocationPath = this.vehiclePath + ".lastLocation";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
@@ -35,6 +35,7 @@ class TripLogs {
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
+    this.etaDeltas = [];
 
     //  annotate with Dates & timestapms
     _.map(this.rawLogs, (le, idx) => {
@@ -106,6 +107,41 @@ class TripLogs {
 
     this.missingUpdates = MissingUpdate.getSignificantMissingUpdates(entries);
     return this.missingUpdates;
+  }
+
+  /*
+   * Compute change in ETA to first waypoint across all location
+   * updates.
+   */
+  getETADeltas(minDate, maxDate) {
+    let prevEntry;
+    this.etaDeltas = this.getRawLogs_(minDate, maxDate)
+      .filter(
+        (le) =>
+          _.get(le, this.vehiclePath + ".etaToFirstWaypoint") &&
+          _.get(le, this.lastLocationPath + ".rawLocation")
+      )
+      .map((curEntry) => {
+        let ret;
+        if (prevEntry) {
+          const curLoc = _.get(curEntry, this.lastLocationPath);
+
+          ret = {
+            deltaInSeconds: (curEntry.date - prevEntry.date) / 1000,
+            coords: new google.maps.LatLng({
+              lat: curLoc.rawLocation.latitude,
+              lng: curLoc.rawLocation.longitude,
+            }),
+          };
+        }
+
+        prevEntry = curEntry;
+        return ret;
+      })
+      .compact()
+      .value();
+
+    return this.etaDeltas;
   }
 
   /*
