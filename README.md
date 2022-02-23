@@ -59,6 +59,11 @@ npm run build
 tar -czf support-dump.tgz build
 ```
 
+## Generating a support bundle
+
+See [Reporting Issues](docs/reporting-issues.md) for details on how to generate a
+support bundle that can be used when reporting bugs or other issues to google.
+
 ## Key Features
 
 Filter & Inspect log messages
