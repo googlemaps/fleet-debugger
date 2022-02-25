@@ -55,6 +55,7 @@ class App extends React.Component {
         showHeading: getToggleDefault("showHeading", false),
         showSpeed: getToggleDefault("showSpeed", false),
         showTraffic: getToggleDefault("showTraffic", false),
+        showTripStatus: getToggleDefault("showTripStatus", false),
         showDwellLocations: getToggleDefault("showDwellLocations", false),
         showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
         showMissingUpdates: getToggleDefault("showMissingUpdates", false),
@@ -106,6 +107,13 @@ class App extends React.Component {
         docLink:
           "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
         columns: ["jsonPayload.request.vehicle.lastLocation.speed"],
+      },
+      {
+        id: "showTripStatus",
+        name: "Trip Status",
+        docLink:
+          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
+        columns: [],
       },
       {
         id: "showDwellLocations",
