@@ -602,6 +602,60 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
 };
 
 /*
+ * Draws circles on the map. Size indicates dwell time at that
+ * location.
+ */
+toggleHandlers["showNavStatus"] = GenerateBubbles(
+  "showNavStatus",
+  (rawLocationLatLng, lastLocation, le) => {
+    const navStatus = _.get(le, "jsonPayload.response.navStatus");
+    if (navStatus === undefined) {
+      return;
+    }
+    let color,
+      radius = 5;
+    switch (navStatus) {
+      case "NAVIGATION_STATUS_UNKNOWN_NAVIGATION_STATUS":
+        color = "#222222";
+        break;
+      case "NAVIGATION_STATUS_NO_GUIDANCE":
+        color = "#090909";
+        break;
+      case "NAVIGATION_STATUS_ENROUTE_TO_DESTINATION":
+        color = "#00FF00";
+        break;
+      case "NAVIGATION_STATUS_OFF_ROUTE":
+        color = "#FF0000";
+        radius = 30;
+        break;
+      case "NAVIGATION_STATUS_ARRIVED_AT_DESTINATION":
+        color = "0000FF";
+        radius = 10;
+        break;
+      default:
+        color = "#000000";
+    }
+    const statusCirc = new google.maps.Circle({
+      strokeColor: color,
+      strokeOpacity: 0.5,
+      fillColor: color,
+      fillOpacity: 0.5,
+      map,
+      center: rawLocationLatLng,
+      radius: radius, // set based on trip status?
+    });
+    google.maps.event.addListener(statusCirc, "mouseover", () => {
+      setFeaturedObject({
+        navStatus: navStatus,
+        vehicleState: _.get(le, "jsonPayload.response.state"),
+        tripStatus: "??",
+      });
+    });
+    return statusCirc;
+  }
+);
+
+/*
  * Draws arrows on the map showing where a vehicle jumped
  * from one location to another at an unrealistic velocity.
  */
