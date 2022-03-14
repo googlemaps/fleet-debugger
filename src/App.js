@@ -57,6 +57,7 @@ class App extends React.Component {
         showTraffic: getToggleDefault("showTraffic", false),
         showTripStatus: getToggleDefault("showTripStatus", false),
         showDwellLocations: getToggleDefault("showDwellLocations", false),
+        showNavStatus: getToggleDefault("showNavStatus", false),
         showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
         showMissingUpdates: getToggleDefault("showMissingUpdates", false),
         showLiveJS: getToggleDefault("showLiveJS", false),
@@ -113,6 +114,13 @@ class App extends React.Component {
         name: "Trip Status",
         docLink:
           "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
+        columns: [],
+      },
+      {
+        id: "showNavStatus",
+        name: "Navigation Status",
+        docLink:
+          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
         columns: [],
       },
       {
