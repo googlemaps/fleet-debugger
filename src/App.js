@@ -58,6 +58,7 @@ class App extends React.Component {
         showTripStatus: getToggleDefault("showTripStatus", false),
         showDwellLocations: getToggleDefault("showDwellLocations", false),
         showNavStatus: getToggleDefault("showNavStatus", false),
+        showETADeltas: getToggleDefault("showETADeltas", false),
         showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
         showMissingUpdates: getToggleDefault("showMissingUpdates", false),
         showLiveJS: getToggleDefault("showLiveJS", false),
@@ -153,6 +154,13 @@ class App extends React.Component {
           "jsonPayload.response.lastLocation.rawLocationTime",
           "jsonPayload.response.lastLocation.serverTime",
         ],
+      },
+      {
+        id: "showETADeltas",
+        name: "ETA Deltas",
+        docLink:
+          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
+        columns: ["jsonPayload.request.vehicle.etaToFirstWaypoint"],
       },
       {
         id: "showTraffic",
