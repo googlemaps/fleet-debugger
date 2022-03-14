@@ -20,7 +20,7 @@ async function loadData() {
   jwt = parsedData.jwt;
   projectId = parsedData.projectId;
   apikey = parsedData.APIKEY;
-  solutionType = parsedData.solutionType;
+  solutionType = parsedData.solutionType || "ODRD";
   tripLogs = new TripLogs(parsedData.rawLogs, solutionType);
 }
 

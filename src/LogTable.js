@@ -90,59 +90,108 @@ function LogTable(props) {
     .value();
 
   const columns = React.useMemo(() => {
-    const stdColumns = [
-      {
-        Header: "Date",
-        accessor: "formattedDate",
-      },
-      {
-        Header: "SDK Version",
-        accessor: "jsonPayload.request.header.sdkVersion",
-      },
-      {
-        Header: "OS Version",
-        accessor: "jsonPayload.request.header.osVersion",
-      },
-      {
-        Header: "Method",
-        accessor: "jsonPayload.@type",
-        Cell: ({ cell: { value } }) => (
-          <TrimCell
-            value={value}
-            trim="type.googleapis.com/maps.fleetengine."
-          />
-        ),
-      },
-      {
-        Header: "Vehicle",
-        accessor: "labels.vehicle_id",
-      },
-      {
-        Header: "Trip",
-        accessor: "labels.trip_id",
-      },
-      {
-        Header: "Vehicle State",
-        accessor: "jsonPayload.response.state",
-        Cell: ({ cell: { value } }) => (
-          <TrimCell value={value} trim="VEHICLE_STATE_" />
-        ),
-      },
-      {
-        Header: "Trip Status",
-        accessor: "jsonPayload.response.status",
-        Cell: ({ cell: { value } }) => (
-          <TrimCell value={value} trim="TRIP_STATUS_" />
-        ),
-      },
-      {
-        Header: "Nav Status",
-        accessor: "jsonPayload.response.navStatus",
-        Cell: ({ cell: { value } }) => (
-          <TrimCell value={value} trim="NAVIGATION_STATUS_" />
-        ),
-      },
-    ];
+    const stdColumns = _.filter(
+      [
+        {
+          Header: "Date",
+          accessor: "formattedDate",
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          Header: "SDK Version",
+          accessor: "jsonPayload.request.header.sdkVersion",
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          Header: "OS Version",
+          accessor: "jsonPayload.request.header.osVersion",
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          Header: "Method",
+          accessor: "jsonPayload.@type",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell
+              value={value}
+              trim="type.googleapis.com/maps.fleetengine."
+            />
+          ),
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          Header: "Vehicle",
+          accessor: "labels.vehicle_id",
+          solutionTypes: ["ODRD"],
+        },
+        {
+          Header: "Vehicle",
+          accessor: "labels.delivery_vehicle_id",
+          solutionTypes: ["LMFS"],
+        },
+        {
+          Header: "Trip",
+          accessor: "labels.trip_id",
+          solutionTypes: ["ODRD"],
+        },
+        {
+          Header: "Vehicle State",
+          accessor: "jsonPayload.response.state",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="VEHICLE_STATE_" />
+          ),
+          solutionTypes: ["ODRD"],
+        },
+        {
+          Header: "Task State",
+          accessor: "jsonPayload.response.state",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="TASK_STATE_" />
+          ),
+          solutionTypes: ["LMFS"],
+        },
+        {
+          Header: "Trip Status",
+          accessor: "jsonPayload.response.status",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="TRIP_STATUS_" />
+          ),
+          solutionTypes: ["ODRD"],
+        },
+        {
+          Header: "Remaining tasks",
+          id: "reamining_tasks",
+          accessor: "jsonPayload.response.remainingVehicleJourneySegments",
+          Cell: ({ cell: { value } }) => (
+            <>{value && _.sumBy(value, "stop.tasks.length")}</>
+          ),
+          solutionTypes: ["LMFS"],
+        },
+        {
+          Header: "Remaining Distance This Segment",
+          accessor:
+            "jsonPayload.request.deliveryVehicle.remainingDistanceMeters",
+          solutionTypes: ["LMFS"],
+        },
+        {
+          Header: "Remaining Segements",
+          accessor: "jsonPayload.response.remainingVehicleJourneySegments",
+          Cell: ({ cell: { value } }) => <>{value && value.length}</>,
+          solutionTypes: ["LMFS"],
+        },
+        {
+          Header: "Nav Status",
+          // XXX request or response best?
+          accessor: "navStatus",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="NAVIGATION_STATUS_" />
+          ),
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+      ],
+      (column) => {
+        return column.solutionTypes.indexOf(props.logData.solutionType) !== -1;
+      }
+    );
 
     // Add dynamic columns
     _.map(props.extraColumns, (dotPath) => {

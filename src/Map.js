@@ -243,10 +243,7 @@ function addMarkersToMapForData(data) {
     anchor: new google.maps.Point(15, 30),
   };
 
-  const rawLocation = _.get(
-    data,
-    "jsonPayload.request.vehicle.lastLocation.rawLocation"
-  );
+  const rawLocation = _.get(data.lastLocation, "rawLocation");
   if (rawLocation) {
     const status = _.get(data, "jsonPayload.response.status");
     const state = _.get(data, "jsonPayload.response.state");
@@ -275,10 +272,7 @@ function GenerateBubbles(bubbleName, cb) {
       bubbleMap[bubbleName] = tripLogs
         .getLogs_(minDate, maxDate)
         .map((le) => {
-          const lastLocation = _.get(
-            le,
-            "jsonPayload.request.vehicle.lastLocation"
-          );
+          const lastLocation = le.lastLocation;
           let rawLocation;
           let bubble = undefined;
           if (lastLocation && (rawLocation = lastLocation.rawLocation)) {
@@ -358,13 +352,10 @@ toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
   "showClientServerTimeDeltas",
   (rawLocationLatLng, lastLocation, logEntry) => {
     const clientTimeStr = _.get(
-      logEntry,
-      "jsonPayload.response.lastLocation.rawLocationTime"
+      logEntry.lastLocationResponse,
+      "rawLocationTime"
     );
-    const serverTimeStr = _.get(
-      logEntry,
-      "jsonPayload.response.lastLocation.serverTime"
-    );
+    const serverTimeStr = _.get(logEntry.lastLocationResponse, "serverTime");
     if (clientTimeStr && serverTimeStr) {
       const clientDate = new Date(clientTimeStr);
       const serverDate = new Date(serverTimeStr);
@@ -408,14 +399,8 @@ toggleHandlers["showHeading"] = GenerateBubbles(
   (rawLocationLatLng, lastLocation, logEntry) => {
     // Note: Heading & accuracy are only on the _request_ not the
     // response.
-    const heading = _.get(
-      logEntry,
-      "jsonPayload.request.vehicle.lastLocation.heading"
-    );
-    const accuracy = _.get(
-      logEntry,
-      "jsonPayload.request.vehicle.lastLocation.bearingAccuracy"
-    );
+    const heading = _.get(logEntry.lastLocation, "heading");
+    const accuracy = _.get(logEntry.lastLocation, "bearingAccuracy");
 
     // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
     const arrowLength = 20; // meters??
@@ -608,7 +593,7 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
 toggleHandlers["showNavStatus"] = GenerateBubbles(
   "showNavStatus",
   (rawLocationLatLng, lastLocation, le) => {
-    const navStatus = _.get(le, "jsonPayload.response.navStatus");
+    const navStatus = le.navStatus;
     if (navStatus === undefined) {
       return;
     }

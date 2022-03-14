@@ -10,11 +10,8 @@ let computedOutlier = 0;
 
 class HighVelocityJump {
   constructor(jumpIdx, prevEntry, curEntry) {
-    const prevLoc = _.get(
-      prevEntry,
-      "jsonPayload.request.vehicle.lastLocation"
-    );
-    const curLoc = _.get(curEntry, "jsonPayload.request.vehicle.lastLocation");
+    const prevLoc = prevEntry.lastLocation;
+    const curLoc = curEntry.lastLocation;
     const startLoc = new google.maps.LatLng({
       lat: prevLoc.rawLocation.latitude,
       lng: prevLoc.rawLocation.longitude,
@@ -73,13 +70,9 @@ class HighVelocityJump {
     featureData.formattedDate = this.startDate.toISOString();
     featureData.jsonPayload = {
       "@type": "Jump",
-      request: {
-        vehicle: {
-          lastLocation: {
-            speed: this.velocity,
-          },
-        },
-      },
+    };
+    featureData.lastLocation = {
+      speed: this.velocity,
     };
     return featureData;
   }
