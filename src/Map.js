@@ -493,6 +493,69 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
 );
 
 /*
+ * Draws circles on the map. Color indicates trip status
+ * at that location.   Note that trip status isn't actually
+ * in the update vehicle logs, so current trip status will actually
+ * just be the trip status at the time of the vehicle update  --
+ * which is a bit wrong and wonky on the boundaries.
+ */
+toggleHandlers["showTripStatus"] = GenerateBubbles(
+  "showTripStatus",
+  (rawLocationLatLng, lastLocation, le) => {
+    let color,
+      radius = 5;
+    const tripStatus = tripLogs.getTripStatusAtDate(le.date);
+    switch (tripStatus) {
+      case "TRIP_STATUS_NEW":
+        color = "#002200";
+        radius = 30;
+        break;
+      case "TRIP_STATUS_ENROUTE_TO_PICKUP":
+        color = "#FFFF00";
+        break;
+      case "TRIP_STATUS_ARRIVED_AT_PICKUP":
+        color = "#FFFF10";
+        radius = 10;
+        break;
+      case "TRIP_STATUS_ARRIVED_AT_INTERMEDIATE_DESTINATION":
+        color = "10FFFF";
+        radius = 20;
+        break;
+      case "TRIP_STATUS_ENROUTE_TO_DROPOFF":
+        color = "00FFFF";
+        break;
+      case "TRIP_STATUS_COMPLETE":
+        radius = 30;
+        color = "#00FF00";
+        break;
+      case "TRIP_STATUS_CANCELED":
+        radius = 30;
+        color = "#FF0000";
+        break;
+      case "TRIP_STATUS_UNKNOWN_TRIP_STATUS":
+      default:
+        color = "#000000";
+    }
+
+    const statusCirc = new google.maps.Circle({
+      strokeColor: color,
+      strokeOpacity: 0.5,
+      fillColor: color,
+      fillOpacity: 0.5,
+      map,
+      center: rawLocationLatLng,
+      radius: radius, // set based on trip status?
+    });
+    google.maps.event.addListener(statusCirc, "mouseover", () => {
+      setFeaturedObject({
+        tripStatus: tripStatus,
+      });
+    });
+    return statusCirc;
+  }
+);
+
+/*
  * Enable/disables live traffic layer
  */
 toggleHandlers["showTraffic"] = function (enabled) {
