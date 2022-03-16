@@ -19,10 +19,12 @@ class TripLogs {
     if (this.solutionType === "LMFS") {
       this.updateVehicleSuffix = "update_delivery_vehicle";
       this.vehiclePath = "jsonPayload.request.deliveryVehicle";
+      this.navStatusPropName = "navigationStatus";
     } else {
       this.updateVehicleSuffix = "update_vehicle";
       this.vehicleName = "vehicle";
       this.vehiclePath = "jsonPayload.request.vehicle";
+      this.navStatusPropName = "navStatus";
     }
     this.lastLocationPath = this.vehiclePath + ".lastLocation";
     this.trip_ids = [];
@@ -43,6 +45,21 @@ class TripLogs {
       le.formattedDate = le.date.toISOString();
       le.timestampMS = le.date.getTime();
       le.idx = idx;
+      // "synthetic" entries that hides some of the differences
+      // between lmfs & odrd log entries
+      le.lastLocation = _.get(le, this.lastLocationPath);
+
+      // utilized for calculations of serve/client time deltas (where the
+      // server time isn't populated in the request).
+      le.lastLocationResponse = _.get(le, "jsonPayload.response.lastLocation");
+
+      // use the response because nav status is typically only
+      // in the request when it changes ... and visualizations
+      // make more sense when the nav status can be shown along the route
+      le.navStatus = _.get(
+        le,
+        "jsonPayload.response." + this.navStatusPropName
+      );
     });
   }
 
@@ -189,7 +206,7 @@ class TripLogs {
   getDwellLocations(minDate, maxDate) {
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
-      const lastLocation = _.get(le, this.lastLocationPath);
+      const lastLocation = le.lastLocation;
       if (
         !lastLocation ||
         !lastLocation.rawLocation ||

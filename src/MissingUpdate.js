@@ -12,11 +12,8 @@ let computedOutlier = 0;
 class MissingUpdate {
   constructor(idx, prevEntry, curEntry) {
     const interval = curEntry.date - prevEntry.date;
-    const curLoc = _.get(curEntry, "jsonPayload.request.vehicle.lastLocation");
-    const prevLoc = _.get(
-      prevEntry,
-      "jsonPayload.request.vehicle.lastLocation"
-    );
+    const curLoc = curEntry.lastLocation;
+    const prevLoc = prevEntry.lastLocation;
     const startLoc = new google.maps.LatLng({
       lat: prevLoc.rawLocation.latitude,
       lng: prevLoc.rawLocation.longitude,

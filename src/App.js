@@ -82,101 +82,115 @@ class App extends React.Component {
     );
     // TODO: refactor so that visualizations are registered
     // rather than enumerated here?
-    this.toggles = [
-      {
-        id: "showGPSBubbles",
-        name: "GPS Accuracy",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
-        columns: [
-          "jsonPayload.request.vehicle.lastLocation.rawLocationAccuracy",
-          "jsonPayload.request.vehicle.lastLocation.locSensor",
-        ],
-      },
-      {
-        id: "showHeading",
-        name: "Heading",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
-        columns: [
-          "jsonPayload.request.vehicle.lastLocation.heading",
-          "jsonPayload.request.vehicle.lastLocation.bearingAccuracy",
-        ],
-      },
-      {
-        id: "showSpeed",
-        name: "Speed",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
-        columns: ["jsonPayload.request.vehicle.lastLocation.speed"],
-      },
-      {
-        id: "showTripStatus",
-        name: "Trip Status",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
-        columns: [],
-      },
-      {
-        id: "showNavStatus",
-        name: "Navigation Status",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
-        columns: [],
-      },
-      {
-        id: "showDwellLocations",
-        name: "Dwell Locations",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/DwellTimes.md",
-        columns: [],
-      },
-      {
-        id: "showHighVelocityJumps",
-        name: "Jumps (unrealistic velocity)",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
-        columns: ["jsonPayload.request.vehicle.lastLocation.speed"],
-      },
-      {
-        id: "showMissingUpdates",
-        name: "Jumps (Temporal)",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
-        columns: ["jsonPayload.temporal_gap"],
-      },
-      {
-        id: "showClientServerTimeDeltas",
-        name: "Client/Server Time Deltas",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-        columns: [
-          "jsonPayload.response.lastLocation.rawLocationTime",
-          "jsonPayload.response.lastLocation.serverTime",
-        ],
-      },
-      {
-        id: "showETADeltas",
-        name: "ETA Deltas",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
-        columns: ["jsonPayload.request.vehicle.etaToFirstWaypoint"],
-      },
-      {
-        id: "showTraffic",
-        name: "Traffic",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-        columns: [],
-      },
-      {
-        id: "showLiveJS",
-        name: "Start Live Journey Sharing for newest trip",
-        docLink:
-          "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-        columns: [],
-      },
-    ];
+    this.toggles = _.filter(
+      [
+        {
+          id: "showGPSBubbles",
+          name: "GPS Accuracy",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
+          columns: [
+            "lastLocation.rawLocationAccuracy",
+            "lastLocation.locSensor",
+          ],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showHeading",
+          name: "Heading",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
+          columns: ["lastLocation.heading", "lastLocation.bearingAccuracy"],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showSpeed",
+          name: "Speed",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
+          columns: ["lastLocation.speed"],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showTripStatus",
+          name: "Trip Status",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
+          columns: [],
+          solutionTypes: ["ODRD"],
+        },
+        {
+          id: "showNavStatus",
+          name: "Navigation Status",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
+          columns: [],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showDwellLocations",
+          name: "Dwell Locations",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/DwellTimes.md",
+          columns: [],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showHighVelocityJumps",
+          name: "Jumps (unrealistic velocity)",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
+          columns: ["lastLocation.speed"],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showMissingUpdates",
+          name: "Jumps (Temporal)",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
+          columns: ["jsonPayload.temporal_gap"],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showClientServerTimeDeltas",
+          name: "Client/Server Time Deltas",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          columns: [
+            "jsonPayload.response.lastLocation.rawLocationTime",
+            "jsonPayload.response.lastLocation.serverTime",
+          ],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showETADeltas",
+          name: "ETA Deltas",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
+          columns: ["jsonPayload.request.vehicle.etaToFirstWaypoint"],
+          solutionTypes: ["ODRD"],
+        },
+        {
+          id: "showTraffic",
+          name: "Traffic",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          columns: [],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showLiveJS",
+          name: "Start Live Journey Sharing for newest trip",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          columns: [],
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+      ],
+      (toggle) => {
+        return toggle.solutionTypes.indexOf(this.logData.solutionType) !== -1;
+      }
+    );
   }
 
   /*
