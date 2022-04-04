@@ -90,7 +90,7 @@ async function fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
     return [];
   }
   console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
-  const task_ids = _(vehicleLogs)
+  let task_ids = _(vehicleLogs)
     .map((logEntry) =>
       _.get(logEntry, "jsonPayload.response.remainingVehicleJourneySegments")
     )
@@ -103,6 +103,11 @@ async function fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
     .compact()
     .value();
   let taskLogs = [];
+  if (task_ids.length > 20) {
+    // See https://github.com/googlemaps/fleet-debugger/issues/100
+    console.warn("Too many tasks found, limiting detailed logs to first 20");
+    task_ids = task_ids.slice(0, 20);
+  }
   if (task_ids.length > 0) {
     console.log("gots task_ids", task_ids);
     taskLogs = await logging.fetchLogs("task_id", task_ids, argv.daysAgo);
