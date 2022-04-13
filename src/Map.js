@@ -151,6 +151,7 @@ function MyMapComponent() {
     } else {
       map.fitBounds(vehicleBounds);
     }
+    map.setOptions({ maxZoom: 100 });
     map.addListener("zoom_changed", () => {
       setQueryStringValue("zoom", map.getZoom());
     });
