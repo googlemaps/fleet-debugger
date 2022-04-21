@@ -15,6 +15,7 @@
   },
   "homepage": ".",
   "dependencies": {
+    "@google-cloud/bigquery": "^6.0.0",
     "@google-cloud/logging": "^9.6.1",
     "@googlemaps/react-wrapper": "^1.1.8",
     "@testing-library/jest-dom": "^5.14.1",
@@ -43,6 +44,7 @@
     "@typescript-eslint/parser": "^5.2.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
+    "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-jest": "^25.2.2",
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.26.1",
