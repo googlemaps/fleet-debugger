@@ -17,6 +17,7 @@
 const process = require("process");
 const auth = require("./components/auth.js");
 const logging = require("./components/logging.js");
+const { CloudLogs } = require("./components/cloudLoggingDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -52,100 +53,6 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
   });
 const argv = yargs.argv;
 
-/*
- * Extract trip_ids from vehicle logs, and query again to
- * get the createTrip/update trip calls that may not be labeled
- * with a vehicle
- */
-async function fetchTripLogsForVehicle(vehicle_id, vehicleLogs) {
-  if (!vehicle_id) {
-    return [];
-  }
-  console.log("Loading trip logs for vehicle id", vehicle_id);
-  const trip_ids = _(vehicleLogs)
-    .map((x) => _.split(_.get(x, "labels.trip_id"), ","))
-    .flatten()
-    .uniq()
-    .compact()
-    .value();
-  let tripLogs = [];
-  if (trip_ids.length > 0) {
-    console.log("trip_ids found", trip_ids);
-    tripLogs = await logging.fetchLogs(
-      "trip_id",
-      trip_ids,
-      argv.daysAgo,
-      "jsonPayload.@type=type.googleapis.com/maps.fleetengine.v1.CreateTripLog"
-    );
-  } else {
-    console.log(`no trips associated with vehicle id ${argv.vehicle}`);
-  }
-  return tripLogs;
-}
-
-/*
- * Extract task_ids from vehicle logs, and query again to
- * get the createTask/updateTask calls that may not be labeled
- * with a vehicle
- */
-async function fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
-  if (!vehicle_id) {
-    return [];
-  }
-  console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
-  let task_ids = _(vehicleLogs)
-    .map((logEntry) =>
-      _.get(logEntry, "jsonPayload.response.remainingVehicleJourneySegments")
-    )
-    .flatten()
-    .map((segment) => _.get(segment, "stop.tasks"))
-    .flatten()
-    .map((tasks) => _.get(tasks, "taskId"))
-    .flatten()
-    .uniq()
-    .compact()
-    .value();
-  let taskLogs = [];
-  if (task_ids.length > 20) {
-    // See https://github.com/googlemaps/fleet-debugger/issues/100
-    console.warn("Too many tasks found, limiting detailed logs to first 20");
-    task_ids = task_ids.slice(0, 20);
-  }
-  if (task_ids.length > 0) {
-    console.log("gots task_ids", task_ids);
-    taskLogs = await logging.fetchLogs("task_id", task_ids, argv.daysAgo);
-  } else {
-    console.log(`no tasks associated with vehicle id ${argv.vehicle}`);
-  }
-  return taskLogs;
-}
-
-async function fetchVehicleLogs(vehicle, trip) {
-  const label = vehicle ? "vehicle_id" : "trip_id";
-  const labelVal = vehicle ? vehicle : trip;
-
-  console.log(`Fetching logs for ${label} = ${labelVal}`);
-  return await logging.fetchLogs(label, [labelVal], argv.daysAgo);
-}
-
-async function fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs) {
-  if (vehicleLogs.length !== 0) {
-    // regular vehicle logs found, not a deliveryVehicle
-    return [];
-  }
-  // TODO: is it more efficient to run the log query twice
-  // or to update the log filter with an OR?
-  //
-  // Could also force the user to specify which type of vehicle they're interested
-  // in on the command line -- but that seems unfriendly & error prone
-  console.log("fetching logs for deliveryVehicle", deliveryVehicle);
-  return await logging.fetchLogs(
-    "delivery_vehicle_id",
-    [deliveryVehicle],
-    argv.daysAgo
-  );
-}
-
 async function main() {
   if (argv.vehicle) {
     console.log("Fetching logs for vehicle id", argv.vehicle);
@@ -180,21 +87,25 @@ async function main() {
   // Always include project id -- it's used
   // by utils/clean-demos.js
   params.projectId = auth.getProjectId();
+  const cloudLogs = new CloudLogs(argv);
 
   // TOOD: handle lookup by task -- task logs are trickier in than
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
   // are many tasks at any given time(unlike how
   // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await fetchVehicleLogs(argv.vehicle, argv.trip);
-  const deliveryVehicleLogs = await fetchDeliveryVehicleLogs(
+  const vehicleLogs = await cloudLogs.fetchVehicleLogs(argv.vehicle, argv.trip);
+  const deliveryVehicleLogs = await cloudLogs.fetchDeliveryVehicleLogs(
     argv.vehicle,
     vehicleLogs
   );
-  const taskLogs = await fetchTaskLogsForVehicle(
+  const taskLogs = await cloudLogs.fetchTaskLogsForVehicle(
     argv.vehicle,
     deliveryVehicleLogs
   );
-  const tripLogs = await fetchTripLogsForVehicle(argv.vehicle, vehicleLogs);
+  const tripLogs = await cloudLogs.fetchTripLogsForVehicle(
+    argv.vehicle,
+    vehicleLogs
+  );
 
   params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
 
