@@ -46,6 +46,9 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
       describe: "apikey",
       required: true,
     },
+    mapId: {
+      describe: "mapId to use in map",
+    },
   });
 const argv = yargs.argv;
 
@@ -161,6 +164,7 @@ async function main() {
     APIKEY: argv.apikey,
     live: commands.live,
     vehicle: argv.vehicle,
+    mapId: argv.mapId,
   };
 
   if (commands.historical) {

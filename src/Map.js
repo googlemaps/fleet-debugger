@@ -25,6 +25,7 @@ let allPaths = [];
 let allMarkers = [];
 let map;
 let apikey;
+let mapId;
 let dataMakers = [];
 let trafficLayer;
 const bubbleMap = {};
@@ -131,6 +132,7 @@ function initializeMapObject(element) {
   const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
     element: element,
     locationProvider,
+    mapOptions: { mapId: mapId },
   });
   return jsMapView.map;
 }
@@ -196,6 +198,7 @@ function Map(props) {
   maxDate = tripLogs.maxDate.getTime();
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
+  mapId = urlParams.get("mapId") || props.logData.mapId;
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
   solutionType = props.logData.solutionType;

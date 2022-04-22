@@ -7,6 +7,7 @@ import TripLogs from "./TripLogs";
 let jwt;
 let projectId;
 let apikey;
+let mapId;
 let solutionType;
 let tripLogs;
 
@@ -20,8 +21,9 @@ async function loadData() {
   jwt = parsedData.jwt;
   projectId = parsedData.projectId;
   apikey = parsedData.APIKEY;
+  mapId = parsedData.mapId;
   solutionType = parsedData.solutionType || "ODRD";
   tripLogs = new TripLogs(parsedData.rawLogs, solutionType);
 }
 
-export { loadData, tripLogs, apikey, jwt, projectId, solutionType };
+export { loadData, tripLogs, apikey, mapId, jwt, projectId, solutionType };
