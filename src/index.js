@@ -8,6 +8,7 @@ import {
   tripLogs,
   loadData,
   apikey,
+  mapId,
   jwt,
   projectId,
   solutionType,
@@ -17,6 +18,7 @@ loadData().then(() => {
   const logData = {
     tripLogs,
     apikey,
+    mapId,
     jwt,
     projectId,
     solutionType,
