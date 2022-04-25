@@ -132,7 +132,7 @@ function initializeMapObject(element) {
   const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
     element: element,
     locationProvider,
-    mapOptions: { mapId: mapId },
+    mapOptions: { mapId: mapId, mapTypeControl: true },
   });
   return jsMapView.map;
 }
