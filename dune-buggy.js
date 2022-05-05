@@ -18,6 +18,9 @@ const process = require("process");
 const auth = require("./components/auth.js");
 const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
+const {
+  CloudLoggingDownload,
+} = require("./components/cloudLoggingDownloadDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -49,6 +52,9 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     },
     mapId: {
       describe: "mapId to use in map",
+    },
+    cloudLoggingDownload: {
+      describe: "load data from a cloud logging download-logs-*.json",
     },
   });
 const argv = yargs.argv;
@@ -87,22 +93,28 @@ async function main() {
   // Always include project id -- it's used
   // by utils/clean-demos.js
   params.projectId = auth.getProjectId();
-  const cloudLogs = new CloudLogs(argv);
+  let logs;
+
+  if (argv.cloudLoggingDownload) {
+    logs = new CloudLoggingDownload(argv);
+  } else {
+    logs = new CloudLogs(argv);
+  }
 
   // TOOD: handle lookup by task -- task logs are trickier in than
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
   // are many tasks at any given time(unlike how
   // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await cloudLogs.fetchVehicleLogs(argv.vehicle, argv.trip);
-  const deliveryVehicleLogs = await cloudLogs.fetchDeliveryVehicleLogs(
+  const vehicleLogs = await logs.fetchVehicleLogs(argv.vehicle, argv.trip);
+  const deliveryVehicleLogs = await logs.fetchDeliveryVehicleLogs(
     argv.vehicle,
     vehicleLogs
   );
-  const taskLogs = await cloudLogs.fetchTaskLogsForVehicle(
+  const taskLogs = await logs.fetchTaskLogsForVehicle(
     argv.vehicle,
     deliveryVehicleLogs
   );
-  const tripLogs = await cloudLogs.fetchTripLogsForVehicle(
+  const tripLogs = await logs.fetchTripLogsForVehicle(
     argv.vehicle,
     vehicleLogs
   );
