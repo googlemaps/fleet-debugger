@@ -132,9 +132,32 @@ function initializeMapObject(element) {
   const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
     element: element,
     locationProvider,
-    mapOptions: { mapId: mapId, mapTypeControl: true },
+    mapOptions: {
+      mapId: mapId,
+      mapTypeControl: true,
+      streetViewControl: true,
+    },
   });
-  return jsMapView.map;
+  const map = jsMapView.map;
+
+  const tiltButtons = [
+    ["Tilt Down", 20, google.maps.ControlPosition.TOP_CENTER],
+    ["Tilt Up", -20, google.maps.ControlPosition.TOP_CENTER],
+  ];
+
+  tiltButtons.forEach(([text, amount, position]) => {
+    const controlDiv = document.createElement("div");
+    const controlUI = document.createElement("button");
+
+    controlUI.classList.add("ui-button");
+    controlUI.innerText = `${text}`;
+    controlUI.addEventListener("click", () => {
+      map.setTilt(map.getTilt() + amount);
+    });
+    controlDiv.appendChild(controlUI);
+    map.controls[position].push(controlDiv);
+  });
+  return map;
 }
 
 function MyMapComponent() {
@@ -143,6 +166,8 @@ function MyMapComponent() {
   useEffect(() => {
     const urlZoom = getQueryStringValue("zoom");
     const urlCenter = getQueryStringValue("center");
+    const urlTilt = getQueryStringValue("tilt");
+    const urlHeading = getQueryStringValue("heading");
     map = initializeMapObject(ref.current);
     mapLoadedResolver();
     const vehicleBounds = addTripPolys(map);
@@ -153,9 +178,24 @@ function MyMapComponent() {
     } else {
       map.fitBounds(vehicleBounds);
     }
+
+    if (urlTilt) {
+      map.setTilt(parseInt(urlTilt));
+    }
+    if (urlHeading) {
+      map.setHeading(parseInt(urlHeading));
+    }
     map.setOptions({ maxZoom: 100 });
     map.addListener("zoom_changed", () => {
       setQueryStringValue("zoom", map.getZoom());
+    });
+
+    map.addListener("tilt_changed", () => {
+      setQueryStringValue("tilt", map.getTilt());
+    });
+
+    map.addListener("heading_changed", () => {
+      setQueryStringValue("heading", map.getHeading());
     });
 
     map.addListener(
