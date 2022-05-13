@@ -18,6 +18,7 @@ const process = require("process");
 const auth = require("./components/auth.js");
 const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
+const { Serve } = require("./components/serve.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -28,6 +29,9 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
   .command("historical", "view history vehicle movement", () => {
     commands.historical = true;
   })
+  .command("serve", "start dune-buggy in server mode", () => {
+    commands.serve = true;
+  })
   .options({
     vehicle: {
       describe: "vehicle id to debug",
@@ -37,6 +41,9 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     },
     task: {
       describe: "task id to debug",
+    },
+    port: {
+      describe: "port to use when serve mode enabled",
     },
     daysAgo: {
       describe:
@@ -53,6 +60,36 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
   });
 const argv = yargs.argv;
 
+async function getLogs(dataSource, params, vehicle, trip) {
+  // TOOD: handle lookup by task -- task logs are trickier in than
+  // updateDeliveryVehicleLogs aren't labeled with the task, since there
+  // are many tasks at any given time(unlike how
+  // relevant updateVehicleLogs are labeled by a trip_id)
+  const vehicleLogs = await dataSource.fetchVehicleLogs(vehicle, trip);
+  const deliveryVehicleLogs = await dataSource.fetchDeliveryVehicleLogs(
+    vehicle,
+    vehicleLogs
+  );
+  const taskLogs = await dataSource.fetchTaskLogsForVehicle(
+    vehicle,
+    deliveryVehicleLogs
+  );
+  const tripLogs = await dataSource.fetchTripLogsForVehicle(
+    vehicle,
+    vehicleLogs
+  );
+
+  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
+
+  params.rawLogs = _(vehicleLogs)
+    .concat(tripLogs)
+    .concat(deliveryVehicleLogs)
+    .concat(taskLogs)
+    .sortBy((x) => new Date(x.timestamp).getTime())
+    .reverse()
+    .value();
+}
+
 async function main() {
   if (argv.vehicle) {
     console.log("Fetching logs for vehicle id", argv.vehicle);
@@ -61,7 +98,7 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else {
+  } else if (!commands.serve) {
     yargs.showHelp();
     return;
   }
@@ -79,6 +116,8 @@ async function main() {
   } else if (commands.live) {
     await auth.init();
     params.jwt = await auth.mintJWT();
+  } else if (commands.serve) {
+    await auth.init();
   } else {
     yargs.showHelp();
     return;
@@ -89,41 +128,19 @@ async function main() {
   params.projectId = auth.getProjectId();
   const cloudLogs = new CloudLogs(argv);
 
-  // TOOD: handle lookup by task -- task logs are trickier in than
-  // updateDeliveryVehicleLogs aren't labeled with the task, since there
-  // are many tasks at any given time(unlike how
-  // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await cloudLogs.fetchVehicleLogs(argv.vehicle, argv.trip);
-  const deliveryVehicleLogs = await cloudLogs.fetchDeliveryVehicleLogs(
-    argv.vehicle,
-    vehicleLogs
-  );
-  const taskLogs = await cloudLogs.fetchTaskLogsForVehicle(
-    argv.vehicle,
-    deliveryVehicleLogs
-  );
-  const tripLogs = await cloudLogs.fetchTripLogsForVehicle(
-    argv.vehicle,
-    vehicleLogs
-  );
+  if (commands.serve) {
+    Serve(argv.port || 3000, getLogs, cloudLogs, params);
+  } else {
+    await getLogs(cloudLogs, params, argv.vehicle, argv.trip);
 
-  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
+    if (params.rawLogs.length === 0) {
+      console.error("\n\nError:No log entries found\n\n");
+      return;
+    }
+    const filePath = `public/data.json`;
 
-  params.rawLogs = _(vehicleLogs)
-    .concat(tripLogs)
-    .concat(deliveryVehicleLogs)
-    .concat(taskLogs)
-    .sortBy((x) => new Date(x.timestamp).getTime())
-    .reverse()
-    .value();
-
-  if (params.rawLogs.length === 0) {
-    console.error("\n\nError:No log entries found\n\n");
-    return;
+    logging.writeLogs(filePath, params);
   }
-  const filePath = `public/data.json`;
-
-  logging.writeLogs(filePath, params);
 }
 
 main();
