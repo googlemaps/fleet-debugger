@@ -54,8 +54,8 @@ class Trip {
   // or synthesize pathCoords on the fly?
   appendCoords(lastLocation, timestamp) {
     this.pathCoords.push({
-      lat: lastLocation.rawLocation.latitude,
-      lng: lastLocation.rawLocation.longitude,
+      lat: lastLocation.rawlocation.latitude,
+      lng: lastLocation.rawlocation.longitude,
       trip_id: this.tripName,
       date: new Date(timestamp),
     });

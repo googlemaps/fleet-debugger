@@ -13,32 +13,42 @@ import MissingUpdate from "./MissingUpdate";
 const maxDistanceForDwell = 20; // meters
 const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle request at 10 seconds
 
+/* Logs from bigquery will be all lower case, so standardize on that
+ */
+function toLowerKeys(input) {
+  if (typeof input !== "object") {
+    return input;
+  }
+  if (Array.isArray(input)) {
+    return input.map(toLowerKeys);
+  }
+  return Object.keys(input).reduce((newObj, key) => {
+    let val = input[key];
+    let newVal =
+      typeof val === "object" && val !== null ? toLowerKeys(val) : val;
+    newObj[key.toLowerCase()] = newVal;
+    return newObj;
+  }, {});
+}
+
 class TripLogs {
   constructor(rawLogs, solutionType) {
     this.solutionType = solutionType;
     if (this.solutionType === "LMFS") {
       this.updateVehicleSuffix = "update_delivery_vehicle";
-      this.vehiclePath = "jsonPayload.request.deliveryVehicle";
-      this.navStatusPropName = "navigationStatus";
+      this.vehiclePath = "jsonpayload.request.deliveryvehicle";
+      this.navStatusPropName = "navigationstatus";
     } else {
       this.updateVehicleSuffix = "update_vehicle";
       this.vehicleName = "vehicle";
-      this.vehiclePath = "jsonPayload.request.vehicle";
-      this.navStatusPropName = "navStatus";
+      this.vehiclePath = "jsonpayload.request.vehicle";
+      this.navStatusPropName = "navstatus";
     }
-    this.lastLocationPath = this.vehiclePath + ".lastLocation";
+    this.lastLocationPath = this.vehiclePath + ".lastlocation";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    this.rawLogs = _.reverse(rawLogs);
-    this.processTripSegments();
-    if (rawLogs.length > 0) {
-      this.minDate = new Date(rawLogs[0].timestamp);
-      this.maxDate = new Date(_.last(rawLogs).timestamp);
-    } else {
-      this.minDate = new Date(0);
-      this.maxDate = new Date();
-    }
+    this.rawLogs = _.reverse(rawLogs.map(toLowerKeys));
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
@@ -52,20 +62,29 @@ class TripLogs {
       le.idx = idx;
       // "synthetic" entries that hides some of the differences
       // between lmfs & odrd log entries
-      le.lastLocation = _.get(le, this.lastLocationPath);
+      le.lastlocation = _.get(le, this.lastLocationPath);
 
       // utilized for calculations of serve/client time deltas (where the
       // server time isn't populated in the request).
-      le.lastLocationResponse = _.get(le, "jsonPayload.response.lastLocation");
+      le.lastlocationResponse = _.get(le, "jsonpayload.response.lastlocation");
 
       // use the response because nav status is typically only
       // in the request when it changes ... and visualizations
       // make more sense when the nav status can be shown along the route
       le.navStatus = _.get(
         le,
-        "jsonPayload.response." + this.navStatusPropName
+        "jsonpayload.response." + this.navStatusPropName
       );
     });
+
+    if (this.rawLogs.length > 0) {
+      this.minDate = this.rawLogs[0].date;
+      this.maxDate = _.last(this.rawLogs).date;
+    } else {
+      this.minDate = new Date(0);
+      this.maxDate = new Date();
+    }
+    this.processTripSegments();
   }
 
   getRawLogs_(minDate, maxDate) {
@@ -114,7 +133,7 @@ class TripLogs {
   getMissingUpdates(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawLocation"))
+      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -140,8 +159,8 @@ class TripLogs {
     this.etaDeltas = this.getRawLogs_(minDate, maxDate)
       .filter(
         (le) =>
-          _.get(le, this.vehiclePath + ".etaToFirstWaypoint") &&
-          _.get(le, this.lastLocationPath + ".rawLocation")
+          _.get(le, this.vehiclePath + ".etatofirstwaypoint") &&
+          _.get(le, this.lastLocationPath + ".rawlocation")
       )
       .map((curEntry) => {
         let ret;
@@ -151,8 +170,8 @@ class TripLogs {
           ret = {
             deltaInSeconds: (curEntry.date - prevEntry.date) / 1000,
             coords: new google.maps.LatLng({
-              lat: curLoc.rawLocation.latitude,
-              lng: curLoc.rawLocation.longitude,
+              lat: curLoc.rawlocation.latitude,
+              lng: curLoc.rawlocation.longitude,
             }),
           };
         }
@@ -173,7 +192,7 @@ class TripLogs {
   getHighVelocityJumps(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawLocation"))
+      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -211,18 +230,18 @@ class TripLogs {
   getDwellLocations(minDate, maxDate) {
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
-      const lastLocation = le.lastLocation;
+      const lastLocation = le.lastlocation;
       if (
         !lastLocation ||
-        !lastLocation.rawLocation ||
+        !lastLocation.rawlocation ||
         le.date < minDate ||
         le.date > maxDate
       ) {
         return;
       }
       const coord = {
-        lat: lastLocation.rawLocation.latitude,
-        lng: lastLocation.rawLocation.longitude,
+        lat: lastLocation.rawlocation.latitude,
+        lng: lastLocation.rawlocation.longitude,
       };
       const cluster = _.find(
         dwellLocations,
@@ -256,7 +275,7 @@ class TripLogs {
     if (this.solutionType === "LMFS") {
       const stopsLeft = _.get(
         logEntry,
-        "jsonPayload.response.remainingVehicleJourneySegments"
+        "jsonpayload.response.remainingvehiclejourneysegments"
       );
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
@@ -276,7 +295,7 @@ class TripLogs {
     // places where it happens (since that might actually be a client bug).
 
     _.forEach(this.rawLogs, (le) => {
-      if (le.logName.match(this.updateVehicleSuffix)) {
+      if (le.logname.match(this.updateVehicleSuffix)) {
         const newTripId = this.getSegmentID(le);
         if (newTripId !== curTripId) {
           curTripId = newTripId;
@@ -298,11 +317,11 @@ class TripLogs {
           curTripData.updateRequests++;
         }
         const lastLocation = _.get(le, this.lastLocationPath);
-        if (lastLocation && lastLocation.rawLocation) {
+        if (lastLocation && lastLocation.rawlocation) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
       }
-      const tripStatus = _.get(le, "jsonPayload.response.status");
+      const tripStatus = _.get(le, "jsonpayload.response.status");
       // if the logs had a trip status, and it changeed update
       if (tripStatus && tripStatus !== lastTripStatus) {
         this.tripStatusChanges.push({

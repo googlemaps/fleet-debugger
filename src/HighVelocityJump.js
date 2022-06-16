@@ -10,15 +10,15 @@ let computedOutlier = 0;
 
 class HighVelocityJump {
   constructor(jumpIdx, prevEntry, curEntry) {
-    const prevLoc = prevEntry.lastLocation;
-    const curLoc = curEntry.lastLocation;
+    const prevLoc = prevEntry.lastlocation;
+    const curLoc = curEntry.lastlocation;
     const startLoc = new google.maps.LatLng({
-      lat: prevLoc.rawLocation.latitude,
-      lng: prevLoc.rawLocation.longitude,
+      lat: prevLoc.rawlocation.latitude,
+      lng: prevLoc.rawlocation.longitude,
     });
     const endLoc = new google.maps.LatLng({
-      lat: curLoc.rawLocation.latitude,
-      lng: curLoc.rawLocation.longitude,
+      lat: curLoc.rawlocation.latitude,
+      lng: curLoc.rawlocation.longitude,
     });
     const distanceTraveled =
       window.google.maps.geometry.spherical.computeDistanceBetween(
@@ -68,10 +68,10 @@ class HighVelocityJump {
     // function
     featureData.timestampMS = this.startDate.getTime();
     featureData.formattedDate = this.startDate.toISOString();
-    featureData.jsonPayload = {
+    featureData.jsonpayload = {
       "@type": "Jump",
     };
-    featureData.lastLocation = {
+    featureData.lastlocation = {
       speed: this.velocity,
     };
     return featureData;

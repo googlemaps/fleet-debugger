@@ -234,8 +234,8 @@ function getColor(tripIdx) {
 
 function Map(props) {
   tripLogs = props.logData.tripLogs;
-  minDate = tripLogs.minDate.getTime();
-  maxDate = tripLogs.maxDate.getTime();
+  minDate = tripLogs.minDate;
+  maxDate = tripLogs.maxDate;
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
   mapId = urlParams.get("mapId") || props.logData.mapId;
@@ -287,10 +287,10 @@ function addMarkersToMapForData(data) {
     anchor: new google.maps.Point(15, 30),
   };
 
-  const rawLocation = _.get(data.lastLocation, "rawLocation");
+  const rawLocation = _.get(data.lastlocation, "rawlocation");
   if (rawLocation) {
-    const status = _.get(data, "jsonPayload.response.status");
-    const state = _.get(data, "jsonPayload.response.state");
+    const status = _.get(data, "jsonpayload.response.status");
+    const state = _.get(data, "jsonpayload.response.state");
     const locationForLog = new window.google.maps.Marker({
       position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
       map: map,
@@ -316,14 +316,14 @@ function GenerateBubbles(bubbleName, cb) {
       bubbleMap[bubbleName] = tripLogs
         .getLogs_(minDate, maxDate)
         .map((le) => {
-          const lastLocation = le.lastLocation;
-          let rawLocation;
+          const lastLocation = le.lastlocation;
+          let rawlocation;
           let bubble = undefined;
-          if (lastLocation && (rawLocation = lastLocation.rawLocation)) {
+          if (lastLocation && (rawlocation = lastLocation.rawlocation)) {
             bubble = cb(
               new google.maps.LatLng({
-                lat: rawLocation.latitude,
-                lng: rawLocation.longitude,
+                lat: rawlocation.latitude,
+                lng: rawlocation.longitude,
               }),
               lastLocation,
               le
@@ -345,7 +345,7 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
   "showGPSBubbles",
   (rawLocationLatLng, lastLocation) => {
     let color;
-    switch (lastLocation.locSensor) {
+    switch (lastLocation.locsensor) {
       case "LOCATION_SENSOR_GPS":
         color = "#11FF11";
         break;
@@ -365,7 +365,7 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
       default:
         color = "#000000";
     }
-    const accuracy = lastLocation.rawLocationAccuracy;
+    const accuracy = lastLocation.rawlocationaccuracy;
     if (accuracy) {
       let circ = new google.maps.Circle({
         strokeColor: color,
@@ -379,8 +379,8 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
       });
       google.maps.event.addListener(circ, "mouseover", () => {
         setFeaturedObject({
-          rawLocationAccuracy: lastLocation.rawLocationAccuracy,
-          locSensor: lastLocation.locSensor,
+          rawlocationaccuracy: lastLocation.rawlocationaccuracy,
+          locsensor: lastLocation.locsensor,
         });
       });
       return circ;
@@ -396,10 +396,10 @@ toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
   "showClientServerTimeDeltas",
   (rawLocationLatLng, lastLocation, logEntry) => {
     const clientTimeStr = _.get(
-      logEntry.lastLocationResponse,
-      "rawLocationTime"
+      logEntry.lastlocationResponse,
+      "rawlocationtime"
     );
-    const serverTimeStr = _.get(logEntry.lastLocationResponse, "serverTime");
+    const serverTimeStr = _.get(logEntry.lastlocationResponse, "servertime");
     if (clientTimeStr && serverTimeStr) {
       const clientDate = new Date(clientTimeStr);
       const serverDate = new Date(serverTimeStr);
@@ -443,8 +443,8 @@ toggleHandlers["showHeading"] = GenerateBubbles(
   (rawLocationLatLng, lastLocation, logEntry) => {
     // Note: Heading & accuracy are only on the _request_ not the
     // response.
-    const heading = _.get(logEntry.lastLocation, "heading");
-    const accuracy = _.get(logEntry.lastLocation, "bearingAccuracy");
+    const heading = _.get(logEntry.lastlocation, "heading");
+    const accuracy = _.get(logEntry.lastlocation, "bearingaccuracy");
 
     // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
     const arrowLength = 20; // meters??
@@ -676,7 +676,7 @@ toggleHandlers["showNavStatus"] = GenerateBubbles(
     google.maps.event.addListener(statusCirc, "mouseover", () => {
       setFeaturedObject({
         navStatus: navStatus,
-        vehicleState: _.get(le, "jsonPayload.response.state"),
+        vehicleState: _.get(le, "jsonpayload.response.state"),
         tripStatus: "??",
       });
     });
