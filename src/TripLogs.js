@@ -32,8 +32,13 @@ class TripLogs {
     this.tripStatusChanges = [];
     this.rawLogs = _.reverse(rawLogs);
     this.processTripSegments();
-    this.minDate = new Date(rawLogs[0].timestamp);
-    this.maxDate = new Date(_.last(rawLogs).timestamp);
+    if (rawLogs.length > 0) {
+      this.minDate = new Date(rawLogs[0].timestamp);
+      this.maxDate = new Date(_.last(rawLogs).timestamp);
+    } else {
+      this.minDate = new Date(0);
+      this.maxDate = new Date();
+    }
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
