@@ -10,13 +10,15 @@ let apikey;
 let mapId;
 let solutionType;
 let tripLogs;
+import { getQueryStringValue } from "./queryString";
 
 /**
  * This function must be called (and awaited on) to load the raw data before
  * any of the other exported fields are accessed.
  */
 async function loadData() {
-  const response = await fetch("./data.json");
+  const dataFileName = getQueryStringValue("dataFile") || "./data.json";
+  const response = await fetch(dataFileName);
   const parsedData = await response.json();
   jwt = parsedData.jwt;
   projectId = parsedData.projectId;
