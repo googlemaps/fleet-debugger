@@ -19,6 +19,7 @@ const auth = require("./components/auth.js");
 const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
 const { Serve } = require("./components/serve.js");
+const { Bigquery } = require("./components/bigqueryDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -45,6 +46,16 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     port: {
       describe: "port to use when serve mode enabled",
     },
+    startTime: {
+      describe:
+        "startTime -- Only request data newer that startTime .. Must be an something that used in new Date()",
+      default: new Date(0).toISOString(),
+    },
+    endTime: {
+      describe:
+        "endTime -- Only request data older that endTime .. Must be an something that used in new Date()",
+      default: new Date().toISOString(),
+    },
     daysAgo: {
       describe:
         "Cloud logging is very slow when scanning for old logs, limit search to at most this many days ago",
@@ -56,6 +67,10 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     },
     mapId: {
       describe: "mapId to use in map",
+    },
+    bigquery: {
+      describe:
+        "Use specified bigquery dataset as datasource.  Assumes current user has access, and standard format.  Assumes dataset has separate tables for each api method",
     },
   });
 const argv = yargs.argv;
@@ -98,6 +113,11 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
+  } else if ((argv.startTime || argv.endTime) & !argv.bigquery) {
+    console.log(
+      "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
+    );
+    return;
   } else if (!commands.serve) {
     yargs.showHelp();
     return;
@@ -126,12 +146,20 @@ async function main() {
   // Always include project id -- it's used
   // by utils/clean-demos.js
   params.projectId = auth.getProjectId();
-  const cloudLogs = new CloudLogs(argv);
+  let logs;
+
+  if (argv.bigquery) {
+    logs = new Bigquery(argv);
+    params.logSource = "bigquery";
+  } else {
+    logs = new CloudLogs(argv);
+    params.logSource = "cloudlogs";
+  }
 
   if (commands.serve) {
-    Serve(argv.port || 3000, getLogs, cloudLogs, params);
+    Serve(argv.port || 3000, getLogs, logs, params);
   } else {
-    await getLogs(cloudLogs, params, argv.vehicle, argv.trip);
+    await getLogs(logs, params, argv.vehicle, argv.trip);
 
     if (params.rawLogs.length === 0) {
       console.error("\n\nError:No log entries found\n\n");
