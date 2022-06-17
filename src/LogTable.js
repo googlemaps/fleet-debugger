@@ -99,17 +99,17 @@ function LogTable(props) {
         },
         {
           Header: "SDK Version",
-          accessor: "jsonPayload.request.header.sdkVersion",
+          accessor: "jsonpayload.request.header.sdkversion",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           Header: "OS Version",
-          accessor: "jsonPayload.request.header.osVersion",
+          accessor: "jsonpayload.request.header.osversion",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           Header: "Method",
-          accessor: "jsonPayload.@type",
+          accessor: "jsonpayload.@type",
           Cell: ({ cell: { value } }) => (
             <TrimCell
               value={value}
@@ -135,7 +135,7 @@ function LogTable(props) {
         },
         {
           Header: "Vehicle State",
-          accessor: "jsonPayload.response.state",
+          accessor: "jsonpayload.response.state",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="VEHICLE_STATE_" />
           ),
@@ -143,7 +143,7 @@ function LogTable(props) {
         },
         {
           Header: "Task State",
-          accessor: "jsonPayload.response.state",
+          accessor: "jsonpayload.response.state",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TASK_STATE_" />
           ),
@@ -151,7 +151,7 @@ function LogTable(props) {
         },
         {
           Header: "Trip Status",
-          accessor: "jsonPayload.response.status",
+          accessor: "jsonpayload.response.status",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TRIP_STATUS_" />
           ),
@@ -160,7 +160,7 @@ function LogTable(props) {
         {
           Header: "Remaining tasks",
           id: "reamining_tasks",
-          accessor: "jsonPayload.response.remainingVehicleJourneySegments",
+          accessor: "jsonpayload.response.remainingvehiclejourneysegments",
           Cell: ({ cell: { value } }) => (
             <>{value && _.sumBy(value, "stop.tasks.length")}</>
           ),
@@ -169,12 +169,12 @@ function LogTable(props) {
         {
           Header: "Remaining Distance This Segment",
           accessor:
-            "jsonPayload.request.deliveryVehicle.remainingDistanceMeters",
+            "jsonpayload.request.deliveryvehicle.remainingdistancemeters",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Remaining Segements",
-          accessor: "jsonPayload.response.remainingVehicleJourneySegments",
+          accessor: "jsonpayload.response.remainingvehiclejourneysegments",
           Cell: ({ cell: { value } }) => <>{value && value.length}</>,
           solutionTypes: ["LMFS"],
         },

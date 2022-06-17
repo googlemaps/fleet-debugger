@@ -90,8 +90,8 @@ class App extends React.Component {
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
           columns: [
-            "lastLocation.rawLocationAccuracy",
-            "lastLocation.locSensor",
+            "lastlocation.rawlocationaccuracy",
+            "lastlocation.locsensor",
           ],
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -100,7 +100,7 @@ class App extends React.Component {
           name: "Heading",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
-          columns: ["lastLocation.heading", "lastLocation.bearingAccuracy"],
+          columns: ["lastlocation.heading", "lastlocation.bearingaccuracy"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -108,7 +108,7 @@ class App extends React.Component {
           name: "Speed",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
-          columns: ["lastLocation.speed"],
+          columns: ["lastlocation.speed"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -140,7 +140,7 @@ class App extends React.Component {
           name: "Jumps (unrealistic velocity)",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
-          columns: ["lastLocation.speed"],
+          columns: ["lastlocation.speed"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -148,7 +148,7 @@ class App extends React.Component {
           name: "Jumps (Temporal)",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
-          columns: ["jsonPayload.temporal_gap"],
+          columns: ["jsonpayload.temporal_gap"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -157,8 +157,8 @@ class App extends React.Component {
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [
-            "jsonPayload.response.lastLocation.rawLocationTime",
-            "jsonPayload.response.lastLocation.serverTime",
+            "jsonpayload.response.laslLocation.rawlocationlime",
+            "jsonpayload.response.laslLocation.serverlime",
           ],
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -167,7 +167,7 @@ class App extends React.Component {
           name: "ETA Deltas",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
-          columns: ["jsonPayload.request.vehicle.etaToFirstWaypoint"],
+          columns: ["jsonpayload.request.vehicle.etatofirstwaypoint"],
           solutionTypes: ["ODRD"],
         },
         {
