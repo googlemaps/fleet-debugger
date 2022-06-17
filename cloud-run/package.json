@@ -1,7 +1,7 @@
 {
-  "name": "dune-buggy",
+  "name": "fleet-debugger",
   "version": "1.0.0",
-  "description": "",
+  "description": "fleet-debugger LIVE",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -13,29 +13,17 @@
   "bugs": {
     "url": "https://github.com/googlemaps/fleet-debugger/issues"
   },
+  "engines": {
+    "node": ">= 16.0.0"
+  },
   "homepage": ".",
   "dependencies": {
     "@google-cloud/logging": "^9.6.1",
-    "@googlemaps/react-wrapper": "^1.1.8",
-    "@testing-library/jest-dom": "^5.14.1",
-    "@testing-library/react": "^11.2.7",
-    "@testing-library/user-event": "^12.8.3",
     "express": "^4.18.1",
     "google-maps-react": "^2.0.6",
     "googleapis": "^89.0.0",
     "lodash": "^4.17.21",
     "open": "^8.3.0",
-    "prettier": "^2.4.1",
-    "query-string": "^7.1.0",
-    "rc-slider": "^9.7.4",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-json-view": "^1.21.3",
-    "react-scripts": "4.0.3",
-    "react-table": "^7.7.0",
-    "styled-components": "^5.3.1",
-    "web-vitals": "^1.1.2",
-    "webpack": "4.44.2",
     "yargs": "^17.2.1"
   },
   "devDependencies": {
@@ -49,13 +37,7 @@
     "typescript": "^4.4.4"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build && cp utils/view-bundle.sh build/",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "format": "eslint . --fix",
-    "lint": "eslint .",
-    "docs": "echo NOT IMPLEMENTED"
+    "start": "sh ./fleet-debugger.sh"
   },
   "eslintConfig": {
     "extends": [
