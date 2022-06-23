@@ -5,13 +5,8 @@
  * propagation for state changes into the non-react map
  */
 import React from "react";
-import {
-  onSliderChangeMap,
-  addMarkersToMapForData,
-  updateMapToggles,
-  registerHandlers,
-  mapLoadPromise,
-} from "./Map";
+import { updateMapToggles, registerHandlers, mapLoadPromise } from "./Map";
+import Map from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
 import LogTable from "./LogTable";
@@ -42,7 +37,6 @@ class App extends React.Component {
       ? parseInt(urlMaxTime)
       : nowDate.setFullYear(nowDate.getFullYear() + 1);
 
-    this.logData = props.logData;
     this.state = {
       timeRange: {
         minTime: this.initialMinTime,
@@ -188,7 +182,9 @@ class App extends React.Component {
         },
       ],
       (toggle) => {
-        return toggle.solutionTypes.indexOf(this.logData.solutionType) !== -1;
+        return (
+          toggle.solutionTypes.indexOf(this.props.logData.solutionType) !== -1
+        );
       }
     );
   }
@@ -245,7 +241,6 @@ class App extends React.Component {
    * Callback to updated selected log row
    */
   onSelectionChange(selectedRow) {
-    addMarkersToMapForData(selectedRow);
     this.setFeaturedObject(selectedRow);
   }
 
@@ -268,9 +263,6 @@ class App extends React.Component {
         maxTime: maxTime,
       },
     });
-
-    // Handle Map component separately from standard state update
-    onSliderChangeMap(minTime, maxTime);
   }
 
   /*
@@ -302,8 +294,14 @@ class App extends React.Component {
   render() {
     return (
       <div>
+        <Map
+          logData={this.props.logData}
+          rangeStart={this.state.timeRange.minTime}
+          rangeEnd={this.state.timeRange.maxTime}
+          selectedRow={this.featuredObject}
+        />
         <TimeSlider
-          logData={this.logData}
+          logData={this.props.logData}
           curMin={this.state.timeRange.minTime}
           curMax={this.state.timeRange.maxTime}
           onSliderChange={this.onSliderChangeDebounced}
@@ -324,7 +322,7 @@ class App extends React.Component {
             }}
           >
             <LogTable
-              logData={this.logData}
+              logData={this.props.logData}
               style={{ width: "100%" }}
               timeRange={this.state.timeRange}
               extraColumns={this.state.extraColumns}
