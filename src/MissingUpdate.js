@@ -101,16 +101,16 @@ class MissingUpdate {
       return [];
     }
     const intervals = _.map(updates, "interval");
-    const avgInternal = _.mean(intervals);
-    const medianInternal = Stats.median(intervals);
-    const minInternal = _.min(intervals);
-    const maxInternal = _.max(intervals);
-    console.log("avgInternal", avgInternal);
-    console.log("medianInternal", medianInternal);
-    console.log("minInternal", minInternal);
-    console.log("maxInternal", maxInternal);
+    const avgInterval = _.mean(intervals);
+    const medianInterval = Stats.median(intervals);
+    const minInterval = _.min(intervals);
+    const maxInterval = _.max(intervals);
+    console.log("avgInterval", avgInterval);
+    console.log("medianInterval", medianInterval);
+    console.log("minInterval", minInterval);
+    console.log("maxInterval", maxInterval);
     console.log("updateOutlier", updateOutlier);
-    computedOutlier = _.min([medianInternal * 10, updateOutlier]);
+    computedOutlier = _.min([medianInterval * 10, updateOutlier]);
     console.log("computedOutlier", computedOutlier);
     return _(updates)
       .filter((e) => e.interval >= computedOutlier)
