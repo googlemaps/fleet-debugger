@@ -7,6 +7,7 @@ import ServeHome from "./ServeHome";
 import { getQueryStringValue } from "./queryString";
 import {
   tripLogs,
+  taskLogs,
   loadData,
   apikey,
   mapId,
@@ -30,6 +31,7 @@ if (params.serveMode) {
   loadData(params).then(() => {
     const logData = {
       tripLogs,
+      taskLogs,
       apikey,
       mapId,
       jwt,

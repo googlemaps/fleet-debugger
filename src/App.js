@@ -54,6 +54,7 @@ class App extends React.Component {
         showETADeltas: getToggleDefault("showETADeltas", false),
         showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
         showMissingUpdates: getToggleDefault("showMissingUpdates", false),
+        showTasksAsCreated: getToggleDefault("showTasksAsCreated", false),
         showLiveJS: getToggleDefault("showLiveJS", false),
         showClientServerTimeDeltas: getToggleDefault(
           "showClientServerTimeDeltas",
@@ -113,6 +114,14 @@ class App extends React.Component {
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          id: "showTasksAsCreated",
+          name: "Tasks",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Tasks.md",
+          columns: [],
+          solutionTypes: ["LMFS"],
         },
         {
           id: "showDwellLocations",
