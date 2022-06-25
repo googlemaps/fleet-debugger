@@ -11,14 +11,6 @@ import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import Utils from "./Utils";
 
-/*
- * Expose a promise that resolves when the map is fully instantiated
- */
-let mapLoadedResolver;
-const mapLoadPromise = new Promise((resolve) => {
-  mapLoadedResolver = resolve;
-});
-
 let minDate;
 let maxDate;
 let allPaths = [];
@@ -169,7 +161,6 @@ function MyMapComponent(props) {
     const urlTilt = getQueryStringValue("tilt");
     const urlHeading = getQueryStringValue("heading");
     map = initializeMapObject(ref.current);
-    mapLoadedResolver();
     const vehicleBounds = addTripPolys(map);
     if (urlZoom && urlCenter) {
       console.log("setting zoom & center from url", urlZoom, urlCenter);
@@ -303,6 +294,8 @@ function Map(props) {
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
   solutionType = props.logData.solutionType;
+  setFeaturedObject = props.setFeaturedObject;
+  setTimeRange = props.setTimeRange;
 
   return (
     <Wrapper
@@ -940,15 +933,4 @@ toggleHandlers["showLiveJS"] = function (enabled) {
   }
 };
 
-/*
- * Register handlers that allow this code to call
- * into react components.  (ie display trip data
- * in the object viewer component when a vehicle track
- * polyline  is clicked on).
- */
-function registerHandlers(featureObject, timeRange) {
-  setFeaturedObject = featureObject;
-  setTimeRange = timeRange;
-}
-
-export { Map as default, registerHandlers, mapLoadPromise };
+export { Map as default };

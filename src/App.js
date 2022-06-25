@@ -5,7 +5,6 @@
  * propagation for state changes into the non-react map
  */
 import React from "react";
-import { registerHandlers, mapLoadPromise } from "./Map";
 import Map from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
@@ -68,12 +67,6 @@ class App extends React.Component {
       25
     );
 
-    // Allow map code to set which object is featured, and
-    // adjust the timerange filtering
-    registerHandlers(
-      (fo) => this.setFeaturedObject(fo),
-      (minTime, maxTime) => this.setTimeRange(minTime, maxTime)
-    );
     // TODO: refactor so that visualizations are registered
     // rather than enumerated here?
     this.toggles = _.filter(
@@ -187,6 +180,8 @@ class App extends React.Component {
         );
       }
     );
+    this.setFeaturedObject = this.setFeaturedObject.bind(this);
+    this.setTimeRange = this.setTimeRange.bind(this);
   }
 
   /*
@@ -198,14 +193,12 @@ class App extends React.Component {
    * changed.
    */
   componentDidMount() {
-    mapLoadPromise.then(() => {
-      this.setTimeRange(this.initialMinTime, this.initialMaxTime);
-      _.map(this.toggles, (toggle) => {
-        const urlVal = getQueryStringValue(toggle.id);
-        if (urlVal === "true") {
-          this.updateToggleState(true, toggle.id, toggle.columns);
-        }
-      });
+    this.setTimeRange(this.initialMinTime, this.initialMaxTime);
+    _.map(this.toggles, (toggle) => {
+      const urlVal = getQueryStringValue(toggle.id);
+      if (urlVal === "true") {
+        this.updateToggleState(true, toggle.id, toggle.columns);
+      }
     });
   }
 
@@ -300,6 +293,8 @@ class App extends React.Component {
           selectedRow={this.state.featuredObject}
           toggles={this.toggles}
           toggleOptions={this.state.toggleOptions}
+          setFeaturedObject={this.setFeaturedObject}
+          setTimeRange={this.setTimeRange}
         />
         <TimeSlider
           logData={this.props.logData}
