@@ -18,6 +18,8 @@ const process = require("process");
 const auth = require("./components/auth.js");
 const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
+const { Serve } = require("./components/serve.js");
+const { Bigquery } = require("./components/bigqueryDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -28,6 +30,9 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
   .command("historical", "view history vehicle movement", () => {
     commands.historical = true;
   })
+  .command("serve", "start dune-buggy in server mode", () => {
+    commands.serve = true;
+  })
   .options({
     vehicle: {
       describe: "vehicle id to debug",
@@ -37,6 +42,19 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     },
     task: {
       describe: "task id to debug",
+    },
+    port: {
+      describe: "port to use when serve mode enabled",
+    },
+    startTime: {
+      describe:
+        "startTime -- Only request data newer that startTime .. Must be an something that used in new Date()",
+      default: new Date(0).toISOString(),
+    },
+    endTime: {
+      describe:
+        "endTime -- Only request data older that endTime .. Must be an something that used in new Date()",
+      default: new Date().toISOString(),
     },
     daysAgo: {
       describe:
@@ -50,8 +68,42 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
     mapId: {
       describe: "mapId to use in map",
     },
+    bigquery: {
+      describe:
+        "Use specified bigquery dataset as datasource.  Assumes current user has access, and standard format.  Assumes dataset has separate tables for each api method",
+    },
   });
 const argv = yargs.argv;
+
+async function getLogs(dataSource, params, vehicle, trip) {
+  // TOOD: handle lookup by task -- task logs are trickier in than
+  // updateDeliveryVehicleLogs aren't labeled with the task, since there
+  // are many tasks at any given time(unlike how
+  // relevant updateVehicleLogs are labeled by a trip_id)
+  const vehicleLogs = await dataSource.fetchVehicleLogs(vehicle, trip);
+  const deliveryVehicleLogs = await dataSource.fetchDeliveryVehicleLogs(
+    vehicle,
+    vehicleLogs
+  );
+  const taskLogs = await dataSource.fetchTaskLogsForVehicle(
+    vehicle,
+    deliveryVehicleLogs
+  );
+  const tripLogs = await dataSource.fetchTripLogsForVehicle(
+    vehicle,
+    vehicleLogs
+  );
+
+  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
+
+  params.rawLogs = _(vehicleLogs)
+    .concat(tripLogs)
+    .concat(deliveryVehicleLogs)
+    .concat(taskLogs)
+    .sortBy((x) => new Date(x.timestamp).getTime())
+    .reverse()
+    .value();
+}
 
 async function main() {
   if (argv.vehicle) {
@@ -61,7 +113,12 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else {
+  } else if ((argv.startTime || argv.endTime) & !argv.bigquery) {
+    console.log(
+      "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
+    );
+    return;
+  } else if (!commands.serve) {
     yargs.showHelp();
     return;
   }
@@ -79,6 +136,8 @@ async function main() {
   } else if (commands.live) {
     await auth.init();
     params.jwt = await auth.mintJWT();
+  } else if (commands.serve) {
+    await auth.init();
   } else {
     yargs.showHelp();
     return;
@@ -87,43 +146,29 @@ async function main() {
   // Always include project id -- it's used
   // by utils/clean-demos.js
   params.projectId = auth.getProjectId();
-  const cloudLogs = new CloudLogs(argv);
+  let logs;
 
-  // TOOD: handle lookup by task -- task logs are trickier in than
-  // updateDeliveryVehicleLogs aren't labeled with the task, since there
-  // are many tasks at any given time(unlike how
-  // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await cloudLogs.fetchVehicleLogs(argv.vehicle, argv.trip);
-  const deliveryVehicleLogs = await cloudLogs.fetchDeliveryVehicleLogs(
-    argv.vehicle,
-    vehicleLogs
-  );
-  const taskLogs = await cloudLogs.fetchTaskLogsForVehicle(
-    argv.vehicle,
-    deliveryVehicleLogs
-  );
-  const tripLogs = await cloudLogs.fetchTripLogsForVehicle(
-    argv.vehicle,
-    vehicleLogs
-  );
-
-  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
-
-  params.rawLogs = _(vehicleLogs)
-    .concat(tripLogs)
-    .concat(deliveryVehicleLogs)
-    .concat(taskLogs)
-    .sortBy((x) => new Date(x.timestamp).getTime())
-    .reverse()
-    .value();
-
-  if (params.rawLogs.length === 0) {
-    console.error("\n\nError:No log entries found\n\n");
-    return;
+  if (argv.bigquery) {
+    logs = new Bigquery(argv);
+    params.logSource = "bigquery";
+  } else {
+    logs = new CloudLogs(argv);
+    params.logSource = "cloudlogs";
   }
-  const filePath = `public/data.json`;
 
-  logging.writeLogs(filePath, params);
+  if (commands.serve) {
+    Serve(argv.port || 3000, getLogs, logs, params);
+  } else {
+    await getLogs(logs, params, argv.vehicle, argv.trip);
+
+    if (params.rawLogs.length === 0) {
+      console.error("\n\nError:No log entries found\n\n");
+      return;
+    }
+    const filePath = `public/data.json`;
+
+    logging.writeLogs(filePath, params);
+  }
 }
 
 main();

@@ -12,15 +12,15 @@ let computedOutlier = 0;
 class MissingUpdate {
   constructor(idx, prevEntry, curEntry) {
     const interval = curEntry.date - prevEntry.date;
-    const curLoc = curEntry.lastLocation;
-    const prevLoc = prevEntry.lastLocation;
+    const curLoc = curEntry.lastlocation;
+    const prevLoc = prevEntry.lastlocation;
     const startLoc = new google.maps.LatLng({
-      lat: prevLoc.rawLocation.latitude,
-      lng: prevLoc.rawLocation.longitude,
+      lat: prevLoc.rawlocation.latitude,
+      lng: prevLoc.rawlocation.longitude,
     });
     const endLoc = new google.maps.LatLng({
-      lat: curLoc.rawLocation.latitude,
-      lng: curLoc.rawLocation.longitude,
+      lat: curLoc.rawlocation.latitude,
+      lng: curLoc.rawlocation.longitude,
     });
     this.entry = curEntry;
     this.prevEntry = prevEntry;
@@ -30,8 +30,8 @@ class MissingUpdate {
     this.endDate = curEntry.date;
     this.endLoc = endLoc;
     this.idx = idx;
-    this.startVehicleState = _.get(curEntry, "jsonPayload.response.state");
-    this.endVehicleState = _.get(prevEntry, "jsonPayload.response.state");
+    this.startVehicleState = _.get(curEntry, "jsonpayload.response.state");
+    this.endVehicleState = _.get(prevEntry, "jsonpayload.response.state");
     this.duration = Utils.formatDuration(this.interval);
   }
 
@@ -57,6 +57,10 @@ class MissingUpdate {
    * human can easily read.
    */
   getStateTransition() {
+    if (!(this.startVehicleState && this.endVehicleState)) {
+      // LMFS doesn't really have vehicle states -- what's interesing here?
+      return "";
+    }
     const start = this.startVehicleState.replace("VEHICLE_STATE_", "");
     const end = this.endVehicleState.replace("VEHICLE_STATE_", "");
     return start + ">" + end;
@@ -73,7 +77,7 @@ class MissingUpdate {
     featureData.date = this.startDate;
     featureData.timestampMS = this.startDate.getTime();
     featureData.formattedDate = this.startDate.toISOString();
-    featureData.jsonPayload = {
+    featureData.jsonpayload = {
       "@type": "Missing Updates",
       temporal_gap: featureData.duration,
       response: {
