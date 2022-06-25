@@ -5,7 +5,7 @@
  * propagation for state changes into the non-react map
  */
 import React from "react";
-import { updateMapToggles, registerHandlers, mapLoadPromise } from "./Map";
+import { registerHandlers, mapLoadPromise } from "./Map";
 import Map from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
@@ -212,7 +212,6 @@ class App extends React.Component {
   updateToggleState(newValue, toggleName, jsonPaths) {
     this.setState((prevState) => {
       prevState.toggleOptions[toggleName] = newValue;
-      updateMapToggles(toggleName, newValue);
       setQueryStringValue(toggleName, newValue);
 
       const extraColumns = _.clone(prevState.extraColumns);
@@ -298,7 +297,9 @@ class App extends React.Component {
           logData={this.props.logData}
           rangeStart={this.state.timeRange.minTime}
           rangeEnd={this.state.timeRange.maxTime}
-          selectedRow={this.featuredObject}
+          selectedRow={this.state.featuredObject}
+          toggles={this.toggles}
+          toggleOptions={this.state.toggleOptions}
         />
         <TimeSlider
           logData={this.props.logData}

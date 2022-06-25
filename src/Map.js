@@ -259,6 +259,14 @@ function MyMapComponent(props) {
     // TODO: for non-vehicle api calls could attempt to interpolate the location
   }, [props.selectedRow]);
 
+  for (const toggle of props.toggles) {
+    const id = toggle.id;
+    const enabled = props.toggleOptions[id];
+    useEffect(() => {
+      toggleHandlers[id](enabled);
+    }, [props.toggleOptions[id]]);
+  }
+
   return <div ref={ref} id="map" style={{ height: "500px" }} />;
 }
 
@@ -303,7 +311,13 @@ function Map(props) {
       version="beta"
       libraries={["geometry", "journeySharing"]}
     >
-      <MyMapComponent rangeStart={props.rangeStart} rangeEnd={props.rangeEnd} />
+      <MyMapComponent
+        rangeStart={props.rangeStart}
+        rangeEnd={props.rangeEnd}
+        selectedRow={props.selectedRow}
+        toggles={props.toggles}
+        toggleOptions={props.toggleOptions}
+      />
     </Wrapper>
   );
 }
@@ -926,10 +940,6 @@ toggleHandlers["showLiveJS"] = function (enabled) {
   }
 };
 
-function updateMapToggles(toggleName, enabled) {
-  toggleHandlers[toggleName](enabled);
-}
-
 /*
  * Register handlers that allow this code to call
  * into react components.  (ie display trip data
@@ -941,4 +951,4 @@ function registerHandlers(featureObject, timeRange) {
   setTimeRange = timeRange;
 }
 
-export { Map as default, updateMapToggles, registerHandlers, mapLoadPromise };
+export { Map as default, registerHandlers, mapLoadPromise };
