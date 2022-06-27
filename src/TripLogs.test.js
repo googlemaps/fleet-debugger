@@ -26,6 +26,7 @@ test("basic lmfs trip log loading", async () => {
   const tripLogs = await loadTripLogs("./datasets/lmfs.json");
 
   expect(tripLogs.getTripIDs()).toStrictEqual([
+    "Stops Left 11",
     "Stops Left 10",
     "Stops Left 9",
     "Stops Left 8",
@@ -34,7 +35,5 @@ test("basic lmfs trip log loading", async () => {
     "Stops Left 5",
     "Stops Left 4",
     "Stops Left 3",
-    "Stops Left 2",
-    "Stops Left 1",
   ]);
 });
