@@ -11,14 +11,6 @@ import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import Utils from "./Utils";
 
-/*
- * Expose a promise that resolves when the map is fully instantiated
- */
-let mapLoadedResolver;
-const mapLoadPromise = new Promise((resolve) => {
-  mapLoadedResolver = resolve;
-});
-
 let minDate;
 let maxDate;
 let allPaths = [];
@@ -160,7 +152,7 @@ function initializeMapObject(element) {
   return map;
 }
 
-function MyMapComponent() {
+function MyMapComponent(props) {
   const ref = useRef();
 
   useEffect(() => {
@@ -169,7 +161,6 @@ function MyMapComponent() {
     const urlTilt = getQueryStringValue("tilt");
     const urlHeading = getQueryStringValue("heading");
     map = initializeMapObject(ref.current);
-    mapLoadedResolver();
     const vehicleBounds = addTripPolys(map);
     if (urlZoom && urlCenter) {
       console.log("setting zoom & center from url", urlZoom, urlCenter);
@@ -204,7 +195,68 @@ function MyMapComponent() {
         setQueryStringValue("center", JSON.stringify(map.getCenter().toJSON()));
       }, 100)
     );
-  });
+  }, []);
+
+  /*
+   * Handler for timewindow change.  Updates global min/max date globals
+   * and recomputes the paths as well as all the bubble markers to respect the
+   * new date values.
+   *
+   * Debounced to every 100ms as a blance between performance and reactivity when
+   * the slider is dragged.
+   */
+  useEffect(
+    () =>
+      _.debounce(() => {
+        minDate = new Date(props.rangeStart);
+        maxDate = new Date(props.rangeEnd);
+        addTripPolys(map);
+        _.forEach(toggleHandlers, (handler, name) => {
+          if (bubbleMap[name]) {
+            handler(true);
+          }
+        });
+      }, 100),
+    [props.rangeStart, props.rangeEnd]
+  );
+
+  useEffect(() => {
+    const data = props.selectedRow;
+    if (!data) return;
+    _.forEach(dataMakers, (m) => m.setMap(null));
+    dataMakers = [];
+    const svgMarker = {
+      path: "M10.453 14.016l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM12 2.016q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
+      fillColor: "blue",
+      fillOpacity: 0.6,
+      strokeWeight: 0,
+      rotation: 0,
+      scale: 2,
+      anchor: new google.maps.Point(15, 30),
+    };
+
+    const rawLocation = _.get(data.lastLocation, "rawLocation");
+    if (rawLocation) {
+      const status = _.get(data, "jsonPayload.response.status");
+      const state = _.get(data, "jsonPayload.response.state");
+      const locationForLog = new window.google.maps.Marker({
+        position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
+        map: map,
+        icon: svgMarker,
+        title: "Vehicle state " + state + " Trip Status " + status,
+      });
+      dataMakers.push(locationForLog);
+    }
+    // TODO: for non-vehicle api calls could attempt to interpolate the location
+  }, [props.selectedRow]);
+
+  for (const toggle of props.toggles) {
+    const id = toggle.id;
+    const enabled = props.toggleOptions[id];
+    useEffect(() => {
+      toggleHandlers[id](enabled);
+    }, [props.toggleOptions[id]]);
+  }
 
   return <div ref={ref} id="map" style={{ height: "500px" }} />;
 }
@@ -242,6 +294,8 @@ function Map(props) {
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
   solutionType = props.logData.solutionType;
+  setFeaturedObject = props.setFeaturedObject;
+  setTimeRange = props.setTimeRange;
 
   return (
     <Wrapper
@@ -250,56 +304,15 @@ function Map(props) {
       version="beta"
       libraries={["geometry", "journeySharing"]}
     >
-      <MyMapComponent />
+      <MyMapComponent
+        rangeStart={props.rangeStart}
+        rangeEnd={props.rangeEnd}
+        selectedRow={props.selectedRow}
+        toggles={props.toggles}
+        toggleOptions={props.toggleOptions}
+      />
     </Wrapper>
   );
-}
-
-/*
- * Handler for timewindow change.  Updates global min/max date globals
- * and recomputes the paths as well as all the bubble markers to respect the
- * new date values.
- *
- * Debounced to every 100ms as a blance between performance and reactivity when
- * the slider is dragged.
- */
-const onSliderChangeMap = _.debounce((rangeStart, rangeEnd) => {
-  minDate = new Date(rangeStart);
-  maxDate = new Date(rangeEnd);
-  addTripPolys(map);
-  _.forEach(toggleHandlers, (handler, name) => {
-    if (bubbleMap[name]) {
-      handler(true);
-    }
-  });
-}, 100);
-
-function addMarkersToMapForData(data) {
-  _.forEach(dataMakers, (m) => m.setMap(null));
-  dataMakers = [];
-  const svgMarker = {
-    path: "M10.453 14.016l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM12 2.016q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
-    fillColor: "blue",
-    fillOpacity: 0.6,
-    strokeWeight: 0,
-    rotation: 0,
-    scale: 2,
-    anchor: new google.maps.Point(15, 30),
-  };
-
-  const rawLocation = _.get(data.lastlocation, "rawlocation");
-  if (rawLocation) {
-    const status = _.get(data, "jsonpayload.response.status");
-    const state = _.get(data, "jsonpayload.response.state");
-    const locationForLog = new window.google.maps.Marker({
-      position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
-      map: map,
-      icon: svgMarker,
-      title: "Vehicle state " + state + " Trip Status " + status,
-    });
-    dataMakers.push(locationForLog);
-  }
-  // TODO: for non-vehicle api calls could attempt to interpolate the location
 }
 
 /*
@@ -920,26 +933,4 @@ toggleHandlers["showLiveJS"] = function (enabled) {
   }
 };
 
-function updateMapToggles(toggleName, enabled) {
-  toggleHandlers[toggleName](enabled);
-}
-
-/*
- * Register handlers that allow this code to call
- * into react components.  (ie display trip data
- * in the object viewer component when a vehicle track
- * polyline  is clicked on).
- */
-function registerHandlers(featureObject, timeRange) {
-  setFeaturedObject = featureObject;
-  setTimeRange = timeRange;
-}
-
-export {
-  Map as default,
-  onSliderChangeMap,
-  addMarkersToMapForData,
-  updateMapToggles,
-  registerHandlers,
-  mapLoadPromise,
-};
+export { Map as default };

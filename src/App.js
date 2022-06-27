@@ -5,13 +5,7 @@
  * propagation for state changes into the non-react map
  */
 import React from "react";
-import {
-  onSliderChangeMap,
-  addMarkersToMapForData,
-  updateMapToggles,
-  registerHandlers,
-  mapLoadPromise,
-} from "./Map";
+import Map from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
 import LogTable from "./LogTable";
@@ -42,7 +36,6 @@ class App extends React.Component {
       ? parseInt(urlMaxTime)
       : nowDate.setFullYear(nowDate.getFullYear() + 1);
 
-    this.logData = props.logData;
     this.state = {
       timeRange: {
         minTime: this.initialMinTime,
@@ -74,12 +67,6 @@ class App extends React.Component {
       25
     );
 
-    // Allow map code to set which object is featured, and
-    // adjust the timerange filtering
-    registerHandlers(
-      (fo) => this.setFeaturedObject(fo),
-      (minTime, maxTime) => this.setTimeRange(minTime, maxTime)
-    );
     // TODO: refactor so that visualizations are registered
     // rather than enumerated here?
     this.toggles = _.filter(
@@ -188,9 +175,13 @@ class App extends React.Component {
         },
       ],
       (toggle) => {
-        return toggle.solutionTypes.indexOf(this.logData.solutionType) !== -1;
+        return (
+          toggle.solutionTypes.indexOf(this.props.logData.solutionType) !== -1
+        );
       }
     );
+    this.setFeaturedObject = this.setFeaturedObject.bind(this);
+    this.setTimeRange = this.setTimeRange.bind(this);
   }
 
   /*
@@ -202,21 +193,18 @@ class App extends React.Component {
    * changed.
    */
   componentDidMount() {
-    mapLoadPromise.then(() => {
-      this.setTimeRange(this.initialMinTime, this.initialMaxTime);
-      _.map(this.toggles, (toggle) => {
-        const urlVal = getQueryStringValue(toggle.id);
-        if (urlVal === "true") {
-          this.updateToggleState(true, toggle.id, toggle.columns);
-        }
-      });
+    this.setTimeRange(this.initialMinTime, this.initialMaxTime);
+    _.map(this.toggles, (toggle) => {
+      const urlVal = getQueryStringValue(toggle.id);
+      if (urlVal === "true") {
+        this.updateToggleState(true, toggle.id, toggle.columns);
+      }
     });
   }
 
   updateToggleState(newValue, toggleName, jsonPaths) {
     this.setState((prevState) => {
       prevState.toggleOptions[toggleName] = newValue;
-      updateMapToggles(toggleName, newValue);
       setQueryStringValue(toggleName, newValue);
 
       const extraColumns = _.clone(prevState.extraColumns);
@@ -245,7 +233,6 @@ class App extends React.Component {
    * Callback to updated selected log row
    */
   onSelectionChange(selectedRow) {
-    addMarkersToMapForData(selectedRow);
     this.setFeaturedObject(selectedRow);
   }
 
@@ -268,9 +255,6 @@ class App extends React.Component {
         maxTime: maxTime,
       },
     });
-
-    // Handle Map component separately from standard state update
-    onSliderChangeMap(minTime, maxTime);
   }
 
   /*
@@ -302,8 +286,18 @@ class App extends React.Component {
   render() {
     return (
       <div>
+        <Map
+          logData={this.props.logData}
+          rangeStart={this.state.timeRange.minTime}
+          rangeEnd={this.state.timeRange.maxTime}
+          selectedRow={this.state.featuredObject}
+          toggles={this.toggles}
+          toggleOptions={this.state.toggleOptions}
+          setFeaturedObject={this.setFeaturedObject}
+          setTimeRange={this.setTimeRange}
+        />
         <TimeSlider
-          logData={this.logData}
+          logData={this.props.logData}
           curMin={this.state.timeRange.minTime}
           curMax={this.state.timeRange.maxTime}
           onSliderChange={this.onSliderChangeDebounced}
@@ -324,7 +318,7 @@ class App extends React.Component {
             }}
           >
             <LogTable
-              logData={this.logData}
+              logData={this.props.logData}
               style={{ width: "100%" }}
               timeRange={this.state.timeRange}
               extraColumns={this.state.extraColumns}
