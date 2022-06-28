@@ -28,6 +28,7 @@ let projectId;
 let locationProvider;
 let solutionType;
 let tripLogs;
+let taskLogs;
 let setFeaturedObject;
 let setTimeRange;
 
@@ -286,6 +287,7 @@ function getColor(tripIdx) {
 
 function Map(props) {
   tripLogs = props.logData.tripLogs;
+  taskLogs = props.logData.taskLogs;
   minDate = tripLogs.minDate;
   maxDate = tripLogs.maxDate;
   const urlParams = new URLSearchParams(window.location.search);
@@ -640,6 +642,85 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
       });
       return circ;
     });
+  }
+};
+
+/*
+ * Draws markers on the map for all tasks.
+ */
+toggleHandlers["showTasksAsCreated"] = function (enabled) {
+  const bubbleName = "showTasksAsCreated";
+  const tasks = taskLogs.getTasks(maxDate).value();
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+  function getIcon(task) {
+    const outcome = task.taskoutcome || "unknown";
+    const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
+    const icon = {
+      url: urlBase,
+      scaledSize: new google.maps.Size(35, 35),
+    };
+    if (outcome.match("SUCCEEDED")) {
+      icon.url += "flag.png";
+    } else if (outcome.match("FAIL")) {
+      icon.url += "caution.png";
+    } else {
+      icon.url += "shaded_dot.png";
+    }
+    return icon;
+  }
+  if (enabled) {
+    bubbleMap[bubbleName] = _(tasks)
+      .map((task) => {
+        const marker = new window.google.maps.Marker({
+          position: {
+            lat: task.plannedlocation.point.latitude,
+            lng: task.plannedlocation.point.longitude,
+          },
+          map: map,
+          icon: getIcon(task),
+          title: `${task.state}: ${task.taskid} - ${task.trackingid}`,
+        });
+        google.maps.event.addListener(marker, "click", () => {
+          setFeaturedObject(task);
+        });
+        const ret = [marker];
+        const arrowColor =
+          task.plannedVsActualDeltaMeters > 50 ? "#FF1111" : "#11FF11";
+        if (task.taskoutcomelocation) {
+          const offSetPath = new window.google.maps.Polyline({
+            path: [
+              {
+                lat: task.plannedlocation.point.latitude,
+                lng: task.plannedlocation.point.longitude,
+              },
+              {
+                lat: task.taskoutcomelocation.point.latitude,
+                lng: task.taskoutcomelocation.point.longitude,
+              },
+            ],
+            geodesic: true,
+            strokeColor: arrowColor,
+            strokeOpacity: 0.6,
+            strokeWeight: 4,
+            map: map,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  strokeColor: arrowColor,
+                  strokeWeight: 4,
+                },
+                offset: "100%",
+              },
+            ],
+          });
+          ret.push(offSetPath);
+        }
+        return ret;
+      })
+      .flatten()
+      .value();
   }
 };
 
