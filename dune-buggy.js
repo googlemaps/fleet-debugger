@@ -20,6 +20,7 @@ const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
 const { Serve } = require("./components/serve.js");
 const { Bigquery } = require("./components/bigqueryDS.js");
+const { FleetArchiveLogs } = require("./components/fleetArchiveDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -113,7 +114,7 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else if ((argv.startTime || argv.endTime) & !argv.bigquery) {
+  } else if ((argv.startTime || argv.endTime) && !argv.bigquery && !argv.fleetarchive) {
     console.log(
       "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
     );
@@ -151,6 +152,9 @@ async function main() {
   if (argv.bigquery) {
     logs = new Bigquery(argv);
     params.logSource = "bigquery";
+  } else if (argv.fleetarchive) {
+    logs = new FleetArchiveLogs(argv);
+    params.logSource = "fleetarchive";
   } else {
     logs = new CloudLogs(argv);
     params.logSource = "cloudlogs";
@@ -165,7 +169,7 @@ async function main() {
       console.error("\n\nError:No log entries found\n\n");
       return;
     }
-    const filePath = `public/data.json`;
+    const filePath = `public/test.json`;
 
     logging.writeLogs(filePath, params);
   }
