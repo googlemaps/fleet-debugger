@@ -81,18 +81,25 @@ async function getLogs(dataSource, params, vehicle, trip) {
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
   // are many tasks at any given time(unlike how
   // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await dataSource.fetchVehicleLogs(vehicle, trip);
+  const vehicleLogs = await dataSource.fetchVehicleLogs(
+    vehicle,
+    trip,
+    params.jwt
+  );
   const deliveryVehicleLogs = await dataSource.fetchDeliveryVehicleLogs(
     vehicle,
-    vehicleLogs
+    vehicleLogs,
+    params.jwt
   );
   const taskLogs = await dataSource.fetchTaskLogsForVehicle(
     vehicle,
-    deliveryVehicleLogs
+    deliveryVehicleLogs,
+    params.jwt
   );
   const tripLogs = await dataSource.fetchTripLogsForVehicle(
     vehicle,
-    vehicleLogs
+    vehicleLogs,
+    params.jwt
   );
 
   params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
@@ -114,9 +121,13 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else if ((argv.startTime || argv.endTime) && !argv.bigquery && !argv.fleetarchive) {
+  } else if (
+    (argv.startTime || argv.endTime) &&
+    !argv.bigquery &&
+    !argv.fleetarchive
+  ) {
     console.log(
-      "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
+      "startTime and endTime only supported on bigquery dataset or fleetarchive.  Use --daysAgo"
     );
     return;
   } else if (!commands.serve) {
@@ -134,6 +145,9 @@ async function main() {
 
   if (commands.historical) {
     await auth.init();
+    if (argv.fleetarchive) {
+      params.jwt = await auth.mintJWT();
+    }
   } else if (commands.live) {
     await auth.init();
     params.jwt = await auth.mintJWT();
@@ -169,7 +183,7 @@ async function main() {
       console.error("\n\nError:No log entries found\n\n");
       return;
     }
-    const filePath = `public/test.json`;
+    const filePath = `public/data.json`;
 
     logging.writeLogs(filePath, params);
   }

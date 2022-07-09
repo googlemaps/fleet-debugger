@@ -17,6 +17,7 @@
 const { google } = require("googleapis");
 const logging = google.logging("v2");
 const auth = require("./auth.js");
+const axios = require("axios");
 const _ = require("lodash");
 const fs = require("fs");
 
@@ -81,6 +82,52 @@ async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
 }
 
 /**
+ * Fetches logs from Fleet Archive using direct API calls.
+  */
+async function fetchLogsFromArchive(label, labelValue, startTimeSeconds, endTimeSeconds, jwt) {
+  const endPoint = "https://fleetengine.googleapis.com/v1/archive";
+  const labelToApi = {
+    vehicles: "collectVehicleCalls",
+    trips: "collectTripCalls",
+    deliveryVehicles: "collectDeliveryVehicleCalls",
+    tasks: "collectTaskCalls",
+  }
+  const api = labelToApi[label];
+  if (!api) {
+    console.error(`Unknown label: ${label}`);
+    return [];
+  }
+  const config = {
+    url: `${endPoint}/providers/${auth.getProjectId()}/${label}/${labelValue}:${api}`,
+    headers: {
+      Authorization: "Bearer " + jwt,
+    },
+    params: {
+      "time_window.start_time.seconds": startTimeSeconds,
+      "time_window.end_time.seconds": endTimeSeconds,
+      page_size: 50,
+    }
+  };
+  let entries = [];
+  try {
+    let response;
+    do {
+      if (response && response.data.nextPageToken) {
+        config.params.page_token = response.data.nextPageToken;
+      }
+      response = await axios(config);
+      if (response.data.apiCalls) {
+        entries = _.concat(entries, response.data.apiCalls);
+      }
+    } while (response.data.nextPageToken);
+  } catch (err) {
+    console.log(err);
+    if (err.response) console.log(JSON.stringify(err.response.data));
+  }
+  return entries;
+}
+
+/**
  * Generates & writes a valid javascript to specified file.  Existing file at location
  * will be overwritten.
  */
@@ -89,4 +136,5 @@ function writeLogs(filePath, data) {
 }
 
 exports.fetchLogs = fetchLogs;
+exports.fetchLogsFromArchive = fetchLogsFromArchive;
 exports.writeLogs = writeLogs;

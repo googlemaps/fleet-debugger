@@ -15,79 +15,118 @@
  */
 
 const { Datasource } = require("./datasource.js");
+const logging = require("./logging.js");
 const _ = require("lodash");
-const auth = require("./auth.js");
-const axios = require("axios");
 
 class FleetArchiveLogs extends Datasource {
   constructor(argv) {
     super(argv);
-    this.startTimeSeconds = Math.round(new Date(argv.startTime).getTime() / 1000);
+    this.startTimeSeconds = Math.round(
+      new Date(argv.startTime).getTime() / 1000
+    );
     this.endTimeSeconds = Math.round(new Date(argv.endTime).getTime() / 1000);
   }
-  async fetchTripLogsForVehicle(vehicle_id, vehicleLogs) {
+  async fetchTripLogsForVehicle(vehicle_id, vehicleLogs, jwt) {
     if (!vehicle_id) {
       return [];
     }
     console.log("Loading trip logs for vehicle id", vehicle_id);
-    // console.log(vehicleLogs);
+    const trip_ids = _(vehicleLogs)
+      .map(
+        (logEntry) =>
+          _.get(logEntry, "createVehicle.response.currentTrips") ||
+          _.get(logEntry, "getVehicle.response.currentTrips") ||
+          _.get(logEntry, "updateVehicle.response.currentTrips")
+      )
+      .flatten()
+      .uniq()
+      .compact()
+      .value();
     let tripLogs = [];
+    if (trip_ids.length > 0) {
+      console.log("trip_ids found", trip_ids);
+      for (const trip_id of trip_ids) {
+        const logs = await logging.fetchLogsFromArchive(
+          "trips",
+          trip_id,
+          this.startTimeSeconds,
+          this.endTimeSeconds,
+          jwt
+        );
+        if (logs) {
+          tripLogs = _.concat(tripLogs, logs);
+        }
+      }
+    } else {
+      console.log(`no trips associated with vehicle id ${vehicle_id}`);
+    }
     return tripLogs;
   }
 
-  async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
+  async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs, jwt) {
     if (!vehicle_id) {
       return [];
     }
     console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
-    // console.log(vehicleLogs);
-    let taskLogs = [];
-    return taskLogs;
+    // const task_ids = _(vehicleLogs)
+    //   .map((logEntry) =>
+    //     _.get(logEntry, "jsonPayload.response.remainingVehicleJourneySegments")
+    //   )
+    //   .flatten()
+    //   .map((segment) => _.get(segment, "stop.tasks"))
+    //   .flatten()
+    //   .map((tasks) => _.get(tasks, "taskId"))
+    //   .flatten()
+    //   .uniq()
+    //   .compact()
+    //   .value();
+    // let taskLogs = [];
+    // if (task_ids.length > 20) {
+    //   // See https://github.com/googlemaps/fleet-debugger/issues/100
+    //   console.warn("Too many tasks found, limiting detailed logs to first 20");
+    //   task_ids = task_ids.slice(0, 20);
+    // }
+    // if (task_ids.length > 0) {
+    //   console.log("gots task_ids", task_ids);
+    //   taskLogs = await logging.fetchLogs(
+    //     "task_id",
+    //     task_ids,
+    //     this.argv.daysAgo
+    //   );
+    // } else {
+    //   console.log(`no tasks associated with vehicle id ${this.argv.vehicle}`);
+    // }
+    // return taskLogs;
+    return [];
   }
 
-  async fetchVehicleLogs(vehicle, trip) {
-    const label = vehicle ? "vehicle_id" : "trip_id";
+  async fetchVehicleLogs(vehicle, trip, jwt) {
+    const label = vehicle ? "vehicles" : "trips";
     const labelVal = vehicle ? vehicle : trip;
 
     console.log(`Fetching logs for ${label} = ${labelVal} from Fleet Archive`);
-    const jwt = await auth.mintJWT();
-    const config = {
-      url: `https://fleetengine.googleapis.com/v1/archive/providers/${auth.getProjectId()}/vehicles/${vehicle}:collectVehicleCalls`,
-      headers: {
-        Authorization: "Bearer " + jwt,
-      },
-      params: {
-        "time_window.start_time.seconds": this.startTimeSeconds,
-        "time_window.end_time.seconds": this.endTimeSeconds,
-        page_size: 50,
-      }
-    };
-    let entries = [];
-    try {
-      let response;
-      do {
-        if (response && response.data.nextPageToken) {
-          config.params.page_token = response.data.nextPageToken;
-        }
-        response = await axios(config);
-        if (response.data.apiCalls) {
-          entries = _.concat(entries, response.data.apiCalls);
-        }
-      } while (response.data.nextPageToken);
-    } catch (err) {
-      console.log(err);
-      if (err.data) console.log(JSON.stringify(err.data));
-    }
-    return entries;
+    return await logging.fetchLogsFromArchive(
+      label,
+      labelVal,
+      this.startTimeSeconds,
+      this.endTimeSeconds,
+      jwt
+    );
   }
 
-  async fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs) {
+  async fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs, jwt) {
     if (vehicleLogs.length !== 0) {
       // regular vehicle logs found, not a deliveryVehicle
       return [];
     }
-
-    return [];
+    console.log("fetching logs for deliveryVehicle", deliveryVehicle);
+    return await logging.fetchLogsFromArchive(
+      "deliveryVehicles",
+      deliveryVehicle,
+      this.startTimeSeconds,
+      this.endTimeSeconds,
+      jwt
+    );
   }
 }
 
