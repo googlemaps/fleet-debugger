@@ -56,6 +56,7 @@ async function main() {
   const cleanedString = JSON.stringify(params.rawLogs)
     .replace(new RegExp(params.projectId, "g"), "sample-project-id")
     .replace(new RegExp(params.vehicle, "g"), "sample-vehicle-id")
+    .replace(new RegExp(/(tid_\d+_\d+)([^"]+)/, "g"), "$1sample-task")
     .replace(new RegExp(process.env.USER, "g"), "user");
   params.rawLogs = JSON.parse(cleanedString);
   params.projectId = genericProjectId;

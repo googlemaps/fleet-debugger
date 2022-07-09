@@ -161,9 +161,12 @@ LIMIT
   }
 
   /*
-   * query update task to find tasks assigned to this vehicle and
-   * then use that result as subquery to find full list of create and
-   * update task requests associated with the specified vehicle.
+   * Fetch all updates to any task that was ever assigned to this vehicle.  Tasks
+   * are enumarated by looking at stops in update vehicle and labels on update task.
+   *
+   * This should ensure logs that cover situations like a given task being
+   * assigned to a vehicle ... but never being updated (or being updated and assigned
+   * to a different vehicle).
    *
    * Note labels.delivery_vehicle_id is not necessarily set at creation
    * time (or even on all update requests).
@@ -179,36 +182,51 @@ LIMIT
       endTime: this.endTime,
     };
 
+    const taskIDQuery = `
+WITH
+  taskids AS(
+  SELECT
+    DISTINCT tasks.taskid AS taskid
+  FROM (
+    SELECT
+      labels.delivery_vehicle_id,
+      timestamp,
+      segments
+    FROM
+    \`${this.tablePrefix}update_delivery_vehicle\`,
+      UNNEST( jsonpayload_v1_updatedeliveryvehiclelog.request.deliveryvehicle.remainingvehiclejourneysegments ) segments ),
+    UNNEST(segments.stop.tasks) AS tasks
+  WHERE
+    delivery_vehicle_id = @delivery_vehicle_id AND ${this.timeClause}
+  UNION DISTINCT
+  SELECT
+    labels.task_id AS taskid
+  FROM
+    \`${this.tablePrefix}update_task\`
+  WHERE
+    labels.delivery_vehicle_id = @delivery_vehicle_id AND ${this.timeClause})
+    `;
+
     const createQuery = `
+${taskIDQuery}
 SELECT
   *
 FROM
   \`${this.tablePrefix}create_task\`
 WHERE
-  ${this.timeClause} and labels.task_id IN (
-  SELECT
-    DISTINCT labels.task_id
-  FROM
-    \`${this.tablePrefix}update_task\`
-  WHERE
-    labels.delivery_vehicle_id = @delivery_vehicle_id and ${this.timeClause})
+  ${this.timeClause} and labels.task_id IN (SELECT * from taskids) 
 LIMIT 5000
 `;
 
     const createData = await this.bq(createQuery, params);
     const updateQuery = `
+${taskIDQuery}
 SELECT
   *
 FROM
   \`${this.tablePrefix}update_task\`
 WHERE
-  ${this.timeClause} and labels.task_id IN (
-  SELECT
-    DISTINCT labels.task_id
-  FROM
-    \`${this.tablePrefix}update_task\`
-  WHERE
-    labels.delivery_vehicle_id = @delivery_vehicle_id and ${this.timeClause})
+  ${this.timeClause} and labels.task_id IN (SELECT * from taskids) 
 LIMIT 5000
 `;
 
