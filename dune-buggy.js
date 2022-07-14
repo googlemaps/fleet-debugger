@@ -108,7 +108,7 @@ async function getLogs(dataSource, params, vehicle, trip) {
     .concat(tripLogs)
     .concat(deliveryVehicleLogs)
     .concat(taskLogs)
-    .sortBy((x) => new Date(x.timestamp).getTime())
+    .sortBy((x) => new Date(x.timestamp || x.serverTime).getTime())
     .reverse()
     .value();
 }
@@ -123,11 +123,10 @@ async function main() {
     return;
   } else if (
     (argv.startTime || argv.endTime) &&
-    !argv.bigquery &&
-    !argv.fleetarchive
+    !argv.bigquery
   ) {
     console.log(
-      "startTime and endTime only supported on bigquery dataset or fleetarchive.  Use --daysAgo"
+      "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
     );
     return;
   } else if (!commands.serve) {

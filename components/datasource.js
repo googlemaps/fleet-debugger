@@ -24,7 +24,7 @@ class Datasource {
   }
 
   async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
-    throw new Error("Not Implemented".vehicle_id, vehicleLogs);
+    throw new Error("Not Implemented", vehicle_id, vehicleLogs);
   }
 
   async fetchVehicleLogs(vehicle, trip) {

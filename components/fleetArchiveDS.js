@@ -68,36 +68,44 @@ class FleetArchiveLogs extends Datasource {
       return [];
     }
     console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
-    // const task_ids = _(vehicleLogs)
-    //   .map((logEntry) =>
-    //     _.get(logEntry, "jsonPayload.response.remainingVehicleJourneySegments")
-    //   )
-    //   .flatten()
-    //   .map((segment) => _.get(segment, "stop.tasks"))
-    //   .flatten()
-    //   .map((tasks) => _.get(tasks, "taskId"))
-    //   .flatten()
-    //   .uniq()
-    //   .compact()
-    //   .value();
-    // let taskLogs = [];
-    // if (task_ids.length > 20) {
-    //   // See https://github.com/googlemaps/fleet-debugger/issues/100
-    //   console.warn("Too many tasks found, limiting detailed logs to first 20");
-    //   task_ids = task_ids.slice(0, 20);
-    // }
-    // if (task_ids.length > 0) {
-    //   console.log("gots task_ids", task_ids);
-    //   taskLogs = await logging.fetchLogs(
-    //     "task_id",
-    //     task_ids,
-    //     this.argv.daysAgo
-    //   );
-    // } else {
-    //   console.log(`no tasks associated with vehicle id ${this.argv.vehicle}`);
-    // }
-    // return taskLogs;
-    return [];
+    const task_ids = _(vehicleLogs)
+      .map((logEntry) =>
+        _.get(logEntry, "createDeliveryVehicle.response.remainingVehicleJourneySegments") ||
+        _.get(logEntry, "getDeliveryVehicle.response.remainingVehicleJourneySegments") ||
+        _.get(logEntry, "updateDeliveryVehicle.response.remainingVehicleJourneySegments")
+      )
+      .flatten()
+      .map((segment) => _.get(segment, "stop.tasks"))
+      .flatten()
+      .map((tasks) => _.get(tasks, "taskId"))
+      .flatten()
+      .uniq()
+      .compact()
+      .value();
+    let taskLogs = [];
+    if (task_ids.length > 20) {
+      // See https://github.com/googlemaps/fleet-debugger/issues/100
+      console.warn("Too many tasks found, limiting detailed logs to first 20");
+      task_ids = task_ids.slice(0, 20);
+    }
+    if (task_ids.length > 0) {
+      console.log("gots task_ids", task_ids);
+      for (const task_id of task_ids) {
+        const logs = await logging.fetchLogsFromArchive(
+          "tasks",
+          task_id,
+          this.startTimeSeconds,
+          this.endTimeSeconds,
+          jwt
+        );
+        if (logs) {
+          taskLogs = _.concat(taskLogs, logs);
+        }
+      }
+    } else {
+      console.log(`no tasks associated with vehicle id ${this.argv.vehicle}`);
+    }
+    return taskLogs;
   }
 
   async fetchVehicleLogs(vehicle, trip, jwt) {
