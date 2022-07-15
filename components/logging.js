@@ -83,15 +83,21 @@ async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
 
 /**
  * Fetches logs from Fleet Archive using direct API calls.
-  */
-async function fetchLogsFromArchive(label, labelValue, startTimeSeconds, endTimeSeconds, jwt) {
+ */
+async function fetchLogsFromArchive(
+  label,
+  labelValue,
+  startTimeSeconds,
+  endTimeSeconds,
+  jwt
+) {
   const endPoint = "https://fleetengine.googleapis.com/v1/archive";
   const labelToApi = {
     vehicles: "collectVehicleCalls",
     trips: "collectTripCalls",
     deliveryVehicles: "collectDeliveryVehicleCalls",
     tasks: "collectTaskCalls",
-  }
+  };
   const api = labelToApi[label];
   if (!api) {
     console.error(`Unknown label: ${label}`);
@@ -106,7 +112,7 @@ async function fetchLogsFromArchive(label, labelValue, startTimeSeconds, endTime
       "time_window.start_time.seconds": startTimeSeconds,
       "time_window.end_time.seconds": endTimeSeconds,
       page_size: 50,
-    }
+    },
   };
   let entries = [];
   try {

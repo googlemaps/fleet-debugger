@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google LLC
+ * Copyright 2022 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ class FleetArchiveLogs extends Datasource {
       return [];
     }
     console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
-    const task_ids = _(vehicleLogs)
+    let task_ids = _(vehicleLogs)
       .map(
         (logEntry) =>
           _.get(
@@ -131,7 +131,9 @@ class FleetArchiveLogs extends Datasource {
       jwt
     );
 
-    if (vehicle || entries.length === 0) return entries;
+    if (vehicle || entries.length === 0) {
+      return entries;
+    }
 
     // For trip logs, need to get the logs for the vehicle and then filter on the given trip
     console.log(`Logs found, looking for vehicle id`);
@@ -145,27 +147,35 @@ class FleetArchiveLogs extends Datasource {
       .uniq()
       .compact()
       .value();
-    if (vehicle_ids.length === 0) return entries;
+    if (vehicle_ids.length === 0) {
+      return entries;
+    }
 
-    const vehicle_id = vehicle_ids[0];
-    console.log(
-      `Fetching logs for vehicle ${vehicle_id} and filtering by trip ${labelVal}`
-    );
-    const vehicle_entries = await logging.fetchLogsFromArchive(
-      "vehicles",
-      vehicle_id,
-      this.startTimeSeconds,
-      this.endTimeSeconds,
-      jwt
-    );
-    const filtered_vehicle_entries = _.filter(vehicle_entries, (entry) => {
-      const currentTrips =
-        _.get(entry, "createVehicle.response.currentTrips") ||
-        _.get(entry, "getVehicle.response.currentTrips") ||
-        _.get(entry, "updateVehicle.response.currentTrips");
-      return currentTrips && currentTrips.includes(trip);
-    });
-    return _.concat(entries, filtered_vehicle_entries);
+    let all_filtered_vehicle_entries = [];
+    for (const vehicle_id of vehicle_ids) {
+      console.log(
+        `Fetching logs for vehicle ${vehicle_id} and filtering by trip ${labelVal}`
+      );
+      const vehicle_entries = await logging.fetchLogsFromArchive(
+        "vehicles",
+        vehicle_id,
+        this.startTimeSeconds,
+        this.endTimeSeconds,
+        jwt
+      );
+      const filtered_vehicle_entries = _.filter(vehicle_entries, (entry) => {
+        const currentTrips =
+          _.get(entry, "createVehicle.response.currentTrips") ||
+          _.get(entry, "getVehicle.response.currentTrips") ||
+          _.get(entry, "updateVehicle.response.currentTrips");
+        return currentTrips && currentTrips.includes(trip);
+      });
+      all_filtered_vehicle_entries = _.concat(
+        all_filtered_vehicle_entries,
+        filtered_vehicle_entries
+      );
+    }
+    return _.concat(entries, all_filtered_vehicle_entries);
   }
 
   async fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs, jwt) {

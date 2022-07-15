@@ -121,10 +121,7 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else if (
-    (argv.startTime || argv.endTime) &&
-    !argv.bigquery
-  ) {
+  } else if ((argv.startTime || argv.endTime) && !argv.bigquery) {
     console.log(
       "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
     );
