@@ -26,12 +26,12 @@ class FleetArchiveLogs extends Datasource {
     );
     this.endTimeSeconds = Math.round(new Date(argv.endTime).getTime() / 1000);
   }
-  async fetchTripLogsForVehicle(vehicle_id, vehicleLogs, jwt) {
-    if (!vehicle_id) {
+  async fetchTripLogsForVehicle(vehicleId, vehicleLogs, jwt) {
+    if (!vehicleId) {
       return [];
     }
-    console.log("Loading trip logs for vehicle id", vehicle_id);
-    const trip_ids = _(vehicleLogs)
+    console.log("Loading trip logs for vehicle id", vehicleId);
+    const tripIds = _(vehicleLogs)
       .map(
         (logEntry) =>
           _.get(logEntry, "createVehicle.response.currentTrips") ||
@@ -43,12 +43,12 @@ class FleetArchiveLogs extends Datasource {
       .compact()
       .value();
     let tripLogs = [];
-    if (trip_ids.length > 0) {
-      console.log("trip_ids found", trip_ids);
-      for (const trip_id of trip_ids) {
+    if (tripIds.length > 0) {
+      console.log("trip ids found", tripIds);
+      for (const tripId of tripIds) {
         const logs = await logging.fetchLogsFromArchive(
           "trips",
-          trip_id,
+          tripId,
           this.startTimeSeconds,
           this.endTimeSeconds,
           jwt
@@ -58,16 +58,16 @@ class FleetArchiveLogs extends Datasource {
         }
       }
     } else {
-      console.log(`no trips associated with vehicle id ${vehicle_id}`);
+      console.log(`no trips associated with vehicle id ${vehicleId}`);
     }
     return tripLogs;
   }
 
-  async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs, jwt) {
-    if (!vehicle_id) {
+  async fetchTaskLogsForVehicle(vehicleId, vehicleLogs, jwt) {
+    if (!vehicleId) {
       return [];
     }
-    console.log("Loading tasks logs for deliveryVehicle id", vehicle_id);
+    console.log("Loading tasks logs for deliveryVehicle id", vehicleId);
     let task_ids = _(vehicleLogs)
       .map(
         (logEntry) =>
@@ -137,7 +137,7 @@ class FleetArchiveLogs extends Datasource {
 
     // For trip logs, need to get the logs for the vehicle and then filter on the given trip
     console.log(`Logs found, looking for vehicle id`);
-    const vehicle_ids = _(entries)
+    const vehicleIds = _(entries)
       .map(
         (entry) =>
           _.get(entry, "createTrip.response.vehicleId") ||
@@ -147,18 +147,18 @@ class FleetArchiveLogs extends Datasource {
       .uniq()
       .compact()
       .value();
-    if (vehicle_ids.length === 0) {
+    if (vehicleIds.length === 0) {
       return entries;
     }
 
     let all_filtered_vehicle_entries = [];
-    for (const vehicle_id of vehicle_ids) {
+    for (const vehicleId of vehicleIds) {
       console.log(
-        `Fetching logs for vehicle ${vehicle_id} and filtering by trip ${labelVal}`
+        `Fetching logs for vehicle ${vehicleId} and filtering by trip ${labelVal}`
       );
       const vehicle_entries = await logging.fetchLogsFromArchive(
         "vehicles",
-        vehicle_id,
+        vehicleId,
         this.startTimeSeconds,
         this.endTimeSeconds,
         jwt
