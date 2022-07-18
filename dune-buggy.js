@@ -20,6 +20,7 @@ const logging = require("./components/logging.js");
 const { CloudLogs } = require("./components/cloudLoggingDS.js");
 const { Serve } = require("./components/serve.js");
 const { Bigquery } = require("./components/bigqueryDS.js");
+const { FleetArchiveLogs } = require("./components/fleetArchiveDS.js");
 const _ = require("lodash");
 
 const commands = {};
@@ -80,18 +81,25 @@ async function getLogs(dataSource, params, vehicle, trip) {
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
   // are many tasks at any given time(unlike how
   // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await dataSource.fetchVehicleLogs(vehicle, trip);
+  const vehicleLogs = await dataSource.fetchVehicleLogs(
+    vehicle,
+    trip,
+    params.jwt
+  );
   const deliveryVehicleLogs = await dataSource.fetchDeliveryVehicleLogs(
     vehicle,
-    vehicleLogs
+    vehicleLogs,
+    params.jwt
   );
   const taskLogs = await dataSource.fetchTaskLogsForVehicle(
     vehicle,
-    deliveryVehicleLogs
+    deliveryVehicleLogs,
+    params.jwt
   );
   const tripLogs = await dataSource.fetchTripLogsForVehicle(
     vehicle,
-    vehicleLogs
+    vehicleLogs,
+    params.jwt
   );
 
   params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
@@ -100,7 +108,7 @@ async function getLogs(dataSource, params, vehicle, trip) {
     .concat(tripLogs)
     .concat(deliveryVehicleLogs)
     .concat(taskLogs)
-    .sortBy((x) => new Date(x.timestamp).getTime())
+    .sortBy((x) => new Date(x.timestamp || x.serverTime).getTime())
     .reverse()
     .value();
 }
@@ -113,7 +121,7 @@ async function main() {
   } else if (argv.task) {
     console.log("Not implemented yet: the task id is:", argv.task);
     return;
-  } else if ((argv.startTime || argv.endTime) & !argv.bigquery) {
+  } else if ((argv.startTime || argv.endTime) && !argv.bigquery) {
     console.log(
       "startTime and endTime only supported on bigquery dataset.  Use --daysAgo"
     );
@@ -133,6 +141,9 @@ async function main() {
 
   if (commands.historical) {
     await auth.init();
+    if (argv.fleetarchive) {
+      params.jwt = await auth.mintJWT();
+    }
   } else if (commands.live) {
     await auth.init();
     params.jwt = await auth.mintJWT();
@@ -151,6 +162,9 @@ async function main() {
   if (argv.bigquery) {
     logs = new Bigquery(argv);
     params.logSource = "bigquery";
+  } else if (argv.fleetarchive) {
+    logs = new FleetArchiveLogs(argv);
+    params.logSource = "fleetarchive";
   } else {
     logs = new CloudLogs(argv);
     params.logSource = "cloudlogs";
