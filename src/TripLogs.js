@@ -12,6 +12,20 @@ import MissingUpdate from "./MissingUpdate";
 
 const maxDistanceForDwell = 20; // meters
 const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle request at 10 seconds
+const apis = new Set([
+  "createVehicle",
+  "getVehicle",
+  "updateVehicle",
+  "createDeliveryVehicle",
+  "getDeliveryVehicle",
+  "updateDeliveryVehicle",
+  "createTrip",
+  "getTrip",
+  "updateTrip",
+  "createTask",
+  "getTask",
+  "updateTask",
+]);
 
 /* Logs from bigquery will be all lower case, so standardize on that
  */
@@ -31,6 +45,106 @@ function toLowerKeys(input) {
   }, {});
 }
 
+function processApiCall(origLog) {
+  let apiType;
+  if (origLog.jsonpayload) {
+    apiType = origLog.jsonpayload["@type"];
+    for (const api of apis) {
+      const regex = new RegExp(`.*${api}.*`, "i");
+      if (apiType.match(regex)) {
+        return api;
+      }
+    }
+  } else {
+    for (const key of Object.keys(origLog)) {
+      for (const api of apis) {
+        const regex = new RegExp(`.*${api}.*`, "i");
+        if (key.match(regex)) {
+          return api;
+        }
+      }
+    }
+  }
+  throw new SyntaxError(
+    `Could not find API call type for log entry: ${JSON.stringify(origLog)}`
+  );
+}
+
+function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
+  const origVal = _.get(log, origPath);
+  if (origVal) {
+    let newVal;
+    if (Array.isArray(origVal)) {
+      newVal = origVal.map((val) => val.replace(stringToTrim, ""));
+    } else {
+      newVal = origVal.replace(stringToTrim, "");
+    }
+    // Delete the property first since the new path could equal the old path
+    _.unset(log, origPath);
+    _.set(log, newPath, newVal);
+  }
+}
+
+function processRawLogs(rawLogs) {
+  const origLogs = _.reverse(rawLogs.map(toLowerKeys));
+  const newLogs = origLogs.map((origLog, idx) => {
+    const newLog = {};
+    // Create timestamp entries
+    newLog.timestamp = origLog.timestamp || origLog.servertime;
+    newLog.date = new Date(newLog.timestamp);
+    newLog.formattedDate = newLog.date.toISOString();
+    newLog.timestampMS = newLog.date.getTime();
+    newLog.idx = idx;
+
+    // Create api call name entry
+    newLog.api = processApiCall(origLog);
+
+    // Copy request and response
+    newLog.request = origLog.request || origLog.jsonpayload.request;
+    newLog.response = origLog.response || origLog.jsonpayload.response;
+
+    // Update known log differences to standard Fleet Archive form
+    adjustFieldFormat(
+      newLog,
+      "response.state",
+      "response.vehiclestate",
+      "VEHICLE_STATE_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.vehicletype.vehiclecategory",
+      "response.vehicletype.category"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.supportedtrips",
+      "response.supportedtriptypes",
+      "_TRIP"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.navigationstatus",
+      "response.navigationstatus",
+      "NAVIGATION_STATUS_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.navstatus",
+      "response.navigationstatus",
+      "NAVIGATION_STATUS_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.lastlocation.locsensor",
+      "response.lastlocation.locationsensor",
+      "LOCATION_SENSOR_"
+    );
+
+    return newLog;
+  });
+  return newLogs;
+}
+
 class TripLogs {
   constructor(rawLogs, solutionType) {
     this.solutionType = solutionType;
@@ -48,6 +162,7 @@ class TripLogs {
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
+    this.processedLogs = processRawLogs(rawLogs);
     this.rawLogs = _.reverse(rawLogs.map(toLowerKeys));
     this.velocityJumps = [];
     this.missingUpdates = [];
