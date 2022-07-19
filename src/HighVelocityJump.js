@@ -74,6 +74,7 @@ class HighVelocityJump {
     featureData.lastlocation = {
       speed: this.velocity,
     };
+    featureData["@type"] = "Jump";
     return featureData;
   }
 

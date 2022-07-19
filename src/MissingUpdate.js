@@ -30,8 +30,14 @@ class MissingUpdate {
     this.endDate = curEntry.date;
     this.endLoc = endLoc;
     this.idx = idx;
-    this.startVehicleState = _.get(curEntry, "jsonpayload.response.state");
-    this.endVehicleState = _.get(prevEntry, "jsonpayload.response.state");
+    this.startVehicleState = _.get(
+      curEntry,
+      "jsonpayload.response.vehiclestate"
+    );
+    this.endVehicleState = _.get(
+      prevEntry,
+      "jsonpayload.response.vehiclestate"
+    );
     this.duration = Utils.formatDuration(this.interval);
   }
 
@@ -83,6 +89,11 @@ class MissingUpdate {
       response: {
         state: this.getStateTransition(),
       },
+    };
+    featureData["@type"] = "Missing Updates";
+    featureData.temporal_gap = featureData.duration;
+    featureData.response = {
+      state: this.getStateTransition(),
     };
     return featureData;
   }

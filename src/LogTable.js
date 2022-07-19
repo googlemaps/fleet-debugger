@@ -109,7 +109,7 @@ function LogTable(props) {
         },
         {
           Header: "Method",
-          accessor: "jsonpayload.@type",
+          accessor: "@type",
           Cell: ({ cell: { value } }) => (
             <TrimCell
               value={value}
@@ -159,7 +159,7 @@ function LogTable(props) {
         },
         {
           Header: "Vehicle State",
-          accessor: "jsonpayload.response.state",
+          accessor: "jsonpayload.response.vehiclestate",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="VEHICLE_STATE_" />
           ),

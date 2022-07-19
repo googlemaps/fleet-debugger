@@ -75,9 +75,14 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
   if (origVal) {
     let newVal;
     if (Array.isArray(origVal)) {
-      newVal = origVal.map((val) => val.replace(stringToTrim, ""));
+      newVal = origVal.map((val) =>
+        typeof val === "string" ? val.replace(stringToTrim, "") : val
+      );
     } else {
-      newVal = origVal.replace(stringToTrim, "");
+      newVal =
+        typeof origVal === "string"
+          ? origVal.replace(stringToTrim, "")
+          : origVal;
     }
     // Delete the property first since the new path could equal the old path
     _.unset(log, origPath);
@@ -97,13 +102,31 @@ function processRawLogs(rawLogs) {
     newLog.idx = idx;
 
     // Create api call name entry
-    newLog.api = processApiCall(origLog);
+    newLog["@type"] = processApiCall(origLog);
 
     // Copy request and response
     newLog.request = origLog.request || origLog.jsonpayload.request;
     newLog.response = origLog.response || origLog.jsonpayload.response;
+    newLog.jsonpayload = origLog.jsonpayload;
 
     // Update known log differences to standard Fleet Archive form
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.state",
+      "request.vehicle.vehiclestate",
+      "VEHICLE_STATE_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.lastlocation.locsensor",
+      "request.vehicle.lastlocation.locationsensor",
+      "LOCATION_SENSOR_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.lastlocation.bearingaccuracy",
+      "request.vehicle.lastlocation.headingaccuracy"
+    );
     adjustFieldFormat(
       newLog,
       "response.state",
@@ -149,20 +172,15 @@ class TripLogs {
   constructor(rawLogs, solutionType) {
     this.solutionType = solutionType;
     if (this.solutionType === "LMFS") {
-      this.updateVehicleSuffix = "update_delivery_vehicle";
-      this.vehiclePath = "jsonpayload.request.deliveryvehicle";
-      this.navStatusPropName = "navigationstatus";
+      this.vehiclePath = "request.deliveryvehicle";
     } else {
-      this.updateVehicleSuffix = "update_vehicle";
-      this.vehicleName = "vehicle";
-      this.vehiclePath = "jsonpayload.request.vehicle";
-      this.navStatusPropName = "navstatus";
+      this.vehiclePath = "request.vehicle";
     }
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    this.processedLogs = processRawLogs(rawLogs);
-    this.rawLogs = _.reverse(rawLogs.map(toLowerKeys));
+    // this.processedLogs = processRawLogs(rawLogs);
+    this.rawLogs = processRawLogs(rawLogs);
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
@@ -170,11 +188,11 @@ class TripLogs {
 
     const lastLocationPath = this.vehiclePath + ".lastlocation";
     //  annotate with Dates & timestapms
-    _.map(this.rawLogs, (le, idx) => {
-      le.date = new Date(le.timestamp);
-      le.formattedDate = le.date.toISOString();
-      le.timestampMS = le.date.getTime();
-      le.idx = idx;
+    _.map(this.rawLogs, (le) => {
+      // le.date = new Date(le.timestamp);
+      // le.formattedDate = le.date.toISOString();
+      // le.timestampMS = le.date.getTime();
+      // le.idx = idx;
       // "synthetic" entries that hides some of the differences
       // between lmfs & odrd log entries
       le.lastlocation = _.get(le, lastLocationPath);
@@ -186,10 +204,7 @@ class TripLogs {
       // use the response because nav status is typically only
       // in the request when it changes ... and visualizations
       // make more sense when the nav status can be shown along the route
-      le.navStatus = _.get(
-        le,
-        "jsonpayload.response." + this.navStatusPropName
-      );
+      le.navStatus = _.get(le, "jsonpayload.response.navigationstatus");
     });
 
     if (this.rawLogs.length > 0) {
@@ -413,7 +428,10 @@ class TripLogs {
     // places where it happens (since that might actually be a client bug).
 
     _.forEach(this.rawLogs, (le) => {
-      if (le.logname.match(this.updateVehicleSuffix)) {
+      if (
+        le["@type"] === "updateVehicle" ||
+        le["@type"] === "updateDeliveryVehicle"
+      ) {
         const newTripId = this.getSegmentID(le);
         if (newTripId !== curTripId) {
           curTripId = newTripId;
