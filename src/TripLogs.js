@@ -158,7 +158,6 @@ class TripLogs {
       this.vehiclePath = "jsonpayload.request.vehicle";
       this.navStatusPropName = "navstatus";
     }
-    this.lastLocationPath = this.vehiclePath + ".lastlocation";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
@@ -169,6 +168,7 @@ class TripLogs {
     this.dwellLocations = [];
     this.etaDeltas = [];
 
+    const lastLocationPath = this.vehiclePath + ".lastlocation";
     //  annotate with Dates & timestapms
     _.map(this.rawLogs, (le, idx) => {
       le.date = new Date(le.timestamp);
@@ -177,7 +177,7 @@ class TripLogs {
       le.idx = idx;
       // "synthetic" entries that hides some of the differences
       // between lmfs & odrd log entries
-      le.lastlocation = _.get(le, this.lastLocationPath);
+      le.lastlocation = _.get(le, lastLocationPath);
 
       // utilized for calculations of serve/client time deltas (where the
       // server time isn't populated in the request).
@@ -248,7 +248,7 @@ class TripLogs {
   getMissingUpdates(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
+      .filter((le) => _.get(le, "lastlocation.rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -275,12 +275,12 @@ class TripLogs {
       .filter(
         (le) =>
           _.get(le, this.vehiclePath + ".etatofirstwaypoint") &&
-          _.get(le, this.lastLocationPath + ".rawlocation")
+          _.get(le, "lastlocation.rawlocation")
       )
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
-          const curLoc = _.get(curEntry, this.lastLocationPath);
+          const curLoc = _.get(curEntry, "lastlocation");
 
           ret = {
             deltaInSeconds: (curEntry.date - prevEntry.date) / 1000,
@@ -307,7 +307,7 @@ class TripLogs {
   getHighVelocityJumps(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
+      .filter((le) => _.get(le, "lastlocation.rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -394,7 +394,10 @@ class TripLogs {
       );
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
-      return _.get(logEntry, "labels.trip_id");
+      const currentTrips = _.get(logEntry, "jsonpayload.response.currenttrips");
+      if (currentTrips) {
+        return currentTrips[0];
+      }
     }
   }
 
@@ -431,7 +434,7 @@ class TripLogs {
             curTripData.lastUpdate - curTripData.firstUpdate;
           curTripData.updateRequests++;
         }
-        const lastLocation = _.get(le, this.lastLocationPath);
+        const lastLocation = le.lastlocation;
         if (lastLocation && lastLocation.rawlocation) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }

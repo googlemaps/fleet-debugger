@@ -120,17 +120,41 @@ function LogTable(props) {
         },
         {
           Header: "Vehicle",
-          accessor: "labels.vehicle_id",
+          accessor: (entry) => {
+            const name = _.get(entry, "jsonpayload.response.name");
+            if (name) {
+              const match = name.match(/vehicles\/(.*)/);
+              if (match) {
+                return match[1];
+              }
+            }
+          },
           solutionTypes: ["ODRD"],
         },
         {
           Header: "Vehicle",
-          accessor: "labels.delivery_vehicle_id",
+          accessor: (entry) => {
+            const name = _.get(entry, "jsonpayload.response.name");
+            if (name) {
+              const match = name.match(/deliveryVehicles\/(.*)/);
+              if (match) {
+                return match[1];
+              }
+            }
+          },
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Trip",
-          accessor: "labels.trip_id",
+          accessor: (entry) => {
+            const currentTrips = _.get(
+              entry,
+              "jsonpayload.response.currenttrips"
+            );
+            if (currentTrips) {
+              return currentTrips[0];
+            }
+          },
           solutionTypes: ["ODRD"],
         },
         {
