@@ -147,9 +147,6 @@ class FleetArchiveLogs extends Datasource {
       .uniq()
       .compact()
       .value();
-    if (vehicleIds.length === 0) {
-      return entries;
-    }
 
     let all_filtered_vehicle_entries = [];
     for (const vehicleId of vehicleIds) {
