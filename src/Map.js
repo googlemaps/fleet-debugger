@@ -238,8 +238,8 @@ function MyMapComponent(props) {
 
     const rawLocation = _.get(data.lastLocation, "rawLocation");
     if (rawLocation) {
-      const status = _.get(data, "jsonPayload.response.status");
-      const state = _.get(data, "jsonPayload.response.vehiclestate");
+      const status = _.get(data, "response.tripstatus");
+      const state = _.get(data, "response.vehiclestate");
       const locationForLog = new window.google.maps.Marker({
         position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
         map: map,
@@ -550,33 +550,33 @@ toggleHandlers["showTripStatus"] = GenerateBubbles(
       radius = 5;
     const tripStatus = tripLogs.getTripStatusAtDate(le.date);
     switch (tripStatus) {
-      case "TRIP_STATUS_NEW":
+      case "NEW":
         color = "#002200";
         radius = 30;
         break;
-      case "TRIP_STATUS_ENROUTE_TO_PICKUP":
+      case "ENROUTE_TO_PICKUP":
         color = "#FFFF00";
         break;
-      case "TRIP_STATUS_ARRIVED_AT_PICKUP":
+      case "ARRIVED_AT_PICKUP":
         color = "#FFFF10";
         radius = 10;
         break;
-      case "TRIP_STATUS_ARRIVED_AT_INTERMEDIATE_DESTINATION":
-        color = "10FFFF";
+      case "ARRIVED_AT_INTERMEDIATE_DESTINATION":
+        color = "#10FFFF";
         radius = 20;
         break;
-      case "TRIP_STATUS_ENROUTE_TO_DROPOFF":
-        color = "00FFFF";
+      case "ENROUTE_TO_DROPOFF":
+        color = "#00FFFF";
         break;
-      case "TRIP_STATUS_COMPLETE":
+      case "COMPLETE":
         radius = 30;
         color = "#00FF00";
         break;
-      case "TRIP_STATUS_CANCELED":
+      case "CANCELED":
         radius = 30;
         color = "#FF0000";
         break;
-      case "TRIP_STATUS_UNKNOWN_TRIP_STATUS":
+      case "UNKNOWN_TRIP_STATUS":
       default:
         color = "#000000";
     }
@@ -770,7 +770,7 @@ toggleHandlers["showNavStatus"] = GenerateBubbles(
     google.maps.event.addListener(statusCirc, "mouseover", () => {
       setFeaturedObject({
         navStatus: navStatus,
-        vehicleState: _.get(le, "jsonpayload.response.vehiclestate"),
+        vehicleState: _.get(le, "response.vehiclestate"),
         tripStatus: "??",
       });
     });

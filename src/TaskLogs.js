@@ -19,13 +19,13 @@ class TaskLogs {
       .filter(
         // TODO #133: response can be empty on errors -- we should highlight those rows!!
         (le) =>
-          (le.logname.match("create_task") ||
-            le.logname.match("update_task")) &&
-          le.jsonpayload.response
+          (le["@type"].match("createTask") ||
+            le["@type"].match("updateTask")) &&
+          le.response
       )
       .forEach((le, taskIdx) => {
-        const taskReq = le.jsonpayload.request;
-        const taskResp = le.jsonpayload.response;
+        const taskReq = le.request;
+        const taskResp = le.response;
         let task = this.tasks[taskReq.taskid];
         if (!task) {
           task = this.tasks[taskReq.taskid] = new Task(

@@ -52,7 +52,11 @@ function processApiCall(origLog) {
     for (const api of apis) {
       const regex = new RegExp(`.*${api}.*`, "i");
       if (apiType.match(regex)) {
-        return api;
+        return {
+          api: api,
+          request: origLog.jsonpayload.request,
+          response: origLog.jsonpayload.response,
+        };
       }
     }
   } else {
@@ -60,7 +64,11 @@ function processApiCall(origLog) {
       for (const api of apis) {
         const regex = new RegExp(`.*${api}.*`, "i");
         if (key.match(regex)) {
-          return api;
+          return {
+            api: api,
+            request: origLog[key].request,
+            response: origLog[key].response,
+          };
         }
       }
     }
@@ -84,7 +92,7 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
           ? origVal.replace(stringToTrim, "")
           : origVal;
     }
-    // Delete the property first since the new path could equal the old path
+    // Delete the property first since the new path could equal the original path
     _.unset(log, origPath);
     _.set(log, newPath, newVal);
   }
@@ -102,12 +110,12 @@ function processRawLogs(rawLogs) {
     newLog.idx = idx;
 
     // Create api call name entry
-    newLog["@type"] = processApiCall(origLog);
+    const apiCall = processApiCall(origLog);
+    newLog["@type"] = apiCall.api;
 
     // Copy request and response
-    newLog.request = origLog.request || origLog.jsonpayload.request;
-    newLog.response = origLog.response || origLog.jsonpayload.response;
-    newLog.jsonpayload = origLog.jsonpayload;
+    newLog.request = apiCall.request;
+    newLog.response = apiCall.response;
 
     // Update known log differences to standard Fleet Archive form
     adjustFieldFormat(
@@ -162,6 +170,12 @@ function processRawLogs(rawLogs) {
       "response.lastlocation.locationsensor",
       "LOCATION_SENSOR_"
     );
+    adjustFieldFormat(
+      newLog,
+      "response.status",
+      "response.tripstatus",
+      "TRIP_STATUS_"
+    );
 
     return newLog;
   });
@@ -179,7 +193,6 @@ class TripLogs {
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    // this.processedLogs = processRawLogs(rawLogs);
     this.rawLogs = processRawLogs(rawLogs);
     this.velocityJumps = [];
     this.missingUpdates = [];
@@ -187,24 +200,25 @@ class TripLogs {
     this.etaDeltas = [];
 
     const lastLocationPath = this.vehiclePath + ".lastlocation";
-    //  annotate with Dates & timestapms
     _.map(this.rawLogs, (le) => {
-      // le.date = new Date(le.timestamp);
-      // le.formattedDate = le.date.toISOString();
-      // le.timestampMS = le.date.getTime();
-      // le.idx = idx;
       // "synthetic" entries that hides some of the differences
       // between lmfs & odrd log entries
       le.lastlocation = _.get(le, lastLocationPath);
 
       // utilized for calculations of serve/client time deltas (where the
       // server time isn't populated in the request).
-      le.lastlocationResponse = _.get(le, "jsonpayload.response.lastlocation");
+      le.lastlocationResponse = _.get(le, "response.lastlocation");
 
       // use the response because nav status is typically only
       // in the request when it changes ... and visualizations
       // make more sense when the nav status can be shown along the route
-      le.navStatus = _.get(le, "jsonpayload.response.navigationstatus");
+      le.navStatus = _.get(le, "response.navigationstatus");
+
+      // Sort currentTrips array since sometimes it could contain multiple trip ids
+      // but in a random order
+      if (_.get(le, "response.currenttrips")) {
+        le.response.currenttrips.sort();
+      }
     });
 
     if (this.rawLogs.length > 0) {
@@ -405,13 +419,13 @@ class TripLogs {
     if (this.solutionType === "LMFS") {
       const stopsLeft = _.get(
         logEntry,
-        "jsonpayload.response.remainingvehiclejourneysegments"
+        "response.remainingvehiclejourneysegments"
       );
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
-      const currentTrips = _.get(logEntry, "jsonpayload.response.currenttrips");
+      const currentTrips = _.get(logEntry, "response.currenttrips");
       if (currentTrips) {
-        return currentTrips[0];
+        return currentTrips.join();
       }
     }
   }
@@ -457,7 +471,7 @@ class TripLogs {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
       }
-      const tripStatus = _.get(le, "jsonpayload.response.status");
+      const tripStatus = _.get(le, "response.tripstatus");
       // if the logs had a trip status, and it changeed update
       if (tripStatus && tripStatus !== lastTripStatus) {
         this.tripStatusChanges.push({
