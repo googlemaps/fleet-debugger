@@ -98,7 +98,7 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
   }
 }
 
-function processRawLogs(rawLogs) {
+function processRawLogs(rawLogs, solutionType) {
   const origLogs = _.reverse(rawLogs.map(toLowerKeys));
   const newLogs = origLogs.map((origLog, idx) => {
     const newLog = {};
@@ -137,12 +137,6 @@ function processRawLogs(rawLogs) {
     );
     adjustFieldFormat(
       newLog,
-      "response.state",
-      "response.vehiclestate",
-      "VEHICLE_STATE_"
-    );
-    adjustFieldFormat(
-      newLog,
       "response.vehicletype.vehiclecategory",
       "response.vehicletype.category"
     );
@@ -176,6 +170,16 @@ function processRawLogs(rawLogs) {
       "response.tripstatus",
       "TRIP_STATUS_"
     );
+    // ODRD uses "state" or "vehiclestate" for vehicle state.
+    // LMFS uses "state" for task state.
+    if (solutionType == "ODRD") {
+      adjustFieldFormat(
+        newLog,
+        "response.state",
+        "response.vehiclestate",
+        "VEHICLE_STATE_"
+      );
+    }
 
     return newLog;
   });
@@ -193,7 +197,7 @@ class TripLogs {
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    this.rawLogs = processRawLogs(rawLogs);
+    this.rawLogs = processRawLogs(rawLogs, solutionType);
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];

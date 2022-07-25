@@ -106,3 +106,33 @@ test("basic lmfs task log loading", async () => {
     108,
   ]);
 });
+
+test("fleet archive lmfs task log loading", async () => {
+  const taskLogs = await loadTripLogs("./datasets/fleet_archive_delivery.json");
+
+  expect(taskLogs.getTasks().map("taskid").value()).toStrictEqual([
+    "sample-vehicle-id-1",
+    "sample-vehicle-id-2",
+    undefined,
+  ]);
+
+  expect(taskLogs.getTasks().map("taskoutcome").value()).toStrictEqual([
+    undefined,
+    undefined,
+    "SUCCEEDED",
+  ]);
+
+  expect(
+    taskLogs
+      .getTasks()
+      .map(
+        (t) =>
+          t.plannedVsActualDeltaMeters && parseInt(t.plannedVsActualDeltaMeters)
+      )
+      .value()
+  ).toStrictEqual([
+    undefined,
+    undefined,
+    0,
+  ]);
+});

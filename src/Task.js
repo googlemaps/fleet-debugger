@@ -12,7 +12,7 @@ class Task {
     this.taskId = taskReq.taskid;
     this.updates = [];
     this.firstUpdate = date;
-    this.addUpdate(date, taskReq, taskReq, taskResp);
+    this.addUpdate(date, taskReq, taskResp);
   }
 
   /**
@@ -37,6 +37,8 @@ class Task {
         lastUpdate.taskResp.plannedlocation ||
         lastUpdate.taskReq.task.plannedlocation;
       taskInfo.taskoutcome = lastUpdate.taskResp.taskoutcome;
+      // console.log("Response: ", lastUpdate.taskResp);
+      // console.log("Outcome: ", taskInfo.taskoutcome);
       taskInfo.state = lastUpdate.taskResp.state;
       taskInfo.taskoutcomelocationsource =
         lastUpdate.taskResp.taskoutcomelocationsource;
