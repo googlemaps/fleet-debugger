@@ -141,7 +141,6 @@ class FleetArchiveLogs extends Datasource {
       .map(
         (entry) =>
           _.get(entry, "createTrip.response.vehicleId") ||
-          _.get(entry, "getTrip.response.vehicleId") ||
           _.get(entry, "updateTrip.response.vehicleId")
       )
       .uniq()
