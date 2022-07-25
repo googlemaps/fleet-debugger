@@ -68,12 +68,10 @@ class HighVelocityJump {
     // function
     featureData.timestampMS = this.startDate.getTime();
     featureData.formattedDate = this.startDate.toISOString();
-    featureData.jsonpayload = {
-      "@type": "Jump",
-    };
     featureData.lastlocation = {
       speed: this.velocity,
     };
+    featureData["@type"] = "Jump";
     return featureData;
   }
 

@@ -238,8 +238,8 @@ function MyMapComponent(props) {
 
     const rawLocation = _.get(data.lastLocation, "rawLocation");
     if (rawLocation) {
-      const status = _.get(data, "jsonPayload.response.status");
-      const state = _.get(data, "jsonPayload.response.state");
+      const status = _.get(data, "response.tripstatus");
+      const state = _.get(data, "response.vehiclestate");
       const locationForLog = new window.google.maps.Marker({
         position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
         map: map,
@@ -360,23 +360,23 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
   "showGPSBubbles",
   (rawLocationLatLng, lastLocation) => {
     let color;
-    switch (lastLocation.locsensor) {
-      case "LOCATION_SENSOR_GPS":
+    switch (lastLocation.locationsensor) {
+      case "GPS":
         color = "#11FF11";
         break;
-      case "LOCATION_SENSOR_NETWORK":
+      case "NETWORK":
         color = "#FF1111";
         break;
-      case "LOCATION_SENSOR_PASSIVE":
+      case "PASSIVE":
         color = "#FF0000";
         break;
-      case "LOCATION_SENSOR_ROAD_SNAPPED_LOCATION_PROVIDER":
+      case "ROAD_SNAPPED_LOCATION_PROVIDER":
         color = "#00FF00";
         break;
-      case "LOCATION_SENSOR_FUSED_LOCATION_PROVIDER":
+      case "FUSED_LOCATION_PROVIDER":
         color = "#11FF11";
         break;
-      case "LOCATION_SENSOR_LOG_UNSPECIFIED":
+      case "LOG_UNSPECIFIED":
       default:
         color = "#000000";
     }
@@ -395,7 +395,7 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
       google.maps.event.addListener(circ, "mouseover", () => {
         setFeaturedObject({
           rawlocationaccuracy: lastLocation.rawlocationaccuracy,
-          locsensor: lastLocation.locsensor,
+          locationsensor: lastLocation.locationsensor,
         });
       });
       return circ;
@@ -459,7 +459,7 @@ toggleHandlers["showHeading"] = GenerateBubbles(
     // Note: Heading & accuracy are only on the _request_ not the
     // response.
     const heading = _.get(logEntry.lastlocation, "heading");
-    const accuracy = _.get(logEntry.lastlocation, "bearingaccuracy");
+    const accuracy = _.get(logEntry.lastlocation, "headingaccuracy");
 
     // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
     const arrowLength = 20; // meters??
@@ -550,33 +550,33 @@ toggleHandlers["showTripStatus"] = GenerateBubbles(
       radius = 5;
     const tripStatus = tripLogs.getTripStatusAtDate(le.date);
     switch (tripStatus) {
-      case "TRIP_STATUS_NEW":
+      case "NEW":
         color = "#002200";
         radius = 30;
         break;
-      case "TRIP_STATUS_ENROUTE_TO_PICKUP":
+      case "ENROUTE_TO_PICKUP":
         color = "#FFFF00";
         break;
-      case "TRIP_STATUS_ARRIVED_AT_PICKUP":
+      case "ARRIVED_AT_PICKUP":
         color = "#FFFF10";
         radius = 10;
         break;
-      case "TRIP_STATUS_ARRIVED_AT_INTERMEDIATE_DESTINATION":
-        color = "10FFFF";
+      case "ARRIVED_AT_INTERMEDIATE_DESTINATION":
+        color = "#10FFFF";
         radius = 20;
         break;
-      case "TRIP_STATUS_ENROUTE_TO_DROPOFF":
-        color = "00FFFF";
+      case "ENROUTE_TO_DROPOFF":
+        color = "#00FFFF";
         break;
-      case "TRIP_STATUS_COMPLETE":
+      case "COMPLETE":
         radius = 30;
         color = "#00FF00";
         break;
-      case "TRIP_STATUS_CANCELED":
+      case "CANCELED":
         radius = 30;
         color = "#FF0000";
         break;
-      case "TRIP_STATUS_UNKNOWN_TRIP_STATUS":
+      case "UNKNOWN_TRIP_STATUS":
       default:
         color = "#000000";
     }
@@ -738,20 +738,20 @@ toggleHandlers["showNavStatus"] = GenerateBubbles(
     let color,
       radius = 5;
     switch (navStatus) {
-      case "NAVIGATION_STATUS_UNKNOWN_NAVIGATION_STATUS":
+      case "UNKNOWN_NAVIGATION_STATUS":
         color = "#222222";
         break;
-      case "NAVIGATION_STATUS_NO_GUIDANCE":
+      case "NO_GUIDANCE":
         color = "#090909";
         break;
-      case "NAVIGATION_STATUS_ENROUTE_TO_DESTINATION":
+      case "ENROUTE_TO_DESTINATION":
         color = "#00FF00";
         break;
-      case "NAVIGATION_STATUS_OFF_ROUTE":
+      case "OFF_ROUTE":
         color = "#FF0000";
         radius = 30;
         break;
-      case "NAVIGATION_STATUS_ARRIVED_AT_DESTINATION":
+      case "ARRIVED_AT_DESTINATION":
         color = "0000FF";
         radius = 10;
         break;
@@ -770,7 +770,7 @@ toggleHandlers["showNavStatus"] = GenerateBubbles(
     google.maps.event.addListener(statusCirc, "mouseover", () => {
       setFeaturedObject({
         navStatus: navStatus,
-        vehicleState: _.get(le, "jsonpayload.response.state"),
+        vehicleState: _.get(le, "response.vehiclestate"),
         tripStatus: "??",
       });
     });

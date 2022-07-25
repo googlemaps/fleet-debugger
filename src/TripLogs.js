@@ -12,6 +12,20 @@ import MissingUpdate from "./MissingUpdate";
 
 const maxDistanceForDwell = 20; // meters
 const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle request at 10 seconds
+const apis = new Set([
+  "createVehicle",
+  "getVehicle",
+  "updateVehicle",
+  "createDeliveryVehicle",
+  "getDeliveryVehicle",
+  "updateDeliveryVehicle",
+  "createTrip",
+  "getTrip",
+  "updateTrip",
+  "createTask",
+  "getTask",
+  "updateTask",
+]);
 
 /* Logs from bigquery will be all lower case, so standardize on that
  */
@@ -31,50 +45,184 @@ function toLowerKeys(input) {
   }, {});
 }
 
+function processApiCall(origLog) {
+  let apiType;
+  if (origLog.jsonpayload) {
+    apiType = origLog.jsonpayload["@type"];
+    for (const api of apis) {
+      const regex = new RegExp(`.*${api}.*`, "i");
+      if (apiType.match(regex)) {
+        return {
+          api: api,
+          request: origLog.jsonpayload.request,
+          response: origLog.jsonpayload.response,
+        };
+      }
+    }
+  } else {
+    for (const key of Object.keys(origLog)) {
+      for (const api of apis) {
+        const regex = new RegExp(`.*${api}.*`, "i");
+        if (key.match(regex)) {
+          return {
+            api: api,
+            request: origLog[key].request,
+            response: origLog[key].response,
+          };
+        }
+      }
+    }
+  }
+  throw new SyntaxError(
+    `Could not find API call type for log entry: ${JSON.stringify(origLog)}`
+  );
+}
+
+function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
+  const origVal = _.get(log, origPath);
+  if (origVal) {
+    let newVal;
+    if (Array.isArray(origVal)) {
+      newVal = origVal.map((val) =>
+        typeof val === "string" ? val.replace(stringToTrim, "") : val
+      );
+    } else {
+      newVal =
+        typeof origVal === "string"
+          ? origVal.replace(stringToTrim, "")
+          : origVal;
+    }
+    // Delete the property first since the new path could equal the original path
+    _.unset(log, origPath);
+    _.set(log, newPath, newVal);
+  }
+}
+
+function processRawLogs(rawLogs, solutionType) {
+  const origLogs = _.reverse(rawLogs.map(toLowerKeys));
+  const newLogs = origLogs.map((origLog, idx) => {
+    const newLog = {};
+    // Create timestamp entries
+    newLog.timestamp = origLog.timestamp || origLog.servertime;
+    newLog.date = new Date(newLog.timestamp);
+    newLog.formattedDate = newLog.date.toISOString();
+    newLog.timestampMS = newLog.date.getTime();
+    newLog.idx = idx;
+
+    // Create api call name entry
+    const apiCall = processApiCall(origLog);
+    newLog["@type"] = apiCall.api;
+
+    // Copy request and response
+    newLog.request = apiCall.request;
+    newLog.response = apiCall.response;
+
+    // Update known log differences to standard Fleet Archive form
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.state",
+      "request.vehicle.vehiclestate",
+      "VEHICLE_STATE_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.lastlocation.locsensor",
+      "request.vehicle.lastlocation.locationsensor",
+      "LOCATION_SENSOR_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "request.vehicle.lastlocation.bearingaccuracy",
+      "request.vehicle.lastlocation.headingaccuracy"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.vehicletype.vehiclecategory",
+      "response.vehicletype.category"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.supportedtrips",
+      "response.supportedtriptypes",
+      "_TRIP"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.navigationstatus",
+      "response.navigationstatus",
+      "NAVIGATION_STATUS_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.navstatus",
+      "response.navigationstatus",
+      "NAVIGATION_STATUS_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.lastlocation.locsensor",
+      "response.lastlocation.locationsensor",
+      "LOCATION_SENSOR_"
+    );
+    adjustFieldFormat(
+      newLog,
+      "response.status",
+      "response.tripstatus",
+      "TRIP_STATUS_"
+    );
+    // ODRD uses "state" or "vehiclestate" for vehicle state.
+    // LMFS uses "state" for task state.
+    if (solutionType == "ODRD") {
+      adjustFieldFormat(
+        newLog,
+        "response.state",
+        "response.vehiclestate",
+        "VEHICLE_STATE_"
+      );
+    }
+
+    return newLog;
+  });
+  return newLogs;
+}
+
 class TripLogs {
   constructor(rawLogs, solutionType) {
     this.solutionType = solutionType;
     if (this.solutionType === "LMFS") {
-      this.updateVehicleSuffix = "update_delivery_vehicle";
-      this.vehiclePath = "jsonpayload.request.deliveryvehicle";
-      this.navStatusPropName = "navigationstatus";
+      this.vehiclePath = "request.deliveryvehicle";
     } else {
-      this.updateVehicleSuffix = "update_vehicle";
-      this.vehicleName = "vehicle";
-      this.vehiclePath = "jsonpayload.request.vehicle";
-      this.navStatusPropName = "navstatus";
+      this.vehiclePath = "request.vehicle";
     }
-    this.lastLocationPath = this.vehiclePath + ".lastlocation";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
-    this.rawLogs = _.reverse(rawLogs.map(toLowerKeys));
+    this.rawLogs = processRawLogs(rawLogs, solutionType);
     this.velocityJumps = [];
     this.missingUpdates = [];
     this.dwellLocations = [];
     this.etaDeltas = [];
 
-    //  annotate with Dates & timestapms
-    _.map(this.rawLogs, (le, idx) => {
-      le.date = new Date(le.timestamp);
-      le.formattedDate = le.date.toISOString();
-      le.timestampMS = le.date.getTime();
-      le.idx = idx;
+    const lastLocationPath = this.vehiclePath + ".lastlocation";
+    _.map(this.rawLogs, (le) => {
       // "synthetic" entries that hides some of the differences
       // between lmfs & odrd log entries
-      le.lastlocation = _.get(le, this.lastLocationPath);
+      le.lastlocation = _.get(le, lastLocationPath);
 
       // utilized for calculations of serve/client time deltas (where the
       // server time isn't populated in the request).
-      le.lastlocationResponse = _.get(le, "jsonpayload.response.lastlocation");
+      le.lastlocationResponse = _.get(le, "response.lastlocation");
 
       // use the response because nav status is typically only
       // in the request when it changes ... and visualizations
       // make more sense when the nav status can be shown along the route
-      le.navStatus = _.get(
-        le,
-        "jsonpayload.response." + this.navStatusPropName
-      );
+      le.navStatus = _.get(le, "response.navigationstatus");
+
+      // Sort currentTrips array since sometimes it could contain multiple trip ids
+      // but in a random order
+      if (_.get(le, "response.currenttrips")) {
+        le.response.currenttrips.sort();
+      }
     });
 
     if (this.rawLogs.length > 0) {
@@ -133,7 +281,7 @@ class TripLogs {
   getMissingUpdates(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
+      .filter((le) => _.get(le, "lastlocation.rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -160,12 +308,12 @@ class TripLogs {
       .filter(
         (le) =>
           _.get(le, this.vehiclePath + ".etatofirstwaypoint") &&
-          _.get(le, this.lastLocationPath + ".rawlocation")
+          _.get(le, "lastlocation.rawlocation")
       )
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
-          const curLoc = _.get(curEntry, this.lastLocationPath);
+          const curLoc = _.get(curEntry, "lastlocation");
 
           ret = {
             deltaInSeconds: (curEntry.date - prevEntry.date) / 1000,
@@ -192,7 +340,7 @@ class TripLogs {
   getHighVelocityJumps(minDate, maxDate) {
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
-      .filter((le) => _.get(le, this.lastLocationPath + ".rawlocation"))
+      .filter((le) => _.get(le, "lastlocation.rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -275,11 +423,14 @@ class TripLogs {
     if (this.solutionType === "LMFS") {
       const stopsLeft = _.get(
         logEntry,
-        "jsonpayload.response.remainingvehiclejourneysegments"
+        "response.remainingvehiclejourneysegments"
       );
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
-      return _.get(logEntry, "labels.trip_id");
+      const currentTrips = _.get(logEntry, "response.currenttrips");
+      if (currentTrips) {
+        return currentTrips.join();
+      }
     }
   }
 
@@ -295,7 +446,10 @@ class TripLogs {
     // places where it happens (since that might actually be a client bug).
 
     _.forEach(this.rawLogs, (le) => {
-      if (le.logname.match(this.updateVehicleSuffix)) {
+      if (
+        le["@type"] === "updateVehicle" ||
+        le["@type"] === "updateDeliveryVehicle"
+      ) {
         const newTripId = this.getSegmentID(le);
         if (newTripId !== curTripId) {
           curTripId = newTripId;
@@ -316,12 +470,12 @@ class TripLogs {
             curTripData.lastUpdate - curTripData.firstUpdate;
           curTripData.updateRequests++;
         }
-        const lastLocation = _.get(le, this.lastLocationPath);
+        const lastLocation = le.lastlocation;
         if (lastLocation && lastLocation.rawlocation) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
       }
-      const tripStatus = _.get(le, "jsonpayload.response.status");
+      const tripStatus = _.get(le, "response.tripstatus");
       // if the logs had a trip status, and it changeed update
       if (tripStatus && tripStatus !== lastTripStatus) {
         this.tripStatusChanges.push({

@@ -12,7 +12,7 @@ class Task {
     this.taskId = taskReq.taskid;
     this.updates = [];
     this.firstUpdate = date;
-    this.addUpdate(date, taskReq, taskReq, taskResp);
+    this.addUpdate(date, taskReq, taskResp);
   }
 
   /**

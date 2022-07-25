@@ -99,17 +99,17 @@ function LogTable(props) {
         },
         {
           Header: "SDK Version",
-          accessor: "jsonpayload.request.header.sdkversion",
+          accessor: "request.header.sdkversion",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           Header: "OS Version",
-          accessor: "jsonpayload.request.header.osversion",
+          accessor: "request.header.osversion",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           Header: "Method",
-          accessor: "jsonpayload.@type",
+          accessor: "@type",
           Cell: ({ cell: { value } }) => (
             <TrimCell
               value={value}
@@ -120,22 +120,43 @@ function LogTable(props) {
         },
         {
           Header: "Vehicle",
-          accessor: "labels.vehicle_id",
+          accessor: (entry) => {
+            const name = _.get(entry, "response.name");
+            if (name) {
+              const match = name.match(/vehicles\/(.*)/);
+              if (match) {
+                return match[1];
+              }
+            }
+          },
           solutionTypes: ["ODRD"],
         },
         {
           Header: "Vehicle",
-          accessor: "labels.delivery_vehicle_id",
+          accessor: (entry) => {
+            const name = _.get(entry, "response.name");
+            if (name) {
+              const match = name.match(/deliveryVehicles\/(.*)/);
+              if (match) {
+                return match[1];
+              }
+            }
+          },
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Trip",
-          accessor: "labels.trip_id",
+          accessor: (entry) => {
+            const currentTrips = _.get(entry, "response.currenttrips");
+            if (currentTrips) {
+              return currentTrips[0];
+            }
+          },
           solutionTypes: ["ODRD"],
         },
         {
           Header: "Vehicle State",
-          accessor: "jsonpayload.response.state",
+          accessor: "response.vehiclestate",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="VEHICLE_STATE_" />
           ),
@@ -143,7 +164,7 @@ function LogTable(props) {
         },
         {
           Header: "Task State",
-          accessor: "jsonpayload.response.state",
+          accessor: "response.state",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TASK_STATE_" />
           ),
@@ -151,7 +172,7 @@ function LogTable(props) {
         },
         {
           Header: "Trip Status",
-          accessor: "jsonpayload.response.status",
+          accessor: "response.tripstatus",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TRIP_STATUS_" />
           ),
@@ -160,7 +181,7 @@ function LogTable(props) {
         {
           Header: "Remaining tasks",
           id: "reamining_tasks",
-          accessor: "jsonpayload.response.remainingvehiclejourneysegments",
+          accessor: "response.remainingvehiclejourneysegments",
           Cell: ({ cell: { value } }) => (
             <>{value && _.sumBy(value, "stop.tasks.length")}</>
           ),
@@ -168,13 +189,12 @@ function LogTable(props) {
         },
         {
           Header: "Remaining Distance This Segment",
-          accessor:
-            "jsonpayload.request.deliveryvehicle.remainingdistancemeters",
+          accessor: "request.deliveryvehicle.remainingdistancemeters",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Remaining Segements",
-          accessor: "jsonpayload.response.remainingvehiclejourneysegments",
+          accessor: "response.remainingvehiclejourneysegments",
           Cell: ({ cell: { value } }) => <>{value && value.length}</>,
           solutionTypes: ["LMFS"],
         },

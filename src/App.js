@@ -79,7 +79,7 @@ class App extends React.Component {
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
           columns: [
             "lastlocation.rawlocationaccuracy",
-            "lastlocation.locsensor",
+            "lastlocation.locationsensor",
           ],
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -88,7 +88,7 @@ class App extends React.Component {
           name: "Heading",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
-          columns: ["lastlocation.heading", "lastlocation.bearingaccuracy"],
+          columns: ["lastlocation.heading", "lastlocation.headingaccuracy"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -144,7 +144,7 @@ class App extends React.Component {
           name: "Jumps (Temporal)",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
-          columns: ["jsonpayload.temporal_gap"],
+          columns: ["temporal_gap"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -153,8 +153,8 @@ class App extends React.Component {
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [
-            "jsonpayload.response.laslLocation.rawlocationlime",
-            "jsonpayload.response.laslLocation.serverlime",
+            "response.laslLocation.rawlocationlime",
+            "response.laslLocation.serverlime",
           ],
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -163,7 +163,7 @@ class App extends React.Component {
           name: "ETA Deltas",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
-          columns: ["jsonpayload.request.vehicle.etatofirstwaypoint"],
+          columns: ["request.vehicle.etatofirstwaypoint"],
           solutionTypes: ["ODRD"],
         },
         {
