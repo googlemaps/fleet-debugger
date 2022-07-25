@@ -130,9 +130,5 @@ test("fleet archive lmfs task log loading", async () => {
           t.plannedVsActualDeltaMeters && parseInt(t.plannedVsActualDeltaMeters)
       )
       .value()
-  ).toStrictEqual([
-    undefined,
-    undefined,
-    0,
-  ]);
+  ).toStrictEqual([undefined, undefined, 0]);
 });
