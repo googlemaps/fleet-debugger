@@ -116,7 +116,7 @@ class CloudLogs extends Datasource {
       [deliveryVehicle],
       this.argv.daysAgo,
       "",
-      this.lmfsMrOverride
+      this.argv.lmfsMrOverride
     );
   }
 }
