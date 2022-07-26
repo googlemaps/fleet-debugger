@@ -82,7 +82,9 @@ class CloudLogs extends Datasource {
       taskLogs = await logging.fetchLogs(
         "task_id",
         task_ids,
-        this.argv.daysAgo
+        this.argv.daysAgo,
+        "",
+        this.argv.lmfsMrOverride
       );
     } else {
       console.log(`no tasks associated with vehicle id ${this.argv.vehicle}`);
@@ -112,7 +114,9 @@ class CloudLogs extends Datasource {
     return await logging.fetchLogs(
       "delivery_vehicle_id",
       [deliveryVehicle],
-      this.argv.daysAgo
+      this.argv.daysAgo,
+      "",
+      this.lmfsMrOverride
     );
   }
 }

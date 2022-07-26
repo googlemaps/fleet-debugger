@@ -43,8 +43,23 @@ const interestingLogs = [
  * Uses cloud logging APIs to list log entries from the
  * fleet engine resource matching the specified label.
  */
-async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
+async function fetchLogs(
+  label,
+  labelValues,
+  daysAgo = 2,
+  extra = "",
+  lmfsMrOverride = "DeliveryFleet"
+) {
   const endPoint = "fleetengine.googleapis.com";
+  const odrdMonitoredResource = "fleetengine.googleapis.com/Fleet";
+  const lmfsMonitoredResource = `fleetengine.googleapis.com/${lmfsMrOverride}`;
+  const labelToMonitoredResource = {
+    vehicle_id: odrdMonitoredResource,
+    trip_id: odrdMonitoredResource,
+    delivery_vehicle_id: lmfsMonitoredResource,
+    task_id: lmfsMonitoredResource,
+  };
+  const monitoredResource = labelToMonitoredResource[label];
   const resourceName = "projects/" + auth.getProjectId();
   // TODO better handling of date range for search: allow start/end
   let startDate = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
@@ -53,7 +68,7 @@ async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
     (logName) => `${resourceName}/logs/${endPoint}%2F${logName}`
   ).join(" OR ");
   const labelFilterString = labelValues.join(" OR ");
-  const filterString = `resource.type=fleetengine.googleapis.com/Fleet labels.${label}=(${labelFilterString}) timestamp>="${startDate.toISOString()}" ${extra} log_name=(${logFilterString})`;
+  const filterString = `resource.type=${monitoredResource} labels.${label}=(${labelFilterString}) timestamp>="${startDate.toISOString()}" ${extra} log_name=(${logFilterString})`;
   console.log("log filter", filterString);
   let entries = [];
   try {
@@ -91,7 +106,16 @@ async function fetchLogsFromArchive(
   endTimeSeconds,
   jwt
 ) {
-  const endPoint = "https://fleetengine.googleapis.com/v1/archive";
+  const odrdEndPoint = "https://fleetengine.googleapis.com/v1/archive";
+  const lmfsEndPoint = "https://fleetengine.googleapis.com/v1/deliveryArchive";
+
+  const labelToEndpoint = {
+    vehicles: odrdEndPoint,
+    trips: odrdEndPoint,
+    deliveryVehicles: lmfsEndPoint,
+    tasks: lmfsEndPoint,
+  };
+  const endPoint = labelToEndpoint[label];
   const labelToApi = {
     vehicles: "collectVehicleCalls",
     trips: "collectTripCalls",
