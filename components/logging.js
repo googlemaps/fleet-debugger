@@ -43,16 +43,10 @@ const interestingLogs = [
  * Uses cloud logging APIs to list log entries from the
  * fleet engine resource matching the specified label.
  */
-async function fetchLogs(
-  label,
-  labelValues,
-  daysAgo = 2,
-  extra = "",
-  lmfsMrOverride = "DeliveryFleet"
-) {
+async function fetchLogs(label, labelValues, daysAgo = 2, extra = "") {
   const endPoint = "fleetengine.googleapis.com";
   const odrdMonitoredResource = "fleetengine.googleapis.com/Fleet";
-  const lmfsMonitoredResource = `fleetengine.googleapis.com/${lmfsMrOverride}`;
+  const lmfsMonitoredResource = "fleetengine.googleapis.com/DeliveryFleet";
   const labelToMonitoredResource = {
     vehicle_id: odrdMonitoredResource,
     trip_id: odrdMonitoredResource,

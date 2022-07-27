@@ -73,11 +73,6 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
       describe:
         "Use specified bigquery dataset as datasource.  Assumes current user has access, and standard format.  Assumes dataset has separate tables for each api method",
     },
-    lmfsMrOverride: {
-      describe:
-        "Use specified monitered resource when querying for LMFS logs. Can be one of Fleet, DeliveryFleet",
-      default: "Fleet",
-    },
   });
 const argv = yargs.argv;
 
