@@ -141,15 +141,11 @@ class FleetArchiveLogs extends Datasource {
       .map(
         (entry) =>
           _.get(entry, "createTrip.response.vehicleId") ||
-          _.get(entry, "getTrip.response.vehicleId") ||
           _.get(entry, "updateTrip.response.vehicleId")
       )
       .uniq()
       .compact()
       .value();
-    if (vehicleIds.length === 0) {
-      return entries;
-    }
 
     let all_filtered_vehicle_entries = [];
     for (const vehicleId of vehicleIds) {
