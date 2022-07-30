@@ -3,8 +3,8 @@
  *
  * Handles the log viewing component.
  */
-import { useTable } from "react-table";
-import React from "react";
+import { useFilters, useSortBy, useTable } from "react-table";
+import React, { useState } from "react";
 import styled from "styled-components";
 import _ from "lodash";
 
@@ -35,14 +35,72 @@ const Styles = styled.div`
       }
     }
   }
+
+  .logtable-head {
+    display: flex;
+  }
+  .logtable-row:hover {
+    background-color: #e6e6e6;
+  }
+  .logtable-row.selected {
+    background-color: #d0d0ff;
+  }
 `;
 
 function Table({ columns, data, onSelectionChange }) {
+  const [selectedRow, setSelectedRow] = useState(-1);
+  const defaultColumn = React.useMemo(
+    () => ({
+      Filter: DefaultColumnFilter,
+    }),
+    []
+  );
+
+  function DefaultColumnFilter({
+    column: { filterValue, preFilteredRows, setFilter },
+  }) {
+    const count = preFilteredRows.length;
+
+    return (
+      <input
+        value={filterValue || ""}
+        onChange={(e) => {
+          setFilter(e.target.value || undefined);
+        }}
+        placeholder={`Search ${count} records...`}
+      />
+    );
+  }
+
+  const filterTypes = React.useMemo(
+    () => ({
+      text: (rows, id, filterValue) => {
+        return rows.filter((row) => {
+          const rowValue = row.values[id];
+          return rowValue !== undefined
+            ? String(rowValue)
+                .toLowerCase()
+                .startsWith(String(filterValue).toLowerCase())
+            : true;
+        });
+      },
+    }),
+    []
+  );
+
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-    useTable({
-      columns,
-      data,
-    });
+    useTable(
+      {
+        columns,
+        data,
+        defaultColumn,
+        filterTypes,
+        autoResetFilters: false,
+        autoResetSortBy: false,
+      },
+      useFilters,
+      useSortBy
+    );
 
   return (
     <table {...getTableProps()}>
@@ -50,7 +108,22 @@ function Table({ columns, data, onSelectionChange }) {
         {headerGroups.map((headerGroup) => (
           <tr {...headerGroup.getHeaderGroupProps()}>
             {headerGroup.headers.map((column) => (
-              <th {...column.getHeaderProps()}>{column.render("Header")}</th>
+              <th {...column.getHeaderProps()}>
+                <div
+                  className="logtable-head"
+                  {...column.getSortByToggleProps()}
+                >
+                  {column.render("Header")}
+                  <div style={{ width: 20 }}>
+                    {column.isSorted
+                      ? column.isSortedDesc
+                        ? " 🔽"
+                        : " 🔼"
+                      : ""}
+                  </div>
+                </div>
+                <div>{column.canFilter ? column.render("Filter") : null}</div>
+              </th>
             ))}
           </tr>
         ))}
@@ -61,7 +134,13 @@ function Table({ columns, data, onSelectionChange }) {
           return (
             <tr
               {...row.getRowProps()}
-              onClick={() => onSelectionChange(row.original)}
+              className={`logtable-row ${
+                selectedRow === row.index ? "selected" : ""
+              }`}
+              onClick={() => {
+                setSelectedRow(row.index);
+                onSelectionChange(row.original);
+              }}
             >
               {row.cells.map((cell) => {
                 return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
