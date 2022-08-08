@@ -14,6 +14,7 @@ import Utils from "./Utils";
 let minDate;
 let maxDate;
 let allPaths = [];
+let allPlannedPaths = [];
 let allMarkers = [];
 let map;
 let apikey;
@@ -41,6 +42,8 @@ const render = (status) => {
 function addTripPolys(map) {
   _.forEach(allPaths, (p) => p.setMap(null));
   allPaths = [];
+  _.forEach(allPlannedPaths, (p) => p.setMap(null));
+  allPlannedPaths = [];
   _.forEach(allMarkers, (m) => m.setMap(null));
   allMarkers = [];
 
@@ -80,6 +83,19 @@ function addTripPolys(map) {
       getPolyBounds(vehicleBounds, path);
       path.setMap(map);
       allPaths.push(path);
+    }
+    const plannedPath = trip.getPlannedPath();
+    if (plannedPath.length > 0) {
+      const path = new window.google.maps.Polyline({
+        path: plannedPath,
+        geodesic: true,
+        strokeColor: getColor(trip.tripIdx),
+        strokeOpacity: 0.3,
+        strokeWeight: 6,
+      });
+      getPolyBounds(vehicleBounds, path);
+      path.setMap(map);
+      allPlannedPaths.push(path);
     }
   });
   if (lastVehicleCoords) {

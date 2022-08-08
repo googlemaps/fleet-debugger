@@ -17,6 +17,7 @@ class Trip {
     this.creationTime = "Unknown";
     this.firstUpdate = firstUpdate;
     this.lastUpdate = "Unknown";
+    this.plannedPath = [];
   }
 
   getTraveledDistance() {
@@ -59,6 +60,16 @@ class Trip {
       trip_id: this.tripName,
       date: new Date(timestamp),
     });
+  }
+
+  setPlannedPath(plannedPath) {
+    this.plannedPath = plannedPath.map((coords) => {
+      return { lat: coords.latitude, lng: coords.longitude };
+    });
+  }
+
+  getPlannedPath() {
+    return this.plannedPath;
   }
 }
 export { Trip as default };
