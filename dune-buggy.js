@@ -73,6 +73,11 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
       describe:
         "Use specified bigquery dataset as datasource.  Assumes current user has access, and standard format.  Assumes dataset has separate tables for each api method",
     },
+    fleetarchive: {
+      describe:
+        "Use the fleet archive dataset as datasource.",
+        boolean: true,
+    },
   });
 const argv = yargs.argv;
 
