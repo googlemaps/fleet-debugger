@@ -129,7 +129,6 @@ async function fetchLogsFromArchive(
     params: {
       "time_window.start_time.seconds": startTimeSeconds,
       "time_window.end_time.seconds": endTimeSeconds,
-      page_size: 50,
     },
   };
   let entries = [];

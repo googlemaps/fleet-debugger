@@ -288,8 +288,8 @@ function getColor(tripIdx) {
 function Map(props) {
   tripLogs = props.logData.tripLogs;
   taskLogs = props.logData.taskLogs;
-  minDate = tripLogs.minDate;
-  maxDate = tripLogs.maxDate;
+  minDate = props.rangeStart;
+  maxDate = props.rangeEnd;
   const urlParams = new URLSearchParams(window.location.search);
   apikey = urlParams.get("apikey") || props.logData.apikey;
   mapId = urlParams.get("mapId") || props.logData.mapId;
@@ -721,6 +721,39 @@ toggleHandlers["showTasksAsCreated"] = function (enabled) {
       })
       .flatten()
       .value();
+  }
+};
+
+/*
+ * Draws planned paths on the map.
+ */
+toggleHandlers["showPlannedPaths"] = function (enabled) {
+  const bubbleName = "showPlannedPaths";
+  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+  delete bubbleMap[bubbleName];
+
+  if (enabled) {
+    const trips = tripLogs.getTrips();
+    bubbleMap[bubbleName] = trips
+      .filter((trip) => {
+        return (
+          trip.firstUpdate <= maxDate &&
+          trip.lastUpdate >= minDate &&
+          trip.getPlannedPath().length > 0
+        );
+      })
+      .map((trip) => {
+        const plannedPath = trip.getPlannedPath();
+        const path = new window.google.maps.Polyline({
+          path: plannedPath,
+          geodesic: true,
+          strokeColor: getColor(trip.tripIdx),
+          strokeOpacity: 0.3,
+          strokeWeight: 6,
+        });
+        path.setMap(map);
+        return path;
+      });
   }
 };
 
