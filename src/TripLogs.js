@@ -469,7 +469,7 @@ class TripLogs {
             "response.remainingvehiclejourneysegments[0].path"
           );
           if (plannedPath && plannedPath.length > 0) {
-            curTripData.setPlannedPath(plannedPath);
+            curTripData.setPlannedPath(plannedPath, le.timestamp);
           }
         } else {
           curTripData.lastUpdate = new Date(le.timestamp);

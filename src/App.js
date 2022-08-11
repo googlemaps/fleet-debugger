@@ -55,6 +55,7 @@ class App extends React.Component {
         showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
         showMissingUpdates: getToggleDefault("showMissingUpdates", false),
         showTasksAsCreated: getToggleDefault("showTasksAsCreated", false),
+        showPlannedPaths: getToggleDefault("showPlannedPaths", false),
         showLiveJS: getToggleDefault("showLiveJS", false),
         showClientServerTimeDeltas: getToggleDefault(
           "showClientServerTimeDeltas",
@@ -120,6 +121,14 @@ class App extends React.Component {
           name: "Tasks",
           docLink:
             "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Tasks.md",
+          columns: [],
+          solutionTypes: ["LMFS"],
+        },
+        {
+          id: "showPlannedPaths",
+          name: "Planned Paths",
+          docLink:
+            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/PlannedPaths.md",
           columns: [],
           solutionTypes: ["LMFS"],
         },
