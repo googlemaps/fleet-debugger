@@ -237,7 +237,7 @@ LIMIT 5000
     return data.map(normalize);
   }
 
-  async fetchVehicleLogs(vehicle_id, trip_id) {
+  async fetchVehicleAndTripLogs(vehicle_id, trip_id) {
     // TODO: handle case where table doesn't exist (ie in a lmfs project)
     let whereClause;
     const params = {
@@ -283,7 +283,12 @@ LIMIT
     const updateData = await this.bq(updateQuery, params);
     const data = createData.concat(updateData);
     console.log(`found ${data.length} ODRD vehicle logs`);
-    return data.map(normalize);
+    const vehicleLogs = data.map(normalize);
+    const tripLogs = await this.fetchTripLogsForVehicle(
+      vehicle_id,
+      vehicleLogs
+    );
+    return _.concat(vehicleLogs, tripLogs);
   }
 
   async fetchDeliveryVehicleLogs(delivery_vehicle_id) {

@@ -90,12 +90,14 @@ class CloudLogs extends Datasource {
     return taskLogs;
   }
 
-  async fetchVehicleLogs(vehicle, trip) {
+  async fetchVehicleAndTripLogs(vehicle, trip) {
     const label = vehicle ? "vehicle_id" : "trip_id";
     const labelVal = vehicle ? vehicle : trip;
 
     console.log(`Fetching logs for ${label} = ${labelVal}`);
-    return await logging.fetchLogs(label, [labelVal], this.argv.daysAgo);
+    const logs = await logging.fetchLogs(label, [labelVal], this.argv.daysAgo);
+    const tripLogs = await this.fetchTripLogsForVehicle(vehicle, logs);
+    return _.concat(logs, tripLogs);
   }
 
   async fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs) {

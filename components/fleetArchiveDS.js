@@ -35,7 +35,6 @@ class FleetArchiveLogs extends Datasource {
       .map(
         (logEntry) =>
           _.get(logEntry, "createVehicle.response.currentTrips") ||
-          _.get(logEntry, "getVehicle.response.currentTrips") ||
           _.get(logEntry, "updateVehicle.response.currentTrips")
       )
       .flatten()
@@ -77,10 +76,6 @@ class FleetArchiveLogs extends Datasource {
           ) ||
           _.get(
             logEntry,
-            "getDeliveryVehicle.response.remainingVehicleJourneySegments"
-          ) ||
-          _.get(
-            logEntry,
             "updateDeliveryVehicle.response.remainingVehicleJourneySegments"
           )
       )
@@ -118,7 +113,7 @@ class FleetArchiveLogs extends Datasource {
     return taskLogs;
   }
 
-  async fetchVehicleLogs(vehicle, trip, jwt) {
+  async fetchVehicleAndTripLogs(vehicle, trip, jwt) {
     const label = vehicle ? "vehicles" : "trips";
     const labelVal = vehicle ? vehicle : trip;
 
@@ -131,8 +126,9 @@ class FleetArchiveLogs extends Datasource {
       jwt
     );
 
-    if (vehicle || entries.length === 0) {
-      return entries;
+    if (vehicle) {
+      const tripLogs = await this.fetchTripLogsForVehicle(vehicle, entries, jwt);
+      return _.concat(entries, tripLogs);
     }
 
     // For trip logs, need to get the logs for the vehicle and then filter on the given trip
@@ -141,7 +137,6 @@ class FleetArchiveLogs extends Datasource {
       .map(
         (entry) =>
           _.get(entry, "createTrip.response.vehicleId") ||
-          _.get(entry, "getTrip.response.vehicleId") ||
           _.get(entry, "updateTrip.response.vehicleId")
       )
       .uniq()
@@ -154,7 +149,7 @@ class FleetArchiveLogs extends Datasource {
     let all_filtered_vehicle_entries = [];
     for (const vehicleId of vehicleIds) {
       console.log(
-        `Fetching logs for vehicle ${vehicleId} and filtering by trip ${labelVal}`
+        `Fetching logs for vehicle ${vehicleId}`
       );
       const vehicle_entries = await logging.fetchLogsFromArchive(
         "vehicles",
@@ -163,10 +158,10 @@ class FleetArchiveLogs extends Datasource {
         this.endTimeSeconds,
         jwt
       );
+      console.log(`Filtering vehicle logs by trip ${labelVal}`);
       const filtered_vehicle_entries = _.filter(vehicle_entries, (entry) => {
         const currentTrips =
           _.get(entry, "createVehicle.response.currentTrips") ||
-          _.get(entry, "getVehicle.response.currentTrips") ||
           _.get(entry, "updateVehicle.response.currentTrips");
         return currentTrips && currentTrips.includes(trip);
       });

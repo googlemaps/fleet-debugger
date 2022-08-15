@@ -26,16 +26,24 @@ class TaskLogs {
       .forEach((le, taskIdx) => {
         const taskReq = le.request;
         const taskResp = le.response;
-        let task = this.tasks[taskReq.taskid];
-        if (!task) {
-          task = this.tasks[taskReq.taskid] = new Task(
-            le.date,
-            taskIdx,
-            taskReq,
-            taskResp
-          );
-        } else {
-          task.addUpdate(le.date, taskReq, taskResp);
+        const taskNameRegex = new RegExp(`.*/tasks/(.*)$`, "i");
+        const taskName = _.get(taskReq, "task.name");
+        if (taskName) {
+          const match = taskName.match(taskNameRegex);
+          if (match) {
+            const taskId = match[1];
+            let task = this.tasks[taskId];
+            if (!task) {
+              task = this.tasks[taskId] = new Task(
+                le.date,
+                taskIdx,
+                taskReq,
+                taskResp
+              );
+            } else {
+              task.addUpdate(le.date, taskReq, taskResp);
+            }
+          }
         }
       });
   }

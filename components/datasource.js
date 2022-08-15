@@ -19,20 +19,16 @@ class Datasource {
     this.argv = argv;
   }
 
-  async fetchTripLogsForVehicle(vehicle_id, vehicleLogs) {
-    throw new Error("Not Implemented", vehicle_id, vehicleLogs);
-  }
-
-  async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
-    throw new Error("Not Implemented", vehicle_id, vehicleLogs);
-  }
-
-  async fetchVehicleLogs(vehicle, trip) {
+  async fetchVehicleAndTripLogs(vehicle, trip) {
     throw new Error("Not Implemented", vehicle, trip);
   }
 
   async fetchDeliveryVehicleLogs(deliveryVehicle, vehicleLogs) {
     throw new Error("Not Implemented", deliveryVehicle, vehicleLogs);
+  }
+
+  async fetchTaskLogsForVehicle(vehicle_id, vehicleLogs) {
+    throw new Error("Not Implemented", vehicle_id, vehicleLogs);
   }
 }
 
