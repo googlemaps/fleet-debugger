@@ -127,7 +127,11 @@ class FleetArchiveLogs extends Datasource {
     );
 
     if (vehicle) {
-      const tripLogs = await this.fetchTripLogsForVehicle(vehicle, entries, jwt);
+      const tripLogs = await this.fetchTripLogsForVehicle(
+        vehicle,
+        entries,
+        jwt
+      );
       return _.concat(entries, tripLogs);
     }
 
@@ -148,9 +152,7 @@ class FleetArchiveLogs extends Datasource {
 
     let all_filtered_vehicle_entries = [];
     for (const vehicleId of vehicleIds) {
-      console.log(
-        `Fetching logs for vehicle ${vehicleId}`
-      );
+      console.log(`Fetching logs for vehicle ${vehicleId}`);
       const vehicle_entries = await logging.fetchLogsFromArchive(
         "vehicles",
         vehicleId,
