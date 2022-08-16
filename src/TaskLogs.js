@@ -27,7 +27,7 @@ class TaskLogs {
         const taskReq = le.request;
         const taskResp = le.response;
         const taskNameRegex = new RegExp(`.*/tasks/(.*)$`, "i");
-        const taskName = _.get(taskReq, "task.name");
+        const taskName = _.get(taskResp, "name");
         if (taskName) {
           const match = taskName.match(taskNameRegex);
           if (match) {
@@ -37,6 +37,7 @@ class TaskLogs {
               task = this.tasks[taskId] = new Task(
                 le.date,
                 taskIdx,
+                taskId,
                 taskReq,
                 taskResp
               );

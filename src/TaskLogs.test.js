@@ -113,13 +113,11 @@ test("fleet archive lmfs task log loading", async () => {
   expect(taskLogs.getTasks().map("taskid").value()).toStrictEqual([
     "sample-vehicle-id-1",
     "sample-vehicle-id-2",
-    undefined,
   ]);
 
   expect(taskLogs.getTasks().map("taskoutcome").value()).toStrictEqual([
-    undefined,
-    undefined,
     "SUCCEEDED",
+    undefined,
   ]);
 
   expect(
@@ -130,5 +128,5 @@ test("fleet archive lmfs task log loading", async () => {
           t.plannedVsActualDeltaMeters && parseInt(t.plannedVsActualDeltaMeters)
       )
       .value()
-  ).toStrictEqual([undefined, undefined, 0]);
+  ).toStrictEqual([0, undefined]);
 });
