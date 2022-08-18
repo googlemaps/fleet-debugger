@@ -77,7 +77,8 @@ const yargs = require("yargs/yargs")(process.argv.slice(2))
       describe: "Use the fleet archive dataset as datasource.",
       boolean: true,
     },
-  });
+  })
+  .conflicts("vehicle", "trip");
 const argv = yargs.argv;
 
 async function getLogs(dataSource, params, vehicle, trip) {
@@ -85,14 +86,14 @@ async function getLogs(dataSource, params, vehicle, trip) {
   // updateDeliveryVehicleLogs aren't labeled with the task, since there
   // are many tasks at any given time(unlike how
   // relevant updateVehicleLogs are labeled by a trip_id)
-  const vehicleLogs = await dataSource.fetchVehicleLogs(
+  const vehicleAndTripLogs = await dataSource.fetchVehicleAndTripLogs(
     vehicle,
     trip,
     params.jwt
   );
   const deliveryVehicleLogs = await dataSource.fetchDeliveryVehicleLogs(
     vehicle,
-    vehicleLogs,
+    vehicleAndTripLogs,
     params.jwt
   );
   const taskLogs = await dataSource.fetchTaskLogsForVehicle(
@@ -100,16 +101,10 @@ async function getLogs(dataSource, params, vehicle, trip) {
     deliveryVehicleLogs,
     params.jwt
   );
-  const tripLogs = await dataSource.fetchTripLogsForVehicle(
-    vehicle,
-    vehicleLogs,
-    params.jwt
-  );
 
-  params.solutionType = vehicleLogs.length === 0 ? "LMFS" : "ODRD";
+  params.solutionType = vehicleAndTripLogs.length === 0 ? "LMFS" : "ODRD";
 
-  params.rawLogs = _(vehicleLogs)
-    .concat(tripLogs)
+  params.rawLogs = _(vehicleAndTripLogs)
     .concat(deliveryVehicleLogs)
     .concat(taskLogs)
     .sortBy((x) => new Date(x.timestamp || x.serverTime).getTime())

@@ -100,6 +100,9 @@ async function fetchLogsFromArchive(
   endTimeSeconds,
   jwt
 ) {
+  const timeLogStr = `fetchLogsFromArchive with ${label}=${labelValue}`;
+  console.time(timeLogStr);
+
   const odrdEndPoint = "https://fleetengine.googleapis.com/v1/archive";
   const lmfsEndPoint = "https://fleetengine.googleapis.com/v1/deliveryArchive";
 
@@ -129,9 +132,14 @@ async function fetchLogsFromArchive(
     params: {
       "time_window.start_time.seconds": startTimeSeconds,
       "time_window.end_time.seconds": endTimeSeconds,
+      page_size: 50,
+      modifying_calls_only: true,
     },
   };
   let entries = [];
+  let pages = 0;
+  let lastNumPagesLogged = 0;
+  const loggingThresholdInPages = 10;
   try {
     let response;
     do {
@@ -142,11 +150,21 @@ async function fetchLogsFromArchive(
       if (response.data.apiCalls) {
         entries = _.concat(entries, response.data.apiCalls);
       }
+      pages++;
+      if (pages >= lastNumPagesLogged + loggingThresholdInPages) {
+        console.timeLog(
+          timeLogStr,
+          `Fetched ${pages} pages, got ${entries.length} entries`
+        );
+        lastNumPagesLogged = pages;
+      }
     } while (response.data.nextPageToken);
   } catch (err) {
     console.log(err);
     if (err.response) console.log(JSON.stringify(err.response.data));
   }
+  console.timeEnd(timeLogStr);
+
   return entries;
 }
 

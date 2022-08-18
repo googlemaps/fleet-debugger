@@ -7,9 +7,9 @@
 import _ from "lodash";
 
 class Task {
-  constructor(date, taskIdx, taskReq, taskResp) {
+  constructor(date, taskIdx, taskId, taskReq, taskResp) {
     this.taskIdx = taskIdx;
-    this.taskId = taskReq.taskid;
+    this.taskId = taskId;
     this.updates = [];
     this.firstUpdate = date;
     this.addUpdate(date, taskReq, taskResp);
