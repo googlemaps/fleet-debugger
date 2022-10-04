@@ -113,17 +113,7 @@ async function fetchLogsFromArchive(
     tasks: lmfsEndPoint,
   };
   const endPoint = labelToEndpoint[label];
-  const labelToApi = {
-    vehicles: "collectVehicleCalls",
-    trips: "collectTripCalls",
-    deliveryVehicles: "collectDeliveryVehicleCalls",
-    tasks: "collectTaskCalls",
-  };
-  const api = labelToApi[label];
-  if (!api) {
-    console.error(`Unknown label: ${label}`);
-    return [];
-  }
+  const api = "collectCalls";
   const config = {
     url: `${endPoint}/providers/${auth.getProjectId()}/${label}/${labelValue}:${api}`,
     headers: {
