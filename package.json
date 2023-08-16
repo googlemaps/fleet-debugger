@@ -16,7 +16,7 @@
   "homepage": ".",
   "dependencies": {
     "@google-cloud/bigquery": "^6.0.0",
-    "@google-cloud/logging": "^9.6.1",
+    "@google-cloud/logging": "^11.0.0",
     "@googlemaps/react-wrapper": "^1.1.8",
     "@testing-library/jest-dom": "^5.14.1",
     "@testing-library/react": "^11.2.7",
