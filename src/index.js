@@ -28,21 +28,29 @@ if (params.serveMode) {
     document.getElementById("root")
   );
 } else {
-  loadData(params).then(() => {
-    const logData = {
-      tripLogs,
-      taskLogs,
-      apikey,
-      mapId,
-      jwt,
-      projectId,
-      solutionType,
-    };
-    ReactDOM.render(
-      <div>
-        <App logData={logData} />
-      </div>,
-      document.getElementById("root")
-    );
-  });
+  loadData(params)
+    .then(() => {
+      const logData = {
+        tripLogs,
+        taskLogs,
+        apikey,
+        mapId,
+        jwt,
+        projectId,
+        solutionType,
+      };
+      ReactDOM.render(
+        <div>
+          <App logData={logData} />
+        </div>,
+        document.getElementById("root")
+      );
+    })
+    .catch((error) => {
+      console.error("Failed to load data:", error);
+      ReactDOM.render(
+        <div>Error loading data. Please check the console for details.</div>,
+        document.getElementById("root")
+      );
+    });
 }
