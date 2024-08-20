@@ -3,253 +3,199 @@
  *
  * Handles the log viewing component.
  */
-import { useFilters, usePagination, useSortBy, useTable } from "react-table";
 import React, { useState } from "react";
-import styled from "styled-components";
+import { useSortBy, useTable } from "react-table";
+import { FixedSizeList as List } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 import _ from "lodash";
 
-const Styles = styled.div`
-  padding: 1rem;
-
-  table {
-    border-spacing: 0;
-    border: 1px solid black;
-
-    tr {
-      :last-child {
-        td {
-          border-bottom: 0;
-        }
-      }
-    }
-
-    th,
-    td {
-      margin: 0;
-      padding: 0.5rem;
-      border-bottom: 1px solid black;
-      border-right: 1px solid black;
-
-      :last-child {
-        border-right: 0;
-      }
-    }
-  }
-
-  .logtable-head {
-    display: flex;
-  }
-  .logtable-row:hover {
-    background-color: #e6e6e6;
-  }
-  .logtable-row.selected {
-    background-color: #d0d0ff;
-  }
-`;
-
-function Table({ columns, data, onSelectionChange }) {
-  const [selectedRow, setSelectedRow] = useState(-1);
-  const defaultColumn = React.useMemo(
-    () => ({
-      Filter: DefaultColumnFilter,
-    }),
-    []
-  );
-
-  function DefaultColumnFilter({
-    column: { filterValue, preFilteredRows, setFilter },
-  }) {
-    const count = preFilteredRows.length;
-
-    return (
-      <input
-        value={filterValue || ""}
-        onChange={(e) => {
-          setFilter(e.target.value || undefined);
-        }}
-        placeholder={`Search ${count} records...`}
-      />
-    );
-  }
-
-  const filterTypes = React.useMemo(
-    () => ({
-      text: (rows, id, filterValue) => {
-        return rows.filter((row) => {
-          const rowValue = row.values[id];
-          return rowValue !== undefined
-            ? String(rowValue)
-                .toLowerCase()
-                .startsWith(String(filterValue).toLowerCase())
-            : true;
-        });
+function Table({
+  columns,
+  data,
+  onSelectionChange,
+  listRef,
+  selectedRow,
+  centerOnLocation,
+}) {
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
+    useTable(
+      {
+        columns,
+        data,
+        autoResetSortBy: false,
       },
-    }),
-    []
-  );
+      useSortBy
+    );
 
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    page,
-    nextPage,
-    previousPage,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    state,
-    gotoPage,
-    pageCount,
-    setPageSize,
-    prepareRow,
-  } = useTable(
-    {
-      columns,
-      data,
-      defaultColumn,
-      filterTypes,
-      autoResetFilters: false,
-      autoResetSortBy: false,
-      autoResetPage: false,
+  const handleRowSelection = React.useCallback(
+    (index, rowData) => {
+      onSelectionChange(index, rowData);
     },
-    useFilters,
-    useSortBy,
-    usePagination
+    [onSelectionChange]
   );
 
-  const { pageIndex, pageSize } = state;
+  const Row = React.useCallback(
+    ({ index, style }) => {
+      const row = rows[index];
+      prepareRow(row);
+
+      const [pressTimer, setPressTimer] = React.useState(null);
+      const [isLongPress, setIsLongPress] = React.useState(false);
+      const hasError = !!row.original.error;
+
+      const startPressTimer = () => {
+        setIsLongPress(false);
+        const timer = setTimeout(() => {
+          setIsLongPress(true);
+          handleLongPress();
+        }, 350);
+        setPressTimer(timer);
+      };
+
+      const cancelPressTimer = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          setPressTimer(null);
+        }
+      };
+
+      const handleLongPress = () => {
+        const lat = _.get(
+          row.original,
+          "lastlocationResponse.rawlocation.latitude"
+        );
+        const lng = _.get(
+          row.original,
+          "lastlocationResponse.rawlocation.longitude"
+        );
+        if (lat && lng && centerOnLocation) {
+          console.log(
+            "Calling centerOnLocation due to long press with:",
+            lat,
+            lng
+          );
+          centerOnLocation(lat, lng);
+        } else {
+          console.log(
+            "Unable to center: Invalid coordinates or centerOnLocation not available"
+          );
+        }
+      };
+
+      return (
+        <div
+          {...row.getRowProps({
+            style: {
+              ...style,
+              pointerEvents: "auto",
+              color: hasError ? "darkred" : "inherit",
+            },
+          })}
+          className={`logtable-row ${selectedRow === index ? "selected" : ""}`}
+          onMouseDown={startPressTimer}
+          onMouseUp={() => {
+            cancelPressTimer();
+            if (!isLongPress) {
+              handleRowSelection(index, row.original);
+            }
+          }}
+          onMouseLeave={cancelPressTimer}
+          onTouchStart={startPressTimer}
+          onTouchEnd={() => {
+            cancelPressTimer();
+            if (!isLongPress) {
+              handleRowSelection(index, row.original);
+            }
+          }}
+        >
+          {row.cells.map((cell) => (
+            <div
+              {...cell.getCellProps()}
+              className={`logtable-cell ${cell.column.className || ""}`}
+              style={{ width: cell.column.width }}
+            >
+              {cell.render("Cell")}
+            </div>
+          ))}
+        </div>
+      );
+    },
+    [prepareRow, rows, selectedRow, handleRowSelection, centerOnLocation]
+  );
 
   return (
-    <div>
-      <table {...getTableProps()}>
-        <thead>
-          {headerGroups.map((headerGroup) => (
-            <tr {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers.map((column) => (
-                <th {...column.getHeaderProps()}>
+    <div
+      style={{
+        height: "calc(100% - 1px)",
+        width: "calc(100% - 1px)",
+        overflow: "hidden",
+      }}
+    >
+      <AutoSizer>
+        {({ height, width }) => (
+          <div>
+            <div {...getTableProps()}>
+              <div>
+                {headerGroups.map((headerGroup) => (
                   <div
-                    className="logtable-head"
-                    {...column.getSortByToggleProps()}
+                    {...headerGroup.getHeaderGroupProps()}
+                    className="logtable-header-row"
                   >
-                    {column.render("Header")}
-                    <div style={{ width: 20 }}>
-                      {column.isSorted
-                        ? column.isSortedDesc
-                          ? " 🔽"
-                          : " 🔼"
-                        : ""}
-                    </div>
+                    {headerGroup.headers.map((column) => (
+                      <div
+                        {...column.getHeaderProps()}
+                        className={`logtable-header-cell ${
+                          column.className || ""
+                        }`}
+                        style={{ width: column.width }}
+                      >
+                        {column.render("Header")}
+                      </div>
+                    ))}
                   </div>
-                  <div>{column.canFilter ? column.render("Filter") : null}</div>
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody {...getTableBodyProps()}>
-          {page.map((row) => {
-            prepareRow(row);
-            return (
-              <tr
-                {...row.getRowProps()}
-                className={`logtable-row ${
-                  selectedRow === row.index ? "selected" : ""
-                }`}
-                onClick={() => {
-                  setSelectedRow(row.index);
-                  onSelectionChange(row.original);
-                }}
-              >
-                {row.cells.map((cell) => {
-                  return (
-                    <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
-                  );
-                })}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div>
-        <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
-          {"<<"}
-        </button>{" "}
-        <button onClick={() => previousPage()} disabled={!canPreviousPage}>
-          Previous
-        </button>{" "}
-        <button onClick={() => nextPage()} disabled={!canNextPage}>
-          Next
-        </button>{" "}
-        <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
-          {">>"}
-        </button>{" "}
-        <span>
-          Page{" "}
-          <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>{" "}
-        </span>
-        <span>
-          | Go to page:{" "}
-          <input
-            type="number"
-            defaultValue={pageIndex + 1}
-            onChange={(e) => {
-              const pageNumber = e.target.value
-                ? Number(e.target.value) - 1
-                : 0;
-              gotoPage(pageNumber);
-            }}
-            style={{ width: "50px" }}
-          />
-        </span>{" "}
-        <select
-          value={pageSize}
-          onChange={(e) => setPageSize(Number(e.target.value))}
-        >
-          {[10, 25, 50].map((pageSize) => (
-            <option key={pageSize} value={pageSize}>
-              Show {pageSize}
-            </option>
-          ))}
-        </select>
-      </div>
+                ))}
+              </div>
+              <div {...getTableBodyProps()}>
+                <List
+                  ref={listRef}
+                  height={height - 100}
+                  itemCount={rows.length}
+                  itemSize={35}
+                  width={width}
+                  overscanCount={10}
+                >
+                  {Row}
+                </List>
+              </div>
+            </div>
+          </div>
+        )}
+      </AutoSizer>
     </div>
   );
 }
 
-/*
- * Helper method for removing common substrings in cells.  Typically
- * used for removing a prefix from ENUMs.
- */
-const TrimCell = ({ value, trim }) => {
-  return <>{value && value.replace(trim, "")}</>;
-};
-
 function LogTable(props) {
+  const listRef = React.useRef(null);
+  const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const minTime = props.timeRange.minTime;
   const maxTime = props.timeRange.maxTime;
   const data = props.logData.tripLogs
     .getLogs_(new Date(minTime), new Date(maxTime))
     .value();
-
+  const columnShortWidth = 50;
+  const columnRegularWidth = 120;
+  const columnLargeWidth = 150;
   const columns = React.useMemo(() => {
     const stdColumns = _.filter(
       [
         {
-          Header: "Date",
+          Header: "DayTime",
           accessor: "formattedDate",
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          Header: "SDK Version",
-          accessor: "request.header.sdkversion",
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          Header: "OS Version",
-          accessor: "request.header.osversion",
+          Cell: ({ cell: { value } }) =>
+            value.substring(8, 10) + "T" + value.substring(11, 23),
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -261,50 +207,70 @@ function LogTable(props) {
               trim="type.googleapis.com/maps.fleetengine."
             />
           ),
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
-          Header: "Vehicle",
+          Header: "Kmph",
           accessor: (entry) => {
-            const name = _.get(entry, "response.name");
-            if (name) {
-              const match = name.match(/vehicles\/(.*)/);
-              if (match) {
-                return match[1];
-              }
+            const speed = _.get(entry, "lastlocation.speed");
+            if (speed) {
+              return Math.round(speed * 3.6);
             }
           },
-          solutionTypes: ["ODRD"],
+          width: columnShortWidth,
+          maxWidth: columnShortWidth,
+          className: "logtable-cell short-column",
+          solutionTypes: ["ODRD", "LMFS"],
         },
         {
-          Header: "Vehicle",
-          accessor: (entry) => {
-            const name = _.get(entry, "response.name");
-            if (name) {
-              const match = name.match(/deliveryVehicles\/(.*)/);
-              if (match) {
-                return match[1];
-              }
-            }
-          },
-          solutionTypes: ["LMFS"],
+          Header: "Sensor",
+          accessor: "lastlocation.rawlocationsensor",
+          id: "lastlocation_rawlocationsensor",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="LOCATION_SENSOR_" />
+          ),
+          width: columnShortWidth,
+          maxWidth: columnShortWidth,
+          className: "logtable-cell",
+          solutionTypes: ["ODRD", "LMFS"],
         },
         {
-          Header: "Trip",
+          Header: "Location",
+          accessor: "lastlocation.locationsensor",
+          id: "lastlocation_locationsensor",
+          Cell: ({ cell: { value } }) => (
+            <TrimCell value={value} trim="_LOCATION_PROVIDER" />
+          ),
+          width: columnRegularWidth,
+          className: "logtable-cell",
+          solutionTypes: ["ODRD", "LMFS"],
+        },
+        {
+          Header: "TripId 7",
           accessor: (entry) => {
             const currentTrips = _.get(entry, "response.currenttrips");
-            if (currentTrips) {
-              return currentTrips[0];
+            if (currentTrips && currentTrips[0]) {
+              const tripId = currentTrips[0];
+              return tripId.substring(Math.max(0, tripId.length - 7));
             }
+            return null;
           },
+          width: columnShortWidth,
+          maxWidth: columnShortWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD"],
         },
         {
           Header: "Vehicle State",
           accessor: "response.vehiclestate",
+          id: "response_vehiclestate",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="VEHICLE_STATE_" />
           ),
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD"],
         },
         {
@@ -313,14 +279,19 @@ function LogTable(props) {
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TASK_STATE_" />
           ),
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Trip Status",
           accessor: "response.tripstatus",
+          id: "response_tripstatus",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="TRIP_STATUS_" />
           ),
+          width: columnLargeWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD"],
         },
         {
@@ -330,26 +301,33 @@ function LogTable(props) {
           Cell: ({ cell: { value } }) => (
             <>{value && _.sumBy(value, "stop.tasks.length")}</>
           ),
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Remaining Distance This Segment",
           accessor: "request.deliveryvehicle.remainingdistancemeters",
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Remaining Segements",
           accessor: "response.remainingvehiclejourneysegments",
           Cell: ({ cell: { value } }) => <>{value && value.length}</>,
+          width: columnRegularWidth,
+          className: "logtable-cell",
           solutionTypes: ["LMFS"],
         },
         {
           Header: "Nav Status",
-          // XXX request or response best?
           accessor: "navStatus",
           Cell: ({ cell: { value } }) => (
             <TrimCell value={value} trim="NAVIGATION_STATUS_" />
           ),
+          width: columnLargeWidth,
+          className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
         },
       ],
@@ -363,27 +341,69 @@ function LogTable(props) {
       const elems = dotPath.split(".");
       stdColumns.push({
         Header: elems[elems.length - 1],
-        accessor: dotPath,
+        accessor: dotPath === ".error" ? "error" : dotPath,
+        width: columnRegularWidth,
+        className: "logtable-cell",
       });
     });
     const headers = [
       {
-        Header: "Log Entries (click row to view full log entry)",
+        Header:
+          "Event Logs Table (click row to view full log entry and long click to also center map)",
         columns: stdColumns,
       },
     ];
     return headers;
-  }, [props.extraColumns]);
+  }, [props.extraColumns, props.logData.solutionType]);
+
+  const handleRowSelection = React.useCallback(
+    (rowIndex, rowData) => {
+      setSelectedRowIndex(rowIndex);
+      props.onSelectionChange(rowData);
+    },
+    [props.onSelectionChange]
+  );
+
+  const focusOnRow = React.useCallback(
+    (rowData) => {
+      if (rowData && listRef.current) {
+        const rowIndex = data.findIndex(
+          (row) => row.timestamp === rowData.timestamp
+        );
+        if (rowIndex !== -1) {
+          listRef.current.scrollToItem(rowIndex, "center");
+          setSelectedRowIndex(rowIndex);
+          handleRowSelection(rowIndex, rowData);
+        }
+      }
+    },
+    [data, handleRowSelection]
+  );
+
+  React.useEffect(() => {
+    if (props.setFocusOnRowFunction) {
+      props.setFocusOnRowFunction(focusOnRow);
+    }
+  }, [focusOnRow, props.setFocusOnRowFunction]);
 
   return (
-    <Styles>
-      <Table
-        columns={columns}
-        data={data}
-        onSelectionChange={props.onSelectionChange}
-      />
-    </Styles>
+    <Table
+      columns={columns}
+      data={data}
+      onSelectionChange={handleRowSelection}
+      selectedRow={selectedRowIndex}
+      disableResizing={true}
+      listRef={listRef}
+      centerOnLocation={props.centerOnLocation}
+    />
   );
 }
 
-export { LogTable as default };
+// Helper method for removing common substrings in cells
+const TrimCell = ({ value, trim }) => {
+  return <>{value && value.replace(trim, "")}</>;
+};
+
+export default React.forwardRef((props, ref) => (
+  <LogTable {...props} ref={ref} />
+));
