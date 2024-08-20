@@ -1,61 +1,44 @@
 {
   "extends": [
     "eslint:recommended",
-    "plugin:prettier/recommended",
     "plugin:react/recommended",
-    "plugin:react/jsx-runtime"
+    "plugin:react/jsx-runtime",
+    "plugin:prettier/recommended"
   ],
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
-    "ecmaVersion": 12,
+    "ecmaVersion": 2021,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
+    },
+    "requireConfigFile": false,
+    "babelOptions": {
+      "presets": ["@babel/preset-react"],
+      "plugins": ["@babel/plugin-proposal-class-properties"]
     }
   },
-  "plugins": ["jest"],
+  "plugins": ["react", "jest"],
   "rules": {
-    "no-var": 2,
-    "prefer-arrow-callback": 2,
-    "react/prop-types": 0,
-    "react/jsx-key": 0
+    "no-var": "error",
+    "prefer-arrow-callback": "error",
+    "react/prop-types": "off",
+    "react/jsx-key": "off",
+    "react/display-name": "off",
+    "prettier/prettier": "warn"
   },
-  "overrides": [
-    {
-      "files": ["*.ts", "*.tsx"],
-      "parser": "@typescript-eslint/parser",
-      "plugins": ["@typescript-eslint"],
-      "extends": ["plugin:@typescript-eslint/recommended"],
-      "rules": {
-        "@typescript-eslint/ban-ts-comment": 0,
-        "@typescript-eslint/ban-types": 1,
-        "@typescript-eslint/no-empty-function": 1,
-        "@typescript-eslint/member-ordering": 1,
-        "@typescript-eslint/explicit-member-accessibility": [
-          1,
-          {
-            "accessibility": "explicit",
-            "overrides": {
-              "accessors": "explicit",
-              "constructors": "no-public",
-              "methods": "explicit",
-              "properties": "explicit",
-              "parameterProperties": "explicit"
-            }
-          }
-        ]
-      }
-    }
-  ],
+  "globals": {
+    "google": "readonly"
+  },
   "env": {
     "browser": true,
     "node": true,
     "es6": true,
     "jest/globals": true
   },
-  "globals": { "google": "readonly" },
   "settings": {
     "react": {
-      "version": "17"
+      "version": "detect"
     }
   }
 }
