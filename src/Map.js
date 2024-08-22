@@ -89,7 +89,7 @@ function addTripPolys(map) {
       map: map,
       icon: {
         url: urlBase + (solutionType === "LMFS" ? "truck.png" : "cabs.png"),
-        scaledSize: new google.maps.Size(25, 25),
+        scaledSize: new google.maps.Size(18, 18),
       },
       title: "Last Location",
     });
@@ -206,20 +206,27 @@ function MyMapComponent(props) {
    * Debounced to every 100ms as a blance between performance and reactivity when
    * the slider is dragged.
    */
-  useEffect(
-    () =>
-      _.debounce(() => {
-        minDate = new Date(props.rangeStart);
-        maxDate = new Date(props.rangeEnd);
-        addTripPolys(map);
-        _.forEach(toggleHandlers, (handler, name) => {
-          if (bubbleMap[name]) {
-            handler(true);
-          }
-        });
-      }, 100),
-    [props.rangeStart, props.rangeEnd]
-  );
+  useEffect(() => {
+    const updateMap = () => {
+      minDate = new Date(props.rangeStart);
+      maxDate = new Date(props.rangeEnd);
+      addTripPolys(map);
+      _.forEach(toggleHandlers, (handler, name) => {
+        if (bubbleMap[name]) {
+          handler(true);
+        }
+      });
+    };
+
+    // Create a debounced version of updateMap
+    const debouncedUpdateMap = _.debounce(updateMap, 200);
+    debouncedUpdateMap();
+
+    // Cleanup function to cancel any pending debounced calls when the effect re-runs or unmounts
+    return () => {
+      debouncedUpdateMap.cancel();
+    };
+  }, [props.rangeStart, props.rangeEnd]);
 
   useEffect(() => {
     const data = props.selectedRow;
@@ -232,11 +239,11 @@ function MyMapComponent(props) {
       fillOpacity: 0.6,
       strokeWeight: 0,
       rotation: 0,
-      scale: 2,
+      scale: 1,
       anchor: new google.maps.Point(15, 30),
     };
 
-    const rawLocation = _.get(data.lastLocation, "rawLocation");
+    const rawLocation = _.get(data.lastlocation, "rawlocation");
     if (rawLocation) {
       const status = _.get(data, "response.tripstatus");
       const state = _.get(data, "response.vehiclestate");
@@ -259,7 +266,7 @@ function MyMapComponent(props) {
     }, [props.toggleOptions[id]]);
   }
 
-  return <div ref={ref} id="map" style={{ height: "500px" }} />;
+  return <div ref={ref} id="map" style={{ height: "100%", width: "100%" }} />;
 }
 
 function getPolyBounds(bounds, p) {
@@ -298,6 +305,19 @@ function Map(props) {
   solutionType = props.logData.solutionType;
   setFeaturedObject = props.setFeaturedObject;
   setTimeRange = props.setTimeRange;
+
+  function centerOnLocation(lat, lng) {
+    if (map) {
+      const newCenter = new google.maps.LatLng(lat, lng);
+      map.setCenter(newCenter);
+      map.setZoom(13);
+      console.log(`Map centered on: ${lat}, ${lng}`);
+    } else {
+      console.error("Map not initialized");
+    }
+  }
+
+  props.setCenterOnLocation(centerOnLocation);
 
   return (
     <Wrapper
@@ -851,61 +871,63 @@ toggleHandlers["showETADeltas"] = function (enabled) {
  */
 toggleHandlers["showHighVelocityJumps"] = function (enabled) {
   const bubbleName = "showHighVelocityJumps";
-  const jumps = tripLogs.getHighVelocityJumps(minDate, maxDate);
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-  if (enabled) {
-    bubbleMap[bubbleName] = _(jumps)
-      .map((jump) => {
-        function getStrokeWeight(velocity) {
-          if (velocity <= 100) {
-            return 2;
-          } else if (velocity < 1000) {
-            return 6;
-          } else if (velocity < 2000) {
-            return 10;
-          } else {
-            return 14;
+
+  tripLogs.debouncedGetHighVelocityJumps(minDate, maxDate, (jumps) => {
+    _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
+    delete bubbleMap[bubbleName];
+
+    if (enabled) {
+      bubbleMap[bubbleName] = _(jumps)
+        .map((jump) => {
+          function getStrokeWeight(velocity) {
+            if (velocity <= 100) {
+              return 2;
+            } else if (velocity < 1000) {
+              return 6;
+            } else if (velocity < 2000) {
+              return 10;
+            } else {
+              return 14;
+            }
           }
-        }
-        const path = new window.google.maps.Polyline({
-          path: [jump.startLoc, jump.endLoc],
-          geodesic: true,
-          strokeColor: getColor(jump.jumpIdx),
-          strokeOpacity: 0.8,
-          strokeWeight: getStrokeWeight(jump.velocity),
-          map: map,
-          icons: [
-            {
-              icon: {
-                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                strokeColor: getColor(jump.jumpIdx),
-                strokeWeight: getStrokeWeight(jump.velocity),
+          const path = new window.google.maps.Polyline({
+            path: [jump.startLoc, jump.endLoc],
+            geodesic: true,
+            strokeColor: getColor(jump.jumpIdx),
+            strokeOpacity: 0.8,
+            strokeWeight: getStrokeWeight(jump.velocity),
+            map: map,
+            icons: [
+              {
+                icon: {
+                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  strokeColor: getColor(jump.jumpIdx),
+                  strokeWeight: getStrokeWeight(jump.velocity),
+                },
+                offset: "100%",
               },
-              offset: "100%",
-            },
-          ],
-        });
-        google.maps.event.addListener(path, "mouseover", () => {
-          setFeaturedObject(jump.getFeaturedData());
-        });
-        google.maps.event.addListener(path, "click", () => {
-          setFeaturedObject(jump.getFeaturedData());
-          // show a minute +/- on each side of a jump
-          setTimeRange(
-            jump.startDate.getTime() - 60 * 1000,
-            jump.endDate.getTime() + 60 * 1000
-          );
-        });
-        return [path];
-      })
-      .flatten()
-      .value();
-  } else {
-    // TODO: ideally reset to timerange that was selected before enabling
-    // jump view
-    setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
-  }
+            ],
+          });
+          google.maps.event.addListener(path, "mouseover", () => {
+            setFeaturedObject(jump.getFeaturedData());
+          });
+          google.maps.event.addListener(path, "click", () => {
+            setFeaturedObject(jump.getFeaturedData());
+            // show a minute +/- on each side of a jump
+            setTimeRange(
+              jump.startDate.getTime() - 60 * 1000,
+              jump.endDate.getTime() + 60 * 1000
+            );
+          });
+          return [path];
+        })
+        .flatten()
+        .value();
+    } else {
+      console.log("Disabling high velocity jumps");
+      setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
+    }
+  });
 };
 
 /*

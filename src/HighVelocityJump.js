@@ -20,6 +20,7 @@ class HighVelocityJump {
       lat: curLoc.rawlocation.latitude,
       lng: curLoc.rawlocation.longitude,
     });
+
     const distanceTraveled =
       window.google.maps.geometry.spherical.computeDistanceBetween(
         startLoc,
@@ -27,6 +28,7 @@ class HighVelocityJump {
       );
     const timeSpentMS = curEntry.date - prevEntry.date;
     const velocity = distanceTraveled / (timeSpentMS / 1000.0);
+
     this.entry = curEntry;
     this.prevEntry = prevEntry;
     this.timeSpentMS = timeSpentMS;
@@ -37,6 +39,7 @@ class HighVelocityJump {
     this.endDate = curEntry.date;
     this.endLoc = endLoc;
     this.jumpIdx = jumpIdx;
+    this.isSignificant = this.distanceTraveled > 1;
   }
 
   /*
@@ -84,23 +87,42 @@ class HighVelocityJump {
    * based on a small dataset.
    */
   static getSignificantJumps(jumps) {
-    if (!jumps) {
+    if (!jumps || jumps.length === 0) {
+      console.log("No jumps to process");
       return [];
     }
-    const velocities = _.map(jumps, "velocity");
+
+    const velocities = jumps.map((jump) => jump.velocity);
     const avgVelocity = _.mean(velocities);
     const medianVelocity = Stats.median(velocities);
-    const minVelocity = _.min(velocities);
-    const maxVelocity = _.max(velocities);
+    const stdDevVelocity = Math.sqrt(
+      _.mean(velocities.map((v) => Math.pow(v - avgVelocity, 2)))
+    );
+
     console.log("avgVelocity", avgVelocity);
     console.log("medianVelocity", medianVelocity);
-    console.log("minVelocity", minVelocity);
-    console.log("maxVelocity", maxVelocity);
-    computedOutlier = _.min([velocityOutlier, medianVelocity * 100]);
-    return _(jumps)
-      .filter((e) => e.velocity >= computedOutlier)
-      .sortBy("velocity")
-      .value();
+    console.log("stdDevVelocity", stdDevVelocity);
+
+    // Consider a jump significant if:
+    // 1. Its velocity is greater than the median + 2 standard deviations
+    // 2. OR its velocity is greater than velocityOutlier (150 MPH)
+    // 3. AND the distance traveled is more than 1 meter
+    const significantThreshold = Math.min(
+      medianVelocity + 2 * stdDevVelocity,
+      velocityOutlier
+    );
+
+    const significantJumps = jumps.filter(
+      (jump) =>
+        (jump.velocity > significantThreshold ||
+          jump.velocity > velocityOutlier) &&
+        jump.distanceTraveled > 1 &&
+        jump.timeSpentMS > 0 // Ensure we're not dividing by zero
+    );
+
+    console.log(`Found ${significantJumps.length} significant jumps`);
+    return significantJumps;
   }
 }
+
 export { HighVelocityJump as default };
