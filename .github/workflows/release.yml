@@ -39,9 +39,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
       - name: Lint
         run: npm run lint
       - name: Test
@@ -50,14 +49,14 @@ jobs:
       - name: Release
         uses: cycjimmy/semantic-release-action@v3
         with:
-          semantic_version: 19
+          semantic_version: 19.0.5
           extra_plugins: |
-            @semantic-release/commit-analyzer
+            @semantic-release/commit-analyzer@5.0.0
             semantic-release-interval
-            @semantic-release/release-notes-generator
+            @semantic-release/release-notes-generator@10.0.0
             @semantic-release/git
-            @semantic-release/github
-            @semantic-release/npm
+            @semantic-release/github@8.0.0
+            @semantic-release/npm@9.0.0
             @googlemaps/semantic-release-config
             semantic-release-npm-deprecate
         env:
