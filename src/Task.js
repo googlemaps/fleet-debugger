@@ -44,7 +44,11 @@ class Task {
       taskInfo.taskoutcometime = lastUpdate.taskResp.taskoutcometime;
       taskInfo.trackingid =
         lastUpdate.taskResp.trackingid || lastUpdate.taskReq.task.trackingid;
-      if (taskInfo.taskoutcomelocationsource) {
+      if (
+        taskInfo.taskoutcomelocationsource &&
+        taskInfo.plannedlocation &&
+        taskInfo.taskoutcomelocation
+      ) {
         taskInfo.plannedVsActualDeltaMeters =
           window.google.maps.geometry.spherical.computeDistanceBetween(
             {

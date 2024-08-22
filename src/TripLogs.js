@@ -1,7 +1,7 @@
 /*
  * TripLogs.js
  *
- * Processes raw logs into 'trip segments'.  A trip segment might
+ * Processes raw logs into 'trip segments'. A trip segment might
  * be an individual trip, a contiguous non-trip region, or the route
  * between two LMFS stops.
  */
@@ -27,15 +27,9 @@ const apis = new Set([
   "updateTask",
 ]);
 
-/* Logs from bigquery will be all lower case, so standardize on that
- */
 function toLowerKeys(input) {
-  if (typeof input !== "object") {
-    return input;
-  }
-  if (Array.isArray(input)) {
-    return input.map(toLowerKeys);
-  }
+  if (typeof input !== "object") return input;
+  if (Array.isArray(input)) return input.map(toLowerKeys);
   return Object.keys(input).reduce((newObj, key) => {
     let val = input[key];
     let newVal =
@@ -51,11 +45,12 @@ function processApiCall(origLog) {
     apiType = origLog.jsonpayload["@type"];
     for (const api of apis) {
       const regex = new RegExp(`.*${api}.*`, "i");
-      if (apiType.match(regex)) {
+      if (apiType && apiType.match(regex)) {
         return {
           api: api,
           request: origLog.jsonpayload.request,
           response: origLog.jsonpayload.response,
+          error: origLog.jsonpayload.errorresponse,
         };
       }
     }
@@ -68,14 +63,17 @@ function processApiCall(origLog) {
             api: api,
             request: origLog[key].request,
             response: origLog[key].response,
+            error: origLog[key].errorresponse,
           };
         }
       }
     }
   }
-  throw new SyntaxError(
+
+  console.warn(
     `Could not find API call type for log entry: ${JSON.stringify(origLog)}`
   );
+  return null;
 }
 
 function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
@@ -92,108 +90,123 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
           ? origVal.replace(stringToTrim, "")
           : origVal;
     }
-    // Delete the property first since the new path could equal the original path
     _.unset(log, origPath);
     _.set(log, newPath, newVal);
   }
 }
 
 function processRawLogs(rawLogs, solutionType) {
-  const origLogs = _.reverse(rawLogs.map(toLowerKeys));
-  const newLogs = origLogs.map((origLog, idx) => {
+  console.log(`Processing ${rawLogs.length} raw logs for ${solutionType}`);
+  const origLogs = rawLogs.map(toLowerKeys);
+  const isReversed =
+    origLogs.length > 1 &&
+    new Date(origLogs[0].timestamp) >
+      new Date(origLogs[origLogs.length - 1].timestamp);
+  console.log(`Raw logs are ${isReversed ? "reversed" : "chronological"}`);
+
+  let sortedLogs = isReversed ? _.reverse(origLogs) : origLogs;
+  let newLogs = [];
+
+  for (let idx = 0; idx < sortedLogs.length; idx++) {
+    const origLog = sortedLogs[idx];
     const newLog = {};
-    // Create timestamp entries
     newLog.timestamp = origLog.timestamp || origLog.servertime;
     newLog.date = new Date(newLog.timestamp);
     newLog.formattedDate = newLog.date.toISOString();
     newLog.timestampMS = newLog.date.getTime();
     newLog.idx = idx;
 
-    // Create api call name entry
     const apiCall = processApiCall(origLog);
-    newLog["@type"] = apiCall.api;
+    if (apiCall) {
+      newLog["@type"] = apiCall.api;
+      newLog.request = apiCall.request;
+      newLog.response = apiCall.response;
+      newLog.error = apiCall.error;
 
-    // Copy request and response
-    newLog.request = apiCall.request;
-    newLog.response = apiCall.response;
-
-    // Update known log differences to standard Fleet Archive form
-    adjustFieldFormat(
-      newLog,
-      "request.vehicle.state",
-      "request.vehicle.vehiclestate",
-      "VEHICLE_STATE_"
-    );
-    adjustFieldFormat(
-      newLog,
-      "request.vehicle.lastlocation.locsensor",
-      "request.vehicle.lastlocation.locationsensor",
-      "LOCATION_SENSOR_"
-    );
-    adjustFieldFormat(
-      newLog,
-      "request.vehicle.lastlocation.bearingaccuracy",
-      "request.vehicle.lastlocation.headingaccuracy"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.vehicletype.vehiclecategory",
-      "response.vehicletype.category"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.supportedtrips",
-      "response.supportedtriptypes",
-      "_TRIP"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.navigationstatus",
-      "response.navigationstatus",
-      "NAVIGATION_STATUS_"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.navstatus",
-      "response.navigationstatus",
-      "NAVIGATION_STATUS_"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.lastlocation.locsensor",
-      "response.lastlocation.locationsensor",
-      "LOCATION_SENSOR_"
-    );
-    adjustFieldFormat(
-      newLog,
-      "response.status",
-      "response.tripstatus",
-      "TRIP_STATUS_"
-    );
-    // ODRD uses "state" or "vehiclestate" for vehicle state.
-    // LMFS uses "state" for task state.
-    if (solutionType == "ODRD") {
       adjustFieldFormat(
         newLog,
-        "response.state",
-        "response.vehiclestate",
+        "request.vehicle.state",
+        "request.vehicle.vehiclestate",
         "VEHICLE_STATE_"
       );
-    }
+      adjustFieldFormat(
+        newLog,
+        "request.vehicle.lastlocation.locsensor",
+        "request.vehicle.lastlocation.locationsensor",
+        "LOCATION_SENSOR_"
+      );
+      adjustFieldFormat(
+        newLog,
+        "request.vehicle.lastlocation.bearingaccuracy",
+        "request.vehicle.lastlocation.headingaccuracy"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.vehicletype.vehiclecategory",
+        "response.vehicletype.category"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.supportedtrips",
+        "response.supportedtriptypes",
+        "_TRIP"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.navigationstatus",
+        "response.navigationstatus",
+        "NAVIGATION_STATUS_"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.navstatus",
+        "response.navigationstatus",
+        "NAVIGATION_STATUS_"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.lastlocation.locsensor",
+        "response.lastlocation.locationsensor",
+        "LOCATION_SENSOR_"
+      );
+      adjustFieldFormat(
+        newLog,
+        "response.status",
+        "response.tripstatus",
+        "TRIP_STATUS_"
+      );
 
-    return newLog;
-  });
+      if (solutionType === "ODRD") {
+        adjustFieldFormat(
+          newLog,
+          "response.state",
+          "response.vehiclestate",
+          "VEHICLE_STATE_"
+        );
+      }
+
+      newLogs.push(newLog);
+    }
+  }
+
+  console.log(`Processed ${newLogs.length} logs`);
   return newLogs;
 }
 
 class TripLogs {
   constructor(rawLogs, solutionType) {
+    console.log(
+      `Initializing TripLogs with ${rawLogs.length} raw logs for ${solutionType}`
+    );
+    this.initialize(rawLogs, solutionType);
+  }
+
+  initialize(rawLogs, solutionType) {
     this.solutionType = solutionType;
-    if (this.solutionType === "LMFS") {
-      this.vehiclePath = "request.deliveryvehicle";
-    } else {
-      this.vehiclePath = "request.vehicle";
-    }
+    this.vehiclePath =
+      this.solutionType === "LMFS"
+        ? "request.deliveryvehicle"
+        : "request.vehicle";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
@@ -217,6 +230,7 @@ class TripLogs {
       // in the request when it changes ... and visualizations
       // make more sense when the nav status can be shown along the route
       le.navStatus = _.get(le, "response.navigationstatus");
+      le.error = _.get(le, "error.message");
 
       // Sort currentTrips array since sometimes it could contain multiple trip ids
       // but in a random order
@@ -232,7 +246,23 @@ class TripLogs {
       this.minDate = new Date(0);
       this.maxDate = new Date();
     }
+
     this.processTripSegments();
+    this.debouncedGetHighVelocityJumps = _.debounce(
+      (minDate, maxDate, callback) => {
+        console.log("debouncedGetHighVelocityJumps executing");
+        const jumps = this.getHighVelocityJumps(minDate, maxDate);
+        console.log(
+          `debouncedGetHighVelocityJumps found ${jumps.length} jumps`
+        );
+        callback(jumps);
+      },
+      300
+    );
+
+    console.log(
+      `TripLogs initialization complete. ${this.trips.length} trips processed.`
+    );
   }
 
   getRawLogs_(minDate, maxDate) {
@@ -263,12 +293,10 @@ class TripLogs {
   }
 
   getTripIDs() {
-    // TODO: do time filtering heree
     return this.trip_ids;
   }
 
   getTrips() {
-    // TODO: do time filtering heree
     return this.trips;
   }
 
@@ -303,6 +331,7 @@ class TripLogs {
    * updates.
    */
   getETADeltas(minDate, maxDate) {
+    console.log(`Getting ETA deltas between ${minDate} and ${maxDate}`);
     let prevEntry;
     this.etaDeltas = this.getRawLogs_(minDate, maxDate)
       .filter(
@@ -314,7 +343,6 @@ class TripLogs {
         let ret;
         if (prevEntry) {
           const curLoc = _.get(curEntry, "lastlocation");
-
           ret = {
             deltaInSeconds: (curEntry.date - prevEntry.date) / 1000,
             coords: new google.maps.LatLng({
@@ -323,13 +351,13 @@ class TripLogs {
             }),
           };
         }
-
         prevEntry = curEntry;
         return ret;
       })
       .compact()
       .value();
 
+    console.log(`Found ${this.etaDeltas.length} ETA deltas`);
     return this.etaDeltas;
   }
 
@@ -338,6 +366,10 @@ class TripLogs {
    * at an unrealistic velocity.
    */
   getHighVelocityJumps(minDate, maxDate) {
+    console.log(
+      `Getting high velocity jumps between ${minDate} and ${maxDate}`
+    );
+
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
       .filter((le) => _.get(le, "lastlocation.rawlocation"))
@@ -346,15 +378,17 @@ class TripLogs {
         if (prevEntry) {
           ret = new HighVelocityJump(curEntry.idx, prevEntry, curEntry);
         }
-
         prevEntry = curEntry;
         return ret;
       })
       .compact()
       .value();
 
-    this.velocityJumps = HighVelocityJump.getSignificantJumps(entries);
-    return this.velocityJumps;
+    console.log(`Created ${entries.length} HighVelocityJump instances`);
+
+    const velocityJumps = HighVelocityJump.getSignificantJumps(entries);
+    console.log(`Found ${velocityJumps.length} high velocity jumps`);
+    return velocityJumps;
   }
 
   /*
@@ -376,6 +410,7 @@ class TripLogs {
    *  description of the very simplistic algo used here.
    */
   getDwellLocations(minDate, maxDate) {
+    console.log(`Getting dwell locations between ${minDate} and ${maxDate}`);
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
       const lastLocation = le.lastlocation;
@@ -415,7 +450,7 @@ class TripLogs {
       dwellLocations,
       (dl) => dl.updates >= requiredUpdatesForDwell
     );
-
+    console.log(`Found ${this.dwellLocations.length} dwell locations`);
     return this.dwellLocations;
   }
 
@@ -435,6 +470,7 @@ class TripLogs {
   }
 
   processTripSegments() {
+    console.log("Processing trip segments");
     let curTripId = "this is not a segment";
     let curTripData = undefined;
     let tripIdx = 0;
@@ -444,7 +480,6 @@ class TripLogs {
     // also assumes out-of-order updates can't happen.  Unclear
     // if this is a good assumption, but it might be worth it to call out
     // places where it happens (since that might actually be a client bug).
-
     _.forEach(this.rawLogs, (le) => {
       if (
         le["@type"] === "updateVehicle" ||
@@ -483,7 +518,7 @@ class TripLogs {
         }
       }
       const tripStatus = _.get(le, "response.tripstatus");
-      // if the logs had a trip status, and it changeed update
+      // if the logs had a trip status, and it changed update
       if (tripStatus && tripStatus !== lastTripStatus) {
         this.tripStatusChanges.push({
           newStatus: tripStatus,
@@ -492,7 +527,8 @@ class TripLogs {
         lastTripStatus = tripStatus;
       }
     });
+    console.log(`Processed ${this.trips.length} trip segments`);
   }
 }
 
-export { TripLogs as default };
+export default TripLogs;
