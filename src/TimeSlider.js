@@ -8,6 +8,7 @@
  * functionality
  */
 import Slider from "rc-slider";
+import { useMemo } from "react";
 import "rc-slider/assets/index.css";
 import _ from "lodash";
 
@@ -17,23 +18,54 @@ const Range = createSliderWithTooltip(Slider.Range);
 const style = { width: "100%" };
 
 function TimeSlider(props) {
-  const tripLogs = props.logData.tripLogs;
-  const marks = {};
+  const { logData, curMin, curMax, onSliderChange, selectedEventTime } = props;
+  const tripLogs = logData.tripLogs;
 
-  // Add marks showing when trip status changed.
-  // Ideally label by trip status change ... but labels overrun & look ugly
-  _.map(tripLogs.getTripStatusChanges(), (change) => {
-    marks[change.date.getTime()] = {};
-  });
+  const marks = useMemo(() => {
+    const result = {};
+
+    // Add marks showing when trip status changed
+    _.map(tripLogs.getTripStatusChanges(), (change) => {
+      result[change.date.getTime()] = {
+        style: { backgroundColor: "blue", width: "2px", height: "10px" },
+        label: "",
+      };
+    });
+
+    // Add mark for selected event
+    if (selectedEventTime) {
+      result[selectedEventTime] = {
+        style: {},
+        label: (
+          <div className="selected-event-indicator-container">
+            <svg
+              className="selected-event-indicator"
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+            >
+              <circle
+                cx="10"
+                cy="10"
+                r="8"
+                fill="red"
+                stroke="white"
+                strokeWidth="2"
+              />
+            </svg>
+          </div>
+        ),
+      };
+    }
+
+    return result;
+  }, [tripLogs, selectedEventTime]);
 
   const minVal = tripLogs.minDate.getTime();
   const maxVal = tripLogs.maxDate.getTime();
 
-  const curMin = _.max([minVal, props.curMin]);
-  const curMax = _.min([maxVal, props.curMax]);
-
   function onChange(value) {
-    props.onSliderChange({
+    onSliderChange({
       minTime: value[0],
       maxTime: value[1],
     });
@@ -41,8 +73,18 @@ function TimeSlider(props) {
 
   function formatTooltip(value) {
     const d = new Date(value);
-    const tripStatus = tripLogs.getTripStatusAtDate(new Date(value));
-    return `${d}${tripStatus}`;
+    const options = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    };
+    const formattedDateTime = d.toLocaleString("en-US", options);
+    const tripStatus = tripLogs.getTripStatusAtDate(d);
+    return `${formattedDateTime}\n${tripStatus}`;
   }
 
   return (
