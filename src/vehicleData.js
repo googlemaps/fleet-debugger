@@ -5,6 +5,10 @@
  */
 import TripLogs from "./TripLogs";
 import TaskLogs from "./TaskLogs";
+import { getUploadedData } from "./localStorage";
+import { getQueryStringValue } from "./queryString";
+import { DEFAULT_API_KEY, DEFAULT_MAP_ID } from "./constants";
+
 let jwt;
 let projectId;
 let apikey;
@@ -12,24 +16,40 @@ let mapId;
 let solutionType;
 let tripLogs;
 let taskLogs;
-import { getQueryStringValue } from "./queryString";
 
-/**
- * This function must be called (and awaited on) to load the raw data before
- * any of the other exported fields are accessed.
- */
 async function loadData() {
-  const dataFileName = getQueryStringValue("dataFile") || "./data.json";
-  const response = await fetch(dataFileName);
-  const parsedData = await response.json();
-  jwt = parsedData.jwt;
-  projectId = parsedData.projectId;
-  apikey = parsedData.APIKEY;
-  mapId = parsedData.mapId;
-  solutionType = parsedData.solutionType || "ODRD";
-  tripLogs = new TripLogs(parsedData.rawLogs, solutionType);
+  let parsedData;
+
+  // Try to get uploaded data from IndexedDB
+  for (let i = 0; i < 3; i++) {
+    const uploadedData = await getUploadedData(i);
+    if (uploadedData) {
+      parsedData = uploadedData;
+      break;
+    }
+  }
+
+  if (!parsedData) {
+    const dataFileName = getQueryStringValue("dataFile");
+    try {
+      const response = await fetch(dataFileName);
+      parsedData = await response.json();
+    } catch (error) {
+      console.info(
+        `Failed to load data from ${dataFileName}. Using default values.`,
+        error
+      );
+    }
+  }
+
+  jwt = parsedData?.jwt || "";
+  projectId = parsedData?.projectId || "";
+  apikey = parsedData?.APIKEY || DEFAULT_API_KEY;
+  mapId = parsedData?.mapId || DEFAULT_MAP_ID;
+  solutionType = parsedData?.solutionType || "ODRD";
+
+  tripLogs = new TripLogs(parsedData?.rawLogs || [], solutionType);
   if (solutionType === "LMFS") {
-    // refactor: some initial log processing is done by TripLogs
     taskLogs = new TaskLogs(tripLogs);
   }
 }
