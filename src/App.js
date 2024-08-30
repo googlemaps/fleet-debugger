@@ -239,8 +239,10 @@ class App extends React.Component {
   };
 
   componentDidMount() {
-    this.checkUploadedDatasets().then(() => {
-      this.updateMapAndAssociatedData();
+    this.checkForDemoFile().then(() => {
+      this.checkUploadedDatasets().then(() => {
+        this.updateMapAndAssociatedData();
+      });
     });
     document.addEventListener("keydown", this.handleKeyPress);
   }
@@ -435,6 +437,26 @@ class App extends React.Component {
     clearInterval(this.timerID);
     document.removeEventListener("keydown", this.handleKeyPress);
   }
+
+  checkForDemoFile = async () => {
+    try {
+      const response = await fetch("/data.json");
+      if (!response.ok) {
+        return;
+      }
+      console.log(
+        "data.json demo file found on the server root, saving it to Dataset 1"
+      );
+      const blob = await response.blob();
+      const file = new File([blob], "data.json", {
+        type: "application/json",
+      });
+      const event = { target: { files: [file] } };
+      await this.handleFileUpload(event, 0);
+    } catch (error) {
+      return;
+    }
+  };
 
   handleFileUpload = async (event, index) => {
     const file = event.target.files[0];
