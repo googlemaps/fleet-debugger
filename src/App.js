@@ -440,7 +440,7 @@ class App extends React.Component {
 
   checkForDemoFile = async () => {
     try {
-      const response = await fetch("/data.json");
+      const response = await fetch("./data.json");
       if (!response.ok) {
         return;
       }
@@ -490,7 +490,6 @@ class App extends React.Component {
         this.switchDataset(index);
       } catch (error) {
         console.error("Error uploading file:", error);
-        alert("Error uploading file. Please try again.");
       }
     }
   };
