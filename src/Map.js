@@ -5,11 +5,12 @@
  * easier in react.  Beyond basic loading doesn't pretend to
  * act like a normal react component.
  */
+import { useEffect, useRef, useState } from "react";
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
-import { useEffect, useRef } from "react";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import Utils from "./Utils";
+import PolylineCreation from "./PolylineCreation";
 
 let minDate;
 let maxDate;
@@ -133,33 +134,18 @@ function initializeMapObject(element) {
   });
   const map = jsMapView.map;
 
-  const tiltButtons = [
-    ["Tilt Down", 20, google.maps.ControlPosition.TOP_CENTER],
-    ["Tilt Up", -20, google.maps.ControlPosition.TOP_CENTER],
-  ];
-
-  tiltButtons.forEach(([text, amount, position]) => {
-    const controlDiv = document.createElement("div");
-    const controlUI = document.createElement("button");
-
-    controlUI.classList.add("ui-button");
-    controlUI.innerText = `${text}`;
-    controlUI.addEventListener("click", () => {
-      map.setTilt(map.getTilt() + amount);
-    });
-    controlDiv.appendChild(controlUI);
-    map.controls[position].push(controlDiv);
-  });
   return map;
 }
 
 function MyMapComponent(props) {
   const ref = useRef();
+  const [showPolylineUI, setShowPolylineUI] = useState(false);
+  const [polylines, setPolylines] = useState([]);
+  const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const urlZoom = getQueryStringValue("zoom");
     const urlCenter = getQueryStringValue("center");
-    const urlTilt = getQueryStringValue("tilt");
     const urlHeading = getQueryStringValue("heading");
     map = initializeMapObject(ref.current);
     const vehicleBounds = addTripPolys(map);
@@ -171,19 +157,12 @@ function MyMapComponent(props) {
       map.fitBounds(vehicleBounds);
     }
 
-    if (urlTilt) {
-      map.setTilt(parseInt(urlTilt));
-    }
     if (urlHeading) {
       map.setHeading(parseInt(urlHeading));
     }
     map.setOptions({ maxZoom: 100 });
     map.addListener("zoom_changed", () => {
       setQueryStringValue("zoom", map.getZoom());
-    });
-
-    map.addListener("tilt_changed", () => {
-      setQueryStringValue("tilt", map.getTilt());
     });
 
     map.addListener("heading_changed", () => {
@@ -196,7 +175,60 @@ function MyMapComponent(props) {
         setQueryStringValue("center", JSON.stringify(map.getCenter().toJSON()));
       }, 100)
     );
+
+    const polylineButton = document.createElement("button");
+    polylineButton.textContent = "Add Polyline";
+    polylineButton.className = "map-button";
+
+    polylineButton.onclick = (event) => {
+      const rect = event.target.getBoundingClientRect();
+      setButtonPosition({ top: rect.bottom, left: rect.left });
+      setShowPolylineUI((prev) => !prev);
+      console.log("Polyline button clicked");
+    };
+
+    map.controls[google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
   }, []);
+
+  const handlePolylineSubmit = (waypoints, properties) => {
+    const path = waypoints.map(
+      (wp) => new google.maps.LatLng(wp.latitude, wp.longitude)
+    );
+
+    const arrowIcon = {
+      path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+      scale: properties.strokeWeight / 2,
+      strokeColor: properties.color,
+    };
+
+    const polyline = new google.maps.Polyline({
+      path: path,
+      geodesic: true,
+      strokeColor: properties.color,
+      strokeOpacity: properties.opacity,
+      strokeWeight: properties.strokeWeight,
+      icons: [
+        {
+          icon: arrowIcon,
+          offset: "0%",
+        },
+        {
+          icon: arrowIcon,
+          offset: "100%",
+        },
+      ],
+    });
+
+    polyline.setMap(map);
+    setPolylines([...polylines, polyline]);
+    console.log(
+      `Polyline ${polylines.length + 1} created with color: ${
+        properties.color
+      }, opacity: ${properties.opacity}, stroke weight: ${
+        properties.strokeWeight
+      }`
+    );
+  };
 
   /*
    * Handler for timewindow change.  Updates global min/max date globals
@@ -266,7 +298,18 @@ function MyMapComponent(props) {
     }, [props.toggleOptions[id]]);
   }
 
-  return <div ref={ref} id="map" style={{ height: "100%", width: "100%" }} />;
+  return (
+    <>
+      <div ref={ref} id="map" style={{ height: "100%", width: "100%" }} />
+      {showPolylineUI && (
+        <PolylineCreation
+          onSubmit={handlePolylineSubmit}
+          onClose={() => setShowPolylineUI(false)}
+          buttonPosition={buttonPosition}
+        />
+      )}
+    </>
+  );
 }
 
 function getPolyBounds(bounds, p) {
