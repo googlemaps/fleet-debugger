@@ -65,3 +65,26 @@
     height: 30px;
     overflow: visible;
   }
+
+.map-button {
+  padding: 8px 12px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin: 10px 10px 10px -5px;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 18px;
+  color: #666;
+}
+
+.inner-button {
+  margin: 5px;
+}
+
+.map-button:hover {
+  background: #f1f1f1;
+}
+
+
