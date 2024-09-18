@@ -239,13 +239,18 @@ class App extends React.Component {
   };
 
   componentDidMount() {
-    this.checkForDemoFile().then(() => {
-      this.checkUploadedDatasets().then(() => {
-        this.updateMapAndAssociatedData();
-      });
+    this.initializeData().then(() => {
+      this.updateMapAndAssociatedData();
     });
     document.addEventListener("keydown", this.handleKeyPress);
   }
+
+  initializeData = async () => {
+    await this.checkUploadedDatasets();
+    if (!this.state.uploadedDatasets[0]) {
+      await this.checkForDemoFile();
+    }
+  };
 
   updateToggleState(newValue, toggleName, jsonPaths) {
     this.setState((prevState) => {
@@ -612,7 +617,7 @@ class App extends React.Component {
             cursor: "pointer",
           }}
         >
-          {isUploaded ? `Dataset ${index + 1}` : `Upload ${index + 1}`}
+          {isUploaded ? `Dataset ${index + 1}` : `Select File ${index + 1}`}
         </button>
       </div>
     );
@@ -761,7 +766,10 @@ class App extends React.Component {
                     flexDirection: "column",
                   }}
                 >
-                  <div>Click and hold dataset to replace it</div>
+                  <div>
+                    Data remains client side, click and hold dataset to replace
+                    it
+                  </div>
                   <div>
                     <strong>&lt;</strong> and <strong>&gt;</strong> to quickly
                     navigate selected events
