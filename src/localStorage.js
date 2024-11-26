@@ -5,6 +5,16 @@ import { DEFAULT_API_KEY } from "./constants";
 
 const DB_NAME = "FleetDebuggerDB";
 const STORE_NAME = "uploadedData";
+const TOS_RESTRICTED_ATTRIBUTES = [
+  "currentRouteSegment",
+  "waypoints",
+  "currentRouteSegmentEndPoint",
+  "pickupPoint",
+  "intermediateDestinations",
+  "dropoffPoint",
+  "remainingWaypoints",
+  "vehicleWaypoints",
+];
 
 async function openDB() {
   return new Promise((resolve, reject) => {
@@ -81,6 +91,23 @@ function parseJsonContent(content) {
   }
 }
 
+function removeEmptyObjects(obj) {
+  Object.keys(obj).forEach((key) => {
+    if (obj[key] && typeof obj[key] === "object") {
+      if (Object.keys(obj[key]).length === 0) {
+        delete obj[key];
+      } else {
+        removeEmptyObjects(obj[key]);
+      }
+    }
+  });
+  return obj;
+}
+
+function isRestrictedLog(log) {
+  return log.jsonPayload?.["@type"]?.includes("Restricted") || false;
+}
+
 function ensureCorrectFormat(data) {
   if (data && Array.isArray(data.rawLogs)) {
     return {
@@ -90,8 +117,36 @@ function ensureCorrectFormat(data) {
   } else {
     const logsArray = Array.isArray(data) ? data : [data];
 
+    const restrictedLogsMap = new Map();
+    logsArray.forEach((log) => {
+      if (isRestrictedLog(log)) {
+        removeEmptyObjects(log.jsonPayload);
+        restrictedLogsMap.set(log.jsonPayload.parentInsertId, log);
+      }
+    });
+
+    // Filter out restricted logs while merging their TOS-restricted attributes into their parent logs.
+    const mergedLogs = logsArray.filter((log) => {
+      if (isRestrictedLog(log)) {
+        return false;
+      }
+      const restrictedLog = restrictedLogsMap.get(log.insertId)?.jsonPayload;
+      if (restrictedLog) {
+        ["request", "response"].forEach((section) => {
+          if (restrictedLog[section] && log.jsonPayload[section]) {
+            TOS_RESTRICTED_ATTRIBUTES.forEach((attr) => {
+              if (restrictedLog[section][attr] !== undefined) {
+                log.jsonPayload[section][attr] = restrictedLog[section][attr];
+              }
+            });
+          }
+        });
+      }
+      return true;
+    });
+
     // Determine the solution type based on the resource type of the first log entry
-    const firstLog = logsArray[0];
+    const firstLog = mergedLogs[0];
     const resourceType = firstLog?.resource?.type;
     let solutionType;
 
@@ -114,7 +169,7 @@ function ensureCorrectFormat(data) {
       projectId: "",
       logSource: "Direct Cloud Logging",
       solutionType: solutionType,
-      rawLogs: logsArray,
+      rawLogs: mergedLogs,
     };
   }
 }
