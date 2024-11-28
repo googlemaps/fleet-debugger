@@ -76,7 +76,7 @@ async function processJsonFile(file) {
   });
 }
 
-function parseJsonContent(content) {
+export function parseJsonContent(content) {
   console.log("Parsing JSON content");
   try {
     return JSON.parse(content);
@@ -91,7 +91,7 @@ function parseJsonContent(content) {
   }
 }
 
-function removeEmptyObjects(obj) {
+export function removeEmptyObjects(obj) {
   Object.keys(obj).forEach((key) => {
     if (obj[key] && typeof obj[key] === "object") {
       if (Object.keys(obj[key]).length === 0) {
@@ -108,70 +108,58 @@ function isRestrictedLog(log) {
   return log.jsonPayload?.["@type"]?.includes("Restricted") || false;
 }
 
-function ensureCorrectFormat(data) {
+export function ensureCorrectFormat(data) {
   if (data && Array.isArray(data.rawLogs)) {
     return {
       ...data,
       APIKEY: data.APIKEY || DEFAULT_API_KEY,
     };
-  } else {
-    const logsArray = Array.isArray(data) ? data : [data];
-
-    const restrictedLogsMap = new Map();
-    logsArray.forEach((log) => {
-      if (isRestrictedLog(log)) {
-        removeEmptyObjects(log.jsonPayload);
-        restrictedLogsMap.set(log.jsonPayload.parentInsertId, log);
-      }
-    });
-
-    // Filter out restricted logs while merging their TOS-restricted attributes into their parent logs.
-    const mergedLogs = logsArray.filter((log) => {
-      if (isRestrictedLog(log)) {
-        return false;
-      }
-      const restrictedLog = restrictedLogsMap.get(log.insertId)?.jsonPayload;
-      if (restrictedLog) {
-        ["request", "response"].forEach((section) => {
-          if (restrictedLog[section] && log.jsonPayload[section]) {
-            TOS_RESTRICTED_ATTRIBUTES.forEach((attr) => {
-              if (restrictedLog[section][attr] !== undefined) {
-                log.jsonPayload[section][attr] = restrictedLog[section][attr];
-              }
-            });
-          }
-        });
-      }
-      return true;
-    });
-
-    // Determine the solution type based on the resource type of the first log entry
-    const firstLog = mergedLogs[0];
-    const resourceType = firstLog?.resource?.type;
-    let solutionType;
-
-    if (resourceType === "fleetengine.googleapis.com/DeliveryFleet") {
-      solutionType = "LMFS";
-    } else if (resourceType === "fleetengine.googleapis.com/Fleet") {
-      solutionType = "ODRD";
-    } else {
-      console.warn(
-        `Unknown resource type: ${resourceType}, defaulting to ODRD`
-      );
-      solutionType = "ODRD";
-    }
-
-    console.log(`Determined solution type: ${solutionType}`);
-
-    return {
-      APIKEY: DEFAULT_API_KEY,
-      vehicle: "",
-      projectId: "",
-      logSource: "Direct Cloud Logging",
-      solutionType: solutionType,
-      rawLogs: mergedLogs,
-    };
   }
+  const logsArray = Array.isArray(data) ? data : [data];
+
+  const restrictedLogsMap = new Map();
+  logsArray.forEach((log) => {
+    if (isRestrictedLog(log)) {
+      removeEmptyObjects(log.jsonPayload);
+      restrictedLogsMap.set(log.jsonPayload.parentInsertId, log);
+    }
+  });
+
+  // Filter out restricted logs while merging their TOS-restricted attributes into their parent logs.
+  const mergedLogs = logsArray.filter((log) => {
+    if (isRestrictedLog(log)) {
+      return false;
+    }
+    const restrictedLog = restrictedLogsMap.get(log.insertId)?.jsonPayload;
+    if (restrictedLog) {
+      ["request", "response"].forEach((section) => {
+        if (restrictedLog[section] && log.jsonPayload[section]) {
+          TOS_RESTRICTED_ATTRIBUTES.forEach((attr) => {
+            if (restrictedLog[section][attr] !== undefined) {
+              log.jsonPayload[section][attr] = restrictedLog[section][attr];
+            }
+          });
+        }
+      });
+    }
+    return true;
+  });
+
+  // Determine the solution type based on the presence of _delivery_vehicle logs
+  const isLMFS = mergedLogs.some((log) =>
+    log.logName?.includes("_delivery_vehicle")
+  );
+  const solutionType = isLMFS ? "LMFS" : "ODRD";
+  console.log(`Determined solution type: ${solutionType}`);
+
+  return {
+    APIKEY: DEFAULT_API_KEY,
+    vehicle: "",
+    projectId: "",
+    logSource: "Direct Cloud Logging",
+    solutionType: solutionType,
+    rawLogs: mergedLogs,
+  };
 }
 
 async function saveToIndexedDB(data, index) {
