@@ -138,6 +138,10 @@ export function ensureCorrectFormat(data) {
             if (restrictedLog[section][attr] !== undefined) {
               log.jsonPayload[section][attr] = restrictedLog[section][attr];
             }
+            if (restrictedLog[section].vehicle?.[attr] !== undefined) {
+              log.jsonPayload[section].vehicle[attr] =
+                restrictedLog[section].vehicle[attr];
+            }
           });
         }
       });
