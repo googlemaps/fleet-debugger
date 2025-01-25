@@ -1,6 +1,7 @@
 // PolylineCreation.js
 
 import { useState } from "react";
+import { decode } from 's2polyline-ts';
 
 function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
   const [input, setInput] = useState("");
@@ -12,6 +13,27 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
     e.preventDefault();
     try {
       const trimmedInput = input.trim();
+
+      // Check if input looks like an encoded polyline (single string without spaces)
+      if (/^[A-Za-z0-9+/=-]+$/.test(trimmedInput)) {
+        console.log("Attempting to decode S2 polyline:", trimmedInput);
+        const decodedPoints = decode(trimmedInput);
+        
+        if (decodedPoints && decodedPoints.length > 0) {
+          // Convert S2 points to our expected format
+          const validWaypoints = decodedPoints.map(point => ({
+            latitude: point.latDegrees(),
+            longitude: point.lngDegrees()
+          }));
+          
+          console.log(`Decoded ${validWaypoints.length} points from S2 polyline`);
+          onSubmit(validWaypoints, { opacity, color, strokeWeight });
+          setInput("");
+          return;
+        }
+      }
+
+      // Existing JSON parsing logic
       const jsonString = trimmedInput
         .replace(/(\w+):/g, '"$1":')
         .replace(/\s+/g, " ");
@@ -46,7 +68,9 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
 
   let placeholder = `Paste waypoints here:
 { latitude: 52.5163, longitude: 13.2399 },
-{ latitude: 52.5162, longitude: 13.2400 }`;
+{ latitude: 52.5162, longitude: 13.2400 }
+
+Or paste an encoded S2 polyline string`;
 
   return (
     <div
@@ -66,7 +90,7 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={placeholder}
-          rows={4}
+          rows={5}
           style={{ width: "100%", boxSizing: "border-box" }}
         />
         <div style={{ margin: "5px" }}>
