@@ -1,7 +1,8 @@
 // PolylineCreation.js
 
 import { useState } from "react";
-import { decode } from 's2polyline-ts';
+import { decode } from "s2polyline-ts";
+import { log } from "./Utils";
 
 function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
   const [input, setInput] = useState("");
@@ -16,17 +17,17 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
 
       // Check if input looks like an encoded polyline (single string without spaces)
       if (/^[A-Za-z0-9+/=-]+$/.test(trimmedInput)) {
-        console.log("Attempting to decode S2 polyline:", trimmedInput);
+        log("Attempting to decode S2 polyline:", trimmedInput);
         const decodedPoints = decode(trimmedInput);
-        
+
         if (decodedPoints && decodedPoints.length > 0) {
           // Convert S2 points to our expected format
-          const validWaypoints = decodedPoints.map(point => ({
+          const validWaypoints = decodedPoints.map((point) => ({
             latitude: point.latDegrees(),
-            longitude: point.lngDegrees()
+            longitude: point.lngDegrees(),
           }));
-          
-          console.log(`Decoded ${validWaypoints.length} points from S2 polyline`);
+
+          log(`Decoded ${validWaypoints.length} points from S2 polyline`);
           onSubmit(validWaypoints, { opacity, color, strokeWeight });
           setInput("");
           return;
@@ -58,10 +59,10 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
         throw new Error("No valid waypoints found");
       }
 
-      console.log(`Parsed ${validWaypoints.length} valid waypoints`);
+      log(`Parsed ${validWaypoints.length} valid waypoints`);
       onSubmit(validWaypoints, { opacity, color, strokeWeight });
     } catch (error) {
-      console.error("Invalid input format:", error);
+      log("Invalid input format:", error);
     }
     setInput("");
   };

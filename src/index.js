@@ -16,6 +16,15 @@ import {
   solutionType,
 } from "./vehicleData";
 
+console.log(`
+  Detailed console logging is disabled by default.
+  To modify logging behavior, use these commands in the javascript console:
+  
+  debug.enable()  // Enable detailed console logging
+  debug.disable() // Disable detailed console logging
+  debug.status()  // Check current logging status
+  `);
+
 const params = {
   serveMode: getQueryStringValue("serve"),
 };

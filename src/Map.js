@@ -9,8 +9,10 @@ import { useEffect, useRef, useState } from "react";
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
-import Utils from "./Utils";
+import Utils, { log } from "./Utils";
 import PolylineCreation from "./PolylineCreation";
+import { decode } from "s2polyline-ts";
+import TrafficPolyline from "./TrafficPolyline";
 
 let minDate;
 let maxDate;
@@ -150,7 +152,7 @@ function MyMapComponent(props) {
     map = initializeMapObject(ref.current);
     const vehicleBounds = addTripPolys(map);
     if (urlZoom && urlCenter) {
-      console.log("setting zoom & center from url", urlZoom, urlCenter);
+      log("setting zoom & center from url", urlZoom, urlCenter);
       map.setZoom(parseInt(urlZoom));
       map.setCenter(JSON.parse(urlCenter));
     } else {
@@ -184,11 +186,72 @@ function MyMapComponent(props) {
       const rect = event.target.getBoundingClientRect();
       setButtonPosition({ top: rect.bottom, left: rect.left });
       setShowPolylineUI((prev) => !prev);
-      console.log("Polyline button clicked");
+      log("Polyline button clicked");
     };
 
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
   }, []);
+
+  useEffect(() => {
+    if (!props.selectedRow) return;
+
+    // Clear ALL route segment polylines
+    polylines.forEach((polyline) => {
+      if (polyline.isRouteSegment) {
+        polyline.setMap(null);
+      }
+    });
+    // Update the polylines state to remove all route segments
+    setPolylines(polylines.filter((p) => !p.isRouteSegment));
+
+    // Get the current route segment from the selected row
+    const routeSegment = _.get(
+      props.selectedRow,
+      "request.vehicle.currentroutesegment"
+    );
+
+    if (routeSegment) {
+      log("Processing new route segment polyline:", {
+        rowTimestamp: props.selectedRow.timestamp,
+        polyline: routeSegment,
+      });
+
+      try {
+        const decodedPoints = decode(routeSegment);
+
+        if (decodedPoints && decodedPoints.length > 0) {
+          const validWaypoints = decodedPoints.map((point) => ({
+            lat: point.latDegrees(),
+            lng: point.lngDegrees(),
+          }));
+
+          log("Creating new polyline with", {
+            points: validWaypoints.length,
+            firstPoint: validWaypoints[0],
+            lastPoint: validWaypoints[validWaypoints.length - 1],
+          });
+
+          const trafficRendering = _.get(
+            props.selectedRow,
+            "request.vehicle.currentroutesegmenttraffic.trafficrendering"
+          );
+
+          const trafficPolyline = new TrafficPolyline({
+            path: validWaypoints,
+            trafficRendering: trafficRendering,
+            map: map,
+          });
+          setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
+        }
+      } catch (error) {
+        console.error("Error processing route segment polyline:", {
+          error,
+          routeSegment,
+          rowData: props.selectedRow,
+        });
+      }
+    }
+  }, [props.selectedRow, map]);
 
   const handlePolylineSubmit = (waypoints, properties) => {
     const path = waypoints.map(
@@ -221,7 +284,7 @@ function MyMapComponent(props) {
 
     polyline.setMap(map);
     setPolylines([...polylines, polyline]);
-    console.log(
+    log(
       `Polyline ${polylines.length + 1} created with color: ${
         properties.color
       }, opacity: ${properties.opacity}, stroke weight: ${

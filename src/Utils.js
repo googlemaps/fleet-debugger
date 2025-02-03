@@ -1,4 +1,7 @@
 class Utils {
+  // If undefined defaults to false
+  static isDebugEnabled = localStorage.getItem("debug") === "true";
+
   /*
    * Formats a duration into something friendly
    * for human consumption.
@@ -22,4 +25,29 @@ class Utils {
     return timeStr;
   }
 }
+
+window.debug = {
+  enable: () => {
+    Utils.isDebugEnabled = true;
+    localStorage.setItem("debug", "true");
+    console.log("Debug enabled");
+  },
+  disable: () => {
+    Utils.isDebugEnabled = false;
+    localStorage.setItem("debug", "false");
+    console.log("Debug disabled");
+  },
+  status: () => {
+    console.log("Debug is", Utils.isDebugEnabled ? "enabled" : "disabled");
+    return Utils.isDebugEnabled;
+  },
+};
+
+// Export the log function directly
+export const log = (...args) => {
+  if (Utils.isDebugEnabled) {
+    console.log(...args);
+  }
+};
+
 export { Utils as default };
