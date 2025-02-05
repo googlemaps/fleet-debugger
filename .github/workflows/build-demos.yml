@@ -1,0 +1,63 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'datasets/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch: # manual trigger when needed
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    if: github.repository == 'googlemaps/fleet-debugger'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and Update Demos
+        env:
+          CI: false
+        run: |
+          # Build Jump demo
+          echo "Building Jump demo..."
+          rm -rf demos/jump
+          cp datasets/jump-demo.json public/data.json
+          npm run build
+          cp -r build demos/jump
+          
+          # Build LMFS demo
+          echo "Building LMFS demo..."
+          rm -rf demos/lmfs
+          cp datasets/lmfs.json public/data.json
+          npm run build
+          cp -r build demos/lmfs
+          
+          # Build Multiple Trips demo
+          echo "Building Multiple Trips demo..."
+          rm -rf demos/multiple-trips
+          cp datasets/multiple-trips-sf.json public/data.json
+          npm run build
+          cp -r build demos/multiple-trips
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add demos/
+          git commit -m "Update demo builds" || echo "No changes to commit"
+          git push
