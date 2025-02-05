@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Build Demos and push to main
 
 on:
   push:
@@ -56,12 +56,22 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
+          echo "Configuring git..."
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Pull the latest changes
+          echo "Stashing changes..."
+          git stash
+
+          echo "Pulling latest changes..."
           git pull origin main --rebase
-          
+
+          echo "Applying stashed changes..."
+          git stash pop
+
+          echo "Adding and committing changes..."
           git add demos/
           git commit -m "Update demo builds" || echo "No changes to commit"
+          
+          echo "Pushing changes..."
           git push
