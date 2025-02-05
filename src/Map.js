@@ -238,6 +238,7 @@ function MyMapComponent(props) {
 
           const trafficPolyline = new TrafficPolyline({
             path: validWaypoints,
+            zIndex: 2,
             trafficRendering: trafficRendering,
             map: map,
           });

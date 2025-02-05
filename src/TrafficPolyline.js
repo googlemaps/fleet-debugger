@@ -10,9 +10,10 @@ export const TRAFFIC_COLORS = {
 };
 
 export class TrafficPolyline {
-  constructor({ path, trafficRendering, map }) {
+  constructor({ path, zIndex, trafficRendering, map }) {
     this.polylines = [];
     this.path = path;
+    this.zIndex = zIndex;
     this.map = map;
     this.segments = this.calculateSegments(trafficRendering);
     this.createPolylines();
@@ -121,6 +122,7 @@ export class TrafficPolyline {
     this.segments.forEach((segment) => {
       const polyline = new google.maps.Polyline({
         path: segment.path,
+        zIndex: this.zIndex || 0,
         geodesic: true,
         strokeColor: TRAFFIC_COLORS[segment.style],
         strokeOpacity: 1,
