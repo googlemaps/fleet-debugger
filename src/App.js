@@ -19,8 +19,7 @@ import {
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
-
-const DEBUG = true;
+import { log } from "./Utils";
 
 /**
  * returns the default value for the button from the url
@@ -465,28 +464,21 @@ class App extends React.Component {
 
   handleFileUpload = async (event, index) => {
     const file = event.target.files[0];
-    if (DEBUG)
-      console.log(
-        `Attempting to upload file for button ${index}:`,
-        file ? file.name : "No file selected"
-      );
+    log(
+      `Attempting to upload file for button ${index}:`,
+      file ? file.name : "No file selected"
+    );
     if (file) {
       try {
-        if (DEBUG)
-          console.log(`Uploading file ${file.name} for button ${index}`);
+        log(`Uploading file ${file.name} for button ${index}`);
         await uploadFile(file, index);
-        if (DEBUG)
-          console.log(
-            `File ${file.name} uploaded successfully for button ${index}`
-          );
+
+        log(`File ${file.name} uploaded successfully for button ${index}`);
         this.setState((prevState) => {
           const newUploadedDatasets = [...prevState.uploadedDatasets];
           newUploadedDatasets[index] = "Uploaded";
-          if (DEBUG)
-            console.log(
-              `Updated state for button ${index}:`,
-              newUploadedDatasets
-            );
+
+          log(`Updated state for button ${index}:`, newUploadedDatasets);
           return {
             uploadedDatasets: newUploadedDatasets,
             activeDatasetIndex: index,
@@ -503,7 +495,7 @@ class App extends React.Component {
     const newUploadedDatasets = await Promise.all(
       [0, 1, 2].map(async (index) => {
         const data = await getUploadedData(index);
-        if (DEBUG) console.log(`Dataset ${index}:`, data);
+        log(`Dataset ${index}:`, data);
         if (
           data &&
           data.rawLogs &&
@@ -531,19 +523,18 @@ class App extends React.Component {
   };
 
   handleLongPress = async (index) => {
-    if (DEBUG) console.log(`Long press detected for button ${index}`);
+    log(`Long press detected for button ${index}`);
     try {
-      if (DEBUG) console.log(`Attempting to delete data for button ${index}`);
+      log(`Attempting to delete data for button ${index}`);
       await deleteUploadedData(index);
-      if (DEBUG) console.log(`Data deleted successfully for button ${index}`);
+      log(`Data deleted successfully for button ${index}`);
       this.setState((prevState) => {
         const newUploadedDatasets = [...prevState.uploadedDatasets];
         newUploadedDatasets[index] = null;
-        if (DEBUG)
-          console.log(
-            `Updated state after deletion for button ${index}:`,
-            newUploadedDatasets
-          );
+        log(
+          `Updated state after deletion for button ${index}:`,
+          newUploadedDatasets
+        );
         return {
           uploadedDatasets: newUploadedDatasets,
           activeDatasetIndex:
@@ -569,7 +560,7 @@ class App extends React.Component {
 
     const handleMouseDown = () => {
       timeoutId = setTimeout(() => {
-        if (DEBUG) console.log(`Long press triggered for button ${index}`);
+        log(`Long press triggered for button ${index}`);
         this.handleLongPress(index);
       }, 3000);
     };
@@ -624,7 +615,7 @@ class App extends React.Component {
   };
 
   switchDataset = async (index) => {
-    if (DEBUG) console.log(`Attempting to switch to dataset ${index}`);
+    log(`Attempting to switch to dataset ${index}`);
 
     if (this.state.uploadedDatasets[index] !== "Uploaded") {
       console.error(
@@ -658,11 +649,8 @@ class App extends React.Component {
             // Force an update of child components
             this.forceUpdate();
 
-            if (DEBUG) console.log(`Switched to dataset ${index}`);
-            if (DEBUG)
-              console.log(
-                `New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`
-              );
+            log(`Switched to dataset ${index}`);
+            log(`New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`);
           }
         );
 
