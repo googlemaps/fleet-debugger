@@ -17,6 +17,6 @@ cp -a build demos/lmfs
 
 rm -rf build
 rm -rf demos/multiple-trips
-cp datasets/multiple-trips-sf.json public/data.json
+cp datasets/two-trips-bay-area.json public/data.json
 npm run build
 cp -a build demos/multiple-trips
