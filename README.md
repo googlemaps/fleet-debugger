@@ -20,7 +20,7 @@ We also have demo data for:
 -- On-demand trips
 resource.type="fleetengine.googleapis.com/Fleet"
 AND (labels.vehicle_id="YOUR_VEHICLE_ID" OR
-     labels.trip_id=("TRIP_ID_1" "TRIP_ID_2"))
+     labels.trip_id=~"(TRIP_ID_1|TRIP_ID_2)")
 AND timestamp >= "START_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
 AND timestamp <= "END_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
 AND (
@@ -35,7 +35,7 @@ AND (
 -- Scheduled tasks
 resource.type="fleetengine.googleapis.com/DeliveryFleet"
 AND (labels.delivery_vehicle_id="YOUR_VEHICLE_ID" OR
-     labels.task_id=("TASK_ID_1" "TASK_ID_2"))
+     labels.task_id=~"(TASK_ID_1|TASK_ID_2)")
 AND timestamp >= "START_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
 AND timestamp <= "END_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
 AND (
