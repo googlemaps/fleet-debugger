@@ -15,8 +15,9 @@ We also have demo data for:
 
 ### Loading Your Data
 
-1. Export your Fleet Engine logs from Cloud Logging using this filter (customize as needed):
+1. Export your Fleet Engine logs from Cloud Logging using this filter (customize as needed): \
 ```sql
+-- On-demand trips
 resource.type="fleetengine.googleapis.com/Fleet"
 AND (labels.vehicle_id="YOUR_VEHICLE_ID" OR
      labels.trip_id=("TRIP_ID_1" "TRIP_ID_2"))
@@ -27,6 +28,21 @@ AND (
     logName:"logs/fleetengine.googleapis.com%2Fupdate_vehicle" OR
     logName:"logs/fleetengine.googleapis.com%2Fcreate_trip" OR
     logName:"logs/fleetengine.googleapis.com%2Fupdate_trip"
+)
+```
+
+```sql
+-- Scheduled tasks
+resource.type="fleetengine.googleapis.com/DeliveryFleet"
+AND (labels.delivery_vehicle_id="YOUR_VEHICLE_ID" OR
+     labels.task_id=("TASK_ID_1" "TASK_ID_2"))
+AND timestamp >= "START_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+AND timestamp <= "END_TIME" -- ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+AND (
+    logName:"logs/fleetengine.googleapis.com%2Fcreate_delivery_vehicle" OR
+    logName:"logs/fleetengine.googleapis.com%2Fupdate_delivery_vehicle" OR
+    logName:"logs/fleetengine.googleapis.com%2Fcreate_task" OR
+    logName:"logs/fleetengine.googleapis.com%2Fupdate_task"
 )
 ```
 
