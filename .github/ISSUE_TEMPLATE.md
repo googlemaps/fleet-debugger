@@ -8,7 +8,10 @@
 1.
 1.
 
-## Specifications
+## Photo (good) and/or Video (best) file attached that shows the issue
 
-- Version:
-- Platform:
+url, or attachment
+
+## Zipped file of your cloud logging data that shows the issue.
+
+url, or attachment (search and replace sensitive strings, for instance vehicle ID or trip ID)
