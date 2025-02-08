@@ -1,5 +1,5 @@
 /*
- * TripLogs.js
+ * src/TripLogs.js
  *
  * Processes raw logs into 'trip segments'. A trip segment might
  * be an individual trip, a contiguous non-trip region, or the route
@@ -9,6 +9,7 @@ import _ from "lodash";
 import Trip from "./Trip";
 import HighVelocityJump from "./HighVelocityJump";
 import MissingUpdate from "./MissingUpdate";
+import { log } from "./Utils";
 
 const maxDistanceForDwell = 20; // meters
 const requiredUpdatesForDwell = 12; // aka 2 minute assuming update vehicle request at 10 seconds
@@ -96,16 +97,20 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
 }
 
 function processRawLogs(rawLogs, solutionType) {
-  console.log(`Processing ${rawLogs.length} raw logs for ${solutionType}`);
+  log(`Processing ${rawLogs.length} raw logs for ${solutionType}`);
   const origLogs = rawLogs.map(toLowerKeys);
   const isReversed =
     origLogs.length > 1 &&
     new Date(origLogs[0].timestamp) >
       new Date(origLogs[origLogs.length - 1].timestamp);
-  console.log(`Raw logs are ${isReversed ? "reversed" : "chronological"}`);
+  log(`Raw logs are ${isReversed ? "reversed" : "chronological"}`);
 
   let sortedLogs = isReversed ? _.reverse(origLogs) : origLogs;
   let newLogs = [];
+  let lastKnownLocation = null;
+  let lastKnownHeading = 0;
+  const vehiclePath =
+    solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
 
   for (let idx = 0; idx < sortedLogs.length; idx++) {
     const origLog = sortedLogs[idx];
@@ -185,6 +190,18 @@ function processRawLogs(rawLogs, solutionType) {
         );
       }
 
+      // Creating lastlocation for trip rows so that these still show the last known car marker
+      const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
+      if (currentLocation?.rawlocation) {
+        lastKnownLocation = currentLocation.rawlocation;
+        lastKnownHeading = currentLocation.heading;
+      } else if (lastKnownLocation) {
+        _.set(newLog, `${vehiclePath}.lastlocation`, {
+          rawlocation: lastKnownLocation,
+          heading: lastKnownHeading,
+        });
+      }
+
       newLogs.push(newLog);
     }
   }
@@ -195,7 +212,7 @@ function processRawLogs(rawLogs, solutionType) {
 
 class TripLogs {
   constructor(rawLogs, solutionType) {
-    console.log(
+    log(
       `Initializing TripLogs with ${rawLogs.length} raw logs for ${solutionType}`
     );
     this.initialize(rawLogs, solutionType);
@@ -250,11 +267,9 @@ class TripLogs {
     this.processTripSegments();
     this.debouncedGetHighVelocityJumps = _.debounce(
       (minDate, maxDate, callback) => {
-        console.log("debouncedGetHighVelocityJumps executing");
+        log("debouncedGetHighVelocityJumps executing");
         const jumps = this.getHighVelocityJumps(minDate, maxDate);
-        console.log(
-          `debouncedGetHighVelocityJumps found ${jumps.length} jumps`
-        );
+        log(`debouncedGetHighVelocityJumps found ${jumps.length} jumps`);
         callback(jumps);
       },
       300
@@ -331,7 +346,7 @@ class TripLogs {
    * updates.
    */
   getETADeltas(minDate, maxDate) {
-    console.log(`Getting ETA deltas between ${minDate} and ${maxDate}`);
+    log(`Getting ETA deltas between ${minDate} and ${maxDate}`);
     let prevEntry;
     this.etaDeltas = this.getRawLogs_(minDate, maxDate)
       .filter(
@@ -366,9 +381,7 @@ class TripLogs {
    * at an unrealistic velocity.
    */
   getHighVelocityJumps(minDate, maxDate) {
-    console.log(
-      `Getting high velocity jumps between ${minDate} and ${maxDate}`
-    );
+    log(`Getting high velocity jumps between ${minDate} and ${maxDate}`);
 
     let prevEntry;
     let entries = this.getRawLogs_(minDate, maxDate)
@@ -384,7 +397,7 @@ class TripLogs {
       .compact()
       .value();
 
-    console.log(`Created ${entries.length} HighVelocityJump instances`);
+    log(`Created ${entries.length} HighVelocityJump instances`);
 
     const velocityJumps = HighVelocityJump.getSignificantJumps(entries);
     console.log(`Found ${velocityJumps.length} high velocity jumps`);
@@ -410,7 +423,7 @@ class TripLogs {
    *  description of the very simplistic algo used here.
    */
   getDwellLocations(minDate, maxDate) {
-    console.log(`Getting dwell locations between ${minDate} and ${maxDate}`);
+    log(`Getting dwell locations between ${minDate} and ${maxDate}`);
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
       const lastLocation = le.lastlocation;
@@ -470,7 +483,7 @@ class TripLogs {
   }
 
   processTripSegments() {
-    console.log("Processing trip segments");
+    log("Processing trip segments");
     let curTripId = "this is not a segment";
     let curTripData = undefined;
     let tripIdx = 0;
