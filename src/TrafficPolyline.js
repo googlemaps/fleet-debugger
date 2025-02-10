@@ -10,10 +10,11 @@ export const TRAFFIC_COLORS = {
 };
 
 export class TrafficPolyline {
-  constructor({ path, zIndex, trafficRendering, map }) {
+  constructor({ path, zIndex, trafficRendering, currentLatLng, map }) {
     this.polylines = [];
     this.path = path;
     this.zIndex = zIndex;
+    this.currentLatLng = currentLatLng;
     this.map = map;
     this.segments = this.calculateSegments(trafficRendering);
     this.createPolylines();
@@ -31,12 +32,56 @@ export class TrafficPolyline {
     }
 
     try {
-      // If no traffic rendering or no road stretches, return a single NO_DATA segment
-      if (!trafficRendering?.roadstretch?.length) {
+      if (!trafficRendering) {
+        trafficRendering = { roadstretch: [] };
+      }
+
+      // Add traveled route as NO_DATA if we have currentLatLng
+      if (
+        this.currentLatLng &&
+        this.currentLatLng.longitude &&
+        this.currentLatLng.latitude
+      ) {
+        const line = turf.lineString(
+          this.path.map((point) => [point.lng, point.lat])
+        );
+        const currentPoint = turf.point([
+          this.currentLatLng.longitude,
+          this.currentLatLng.latitude,
+        ]);
+        const startPoint = turf.point(line.geometry.coordinates[0]);
+
+        try {
+          const traveledLine = turf.lineSlice(startPoint, currentPoint, line);
+          const distanceInMeters =
+            turf.length(traveledLine, { units: "kilometers" }) * 1000;
+
+          // Add the traveled segment at the start of roadstretch array
+          if (distanceInMeters > 0) {
+            trafficRendering.roadstretch = [
+              {
+                style: "STYLE_NO_DATA",
+                offsetmeters: 0,
+                lengthmeters: distanceInMeters,
+              },
+              ...(trafficRendering.roadstretch || []),
+            ];
+
+            log("Added traveled route segment:", {
+              lengthMeters: distanceInMeters,
+              segments: trafficRendering.roadstretch.length,
+            });
+          }
+        } catch (error) {
+          log("Error calculating traveled route segment:", error);
+        }
+      }
+
+      if (!trafficRendering.roadstretch?.length) {
         return [
           {
             path: this.path,
-            style: "STYLE_NO_DATA",
+            style: "STYLE_NORMAL",
           },
         ];
       }

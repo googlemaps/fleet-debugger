@@ -21,6 +21,7 @@
   "plugins": ["react", "jest"],
   "rules": {
     "no-var": "error",
+    "no-unused-vars": "warn",
     "prefer-arrow-callback": "error",
     "react/prop-types": "off",
     "react/jsx-key": "off",
