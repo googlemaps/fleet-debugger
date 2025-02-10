@@ -48,7 +48,7 @@ describe("TrafficPolyline", () => {
     { lat: 1, lng: 1 },
   ];
 
-  test("creates NO_DATA polyline when no traffic data provided", () => {
+  test("creates STYLE_NORMAL polyline when no traffic data provided", () => {
     const polyline = new TrafficPolyline({
       path: samplePath,
       map: {},
@@ -56,7 +56,7 @@ describe("TrafficPolyline", () => {
 
     expect(polyline.polylines.length).toBe(1);
     expect(polyline.polylines[0].options.strokeColor).toBe(
-      TRAFFIC_COLORS.STYLE_NO_DATA
+      TRAFFIC_COLORS.STYLE_NORMAL
     );
   });
 
@@ -69,7 +69,7 @@ describe("TrafficPolyline", () => {
 
     expect(polyline.polylines.length).toBe(1);
     expect(polyline.polylines[0].options.strokeColor).toBe(
-      TRAFFIC_COLORS.STYLE_NO_DATA
+      TRAFFIC_COLORS.STYLE_NORMAL
     );
   });
 

@@ -231,10 +231,16 @@ function MyMapComponent(props) {
             "request.vehicle.currentroutesegmenttraffic.trafficrendering"
           );
 
+          const rawLocation = _.get(
+            props.selectedRow.lastlocation,
+            "rawlocation"
+          );
+
           const trafficPolyline = new TrafficPolyline({
             path: validWaypoints,
             zIndex: 2,
-            trafficRendering: trafficRendering,
+            trafficRendering: structuredClone(trafficRendering),
+            currentLatLng: rawLocation,
             map: map,
           });
           setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
