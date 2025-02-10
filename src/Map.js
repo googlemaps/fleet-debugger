@@ -1,10 +1,5 @@
-/*
- * Map.js
- *
- * Uses the react-wrapper to make using google maps js sdk
- * easier in react.  Beyond basic loading doesn't pretend to
- * act like a normal react component.
- */
+// src/Map.js
+
 import { useEffect, useRef, useState } from "react";
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
 import _ from "lodash";
@@ -325,33 +320,55 @@ function MyMapComponent(props) {
   }, [props.rangeStart, props.rangeEnd]);
 
   useEffect(() => {
+    // Car location maker
     const data = props.selectedRow;
     if (!data) return;
     _.forEach(dataMakers, (m) => m.setMap(null));
     dataMakers = [];
-    const svgMarker = {
-      path: "M10.453 14.016l6.563-6.609-1.406-1.406-5.156 5.203-2.063-2.109-1.406 1.406zM12 2.016q2.906 0 4.945 2.039t2.039 4.945q0 1.453-0.727 3.328t-1.758 3.516-2.039 3.070-1.711 2.273l-0.75 0.797q-0.281-0.328-0.75-0.867t-1.688-2.156-2.133-3.141-1.664-3.445-0.75-3.375q0-2.906 2.039-4.945t4.945-2.039z",
-      fillColor: "blue",
-      fillOpacity: 0.6,
-      strokeWeight: 0,
-      rotation: 0,
-      scale: 1,
-      anchor: new google.maps.Point(15, 30),
+
+    const markerSymbols = {
+      background: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: "#FFFFFF",
+        fillOpacity: 0.7,
+        scale: 18,
+        strokeColor: "#FFFFFF",
+        strokeWeight: 2,
+        strokeOpacity: 0.3,
+      },
+      chevron: {
+        path: "M -1,1 L 0,-1 L 1,1 L 0,0.5 z",
+        fillColor: "#4285F4",
+        fillOpacity: 1,
+        scale: 10,
+        strokeColor: "#4285F4",
+        strokeWeight: 1,
+        rotation: 0,
+      },
     };
 
     const rawLocation = _.get(data.lastlocation, "rawlocation");
     if (rawLocation) {
-      const status = _.get(data, "response.tripstatus");
-      const state = _.get(data, "response.vehiclestate");
-      const locationForLog = new window.google.maps.Marker({
+      const heading = _.get(data.lastlocation, "heading") || 0;
+      markerSymbols.chevron.rotation = heading;
+
+      const backgroundMarker = new window.google.maps.Marker({
         position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
         map: map,
-        icon: svgMarker,
-        title: "Vehicle state " + state + " Trip Status " + status,
+        icon: markerSymbols.background,
+        clickable: false,
+        zIndex: 9,
       });
-      dataMakers.push(locationForLog);
+
+      const chevronMarker = new window.google.maps.Marker({
+        position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
+        map: map,
+        icon: markerSymbols.chevron,
+        zIndex: 10,
+      });
+
+      dataMakers.push(backgroundMarker, chevronMarker);
     }
-    // TODO: for non-vehicle api calls could attempt to interpolate the location
   }, [props.selectedRow]);
 
   for (const toggle of props.toggles) {
