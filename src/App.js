@@ -1,5 +1,5 @@
 /*
- * App.js
+ * src/App.js
  *
  * Basic react app container.  Handles state for the app and
  * propagation for state changes into the non-react map
@@ -11,11 +11,7 @@ import TimeSlider from "./TimeSlider";
 import LogTable from "./LogTable";
 import ToggleBar from "./ToggleBar";
 import TripLogs from "./TripLogs";
-import {
-  uploadFile,
-  getUploadedData,
-  deleteUploadedData,
-} from "./localStorage";
+import { uploadFile, getUploadedData, deleteUploadedData } from "./localStorage";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
@@ -41,9 +37,7 @@ class App extends React.Component {
     let urlMaxTime = getQueryStringValue("maxTime");
     this.initialMinTime = urlMinTime ? parseInt(urlMinTime) : 0;
     // default max time to 1 year in the future
-    this.initialMaxTime = urlMaxTime
-      ? parseInt(urlMaxTime)
-      : nowDate.setFullYear(nowDate.getFullYear() + 1);
+    this.initialMaxTime = urlMaxTime ? parseInt(urlMaxTime) : nowDate.setFullYear(nowDate.getFullYear() + 1);
 
     this.focusOnRowFunction = null;
     this.state = {
@@ -69,19 +63,13 @@ class App extends React.Component {
         showTasksAsCreated: getToggleDefault("showTasksAsCreated", false),
         showPlannedPaths: getToggleDefault("showPlannedPaths", false),
         showLiveJS: getToggleDefault("showLiveJS", false),
-        showClientServerTimeDeltas: getToggleDefault(
-          "showClientServerTimeDeltas",
-          false
-        ),
+        showClientServerTimeDeltas: getToggleDefault("showClientServerTimeDeltas", false),
       },
       uploadedDatasets: [null, null, null],
       activeDatasetIndex: null,
     };
     // Realtime updates are too heavy.  There must be a better/ react way
-    this.onSliderChangeDebounced = _.debounce(
-      (timeRange) => this.onSliderChange(timeRange),
-      25
-    );
+    this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
 
     // TODO: refactor so that visualizations are registered
     // rather than enumerated here?
@@ -90,126 +78,104 @@ class App extends React.Component {
         {
           id: "showGPSBubbles",
           name: "GPS Accuracy",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
-          columns: [
-            "lastlocation.rawlocationaccuracy",
-            "lastlocation.locationsensor",
-          ],
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
+          columns: ["lastlocation.rawlocationaccuracy", "lastlocation.locationsensor"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showHeading",
           name: "Heading",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
           columns: ["lastlocation.heading", "lastlocation.headingaccuracy"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showSpeed",
           name: "Speed",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
           columns: ["lastlocation.speed"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showTripStatus",
           name: "Trip Status",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
           columns: [],
           solutionTypes: ["ODRD"],
         },
         {
           id: "showNavStatus",
           name: "Navigation Status",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showTasksAsCreated",
           name: "Tasks",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Tasks.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Tasks.md",
           columns: [],
           solutionTypes: ["LMFS"],
         },
         {
           id: "showPlannedPaths",
           name: "Planned Paths",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/PlannedPaths.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/PlannedPaths.md",
           columns: [],
           solutionTypes: ["LMFS"],
         },
         {
           id: "showDwellLocations",
           name: "Dwell Locations",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/DwellTimes.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/DwellTimes.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showHighVelocityJumps",
           name: "Jumps (unrealistic velocity)",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
           columns: ["lastlocation.speed"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showMissingUpdates",
           name: "Jumps (Temporal)",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
           columns: ["temporal_gap"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showClientServerTimeDeltas",
           name: "Client/Server Time Deltas",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-          columns: [
-            "response.laslLocation.rawlocationlime",
-            "response.laslLocation.serverlime",
-          ],
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          columns: ["response.laslLocation.rawlocationlime", "response.laslLocation.serverlime"],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showETADeltas",
           name: "ETA Deltas",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
           columns: ["request.vehicle.etatofirstwaypoint"],
           solutionTypes: ["ODRD"],
         },
         {
           id: "showTraffic",
           name: "Traffic",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showLiveJS",
           name: "Start Live Journey Sharing for newest trip",
-          docLink:
-            "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
+          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
       ],
       (toggle) => {
-        return (
-          toggle.solutionTypes.indexOf(this.props.logData.solutionType) !== -1
-        );
+        return toggle.solutionTypes.indexOf(this.props.logData.solutionType) !== -1;
       }
     );
     this.setFeaturedObject = this.setFeaturedObject.bind(this);
@@ -225,10 +191,7 @@ class App extends React.Component {
    * changed.
    */
   updateMapAndAssociatedData = () => {
-    this.setTimeRange(
-      this.state.timeRange.minTime,
-      this.state.timeRange.maxTime
-    );
+    this.setTimeRange(this.state.timeRange.minTime, this.state.timeRange.maxTime);
     _.map(this.toggles, (toggle) => {
       const urlVal = getQueryStringValue(toggle.id);
       if (urlVal === "true") {
@@ -344,9 +307,7 @@ class App extends React.Component {
       this.setState((prevState) => {
         const minDate = new Date(prevState.timeRange.minTime);
         const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.props.logData.tripLogs
-          .getLogs_(minDate, maxDate)
-          .value();
+        const logs = this.props.logData.tripLogs.getLogs_(minDate, maxDate).value();
 
         if (logs.length > 0) {
           const firstRow = logs[0];
@@ -354,9 +315,7 @@ class App extends React.Component {
           resolve(firstRow);
           return { featuredObject: firstRow };
         } else {
-          console.log(
-            "selectFirstRow: No logs found in the current time range"
-          );
+          console.log("selectFirstRow: No logs found in the current time range");
           resolve(null);
           return null;
         }
@@ -387,9 +346,7 @@ class App extends React.Component {
 
     let newFeaturedObject = featuredObject;
 
-    const currentIndex = logs.findIndex(
-      (log) => log.timestamp === featuredObject.timestamp
-    );
+    const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
     if (direction === "next" && currentIndex < logs.length - 1) {
       newFeaturedObject = logs[currentIndex + 1];
     } else if (direction === "previous" && currentIndex > 0) {
@@ -448,9 +405,7 @@ class App extends React.Component {
       if (!response.ok) {
         return;
       }
-      console.log(
-        "data.json demo file found on the server root, saving it to Dataset 1"
-      );
+      console.log("data.json demo file found on the server root, saving it to Dataset 1");
       const blob = await response.blob();
       const file = new File([blob], "data.json", {
         type: "application/json",
@@ -464,10 +419,7 @@ class App extends React.Component {
 
   handleFileUpload = async (event, index) => {
     const file = event.target.files[0];
-    log(
-      `Attempting to upload file for button ${index}:`,
-      file ? file.name : "No file selected"
-    );
+    log(`Attempting to upload file for button ${index}:`, file ? file.name : "No file selected");
     if (file) {
       try {
         log(`Uploading file ${file.name} for button ${index}`);
@@ -496,12 +448,7 @@ class App extends React.Component {
       [0, 1, 2].map(async (index) => {
         const data = await getUploadedData(index);
         log(`Dataset ${index}:`, data);
-        if (
-          data &&
-          data.rawLogs &&
-          Array.isArray(data.rawLogs) &&
-          data.rawLogs.length > 0
-        ) {
+        if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
           return { status: "Uploaded", index };
         }
         return { status: null, index };
@@ -513,9 +460,7 @@ class App extends React.Component {
     });
 
     if (this.state.activeDatasetIndex === null) {
-      const firstAvailableIndex = newUploadedDatasets.find(
-        (dataset) => dataset.status === "Uploaded"
-      )?.index;
+      const firstAvailableIndex = newUploadedDatasets.find((dataset) => dataset.status === "Uploaded")?.index;
       if (firstAvailableIndex !== undefined) {
         this.switchDataset(firstAvailableIndex);
       }
@@ -531,16 +476,10 @@ class App extends React.Component {
       this.setState((prevState) => {
         const newUploadedDatasets = [...prevState.uploadedDatasets];
         newUploadedDatasets[index] = null;
-        log(
-          `Updated state after deletion for button ${index}:`,
-          newUploadedDatasets
-        );
+        log(`Updated state after deletion for button ${index}:`, newUploadedDatasets);
         return {
           uploadedDatasets: newUploadedDatasets,
-          activeDatasetIndex:
-            prevState.activeDatasetIndex === index
-              ? null
-              : prevState.activeDatasetIndex,
+          activeDatasetIndex: prevState.activeDatasetIndex === index ? null : prevState.activeDatasetIndex,
         };
       });
     } catch (error) {
@@ -597,11 +536,7 @@ class App extends React.Component {
         <button
           onClick={handleClick}
           style={{
-            backgroundColor: isActive
-              ? "#4CAF50"
-              : isUploaded
-              ? "#008CBA"
-              : "#555555",
+            backgroundColor: isActive ? "#4CAF50" : isUploaded ? "#008CBA" : "#555555",
             color: "white",
             padding: "10px 20px",
             border: "none",
@@ -618,20 +553,13 @@ class App extends React.Component {
     log(`Attempting to switch to dataset ${index}`);
 
     if (this.state.uploadedDatasets[index] !== "Uploaded") {
-      console.error(
-        `Attempted to switch to dataset ${index}, but it's not uploaded or is empty`
-      );
+      console.error(`Attempted to switch to dataset ${index}, but it's not uploaded or is empty`);
       return;
     }
 
     try {
       const data = await getUploadedData(index);
-      if (
-        data &&
-        data.rawLogs &&
-        Array.isArray(data.rawLogs) &&
-        data.rawLogs.length > 0
-      ) {
+      if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
 
         this.setState(
@@ -677,9 +605,7 @@ class App extends React.Component {
     return (
       <div style={{ display: "flex", height: "100vh" }}>
         <div style={{ width: "70%", display: "flex", flexDirection: "column" }}>
-          <div
-            style={{ height: "33vh", display: "flex", flexDirection: "column" }}
-          >
+          <div style={{ height: "33vh", display: "flex", flexDirection: "column" }}>
             <div style={{ flex: 1 }}>
               <Map
                 key={`map-${this.state.activeDatasetIndex}`}
@@ -724,14 +650,10 @@ class App extends React.Component {
                   <div>
                     <button onClick={this.selectFirstRow}>First</button>
                     <button onClick={this.selectLastRow}>Last</button>
-                    <button onClick={this.handlePreviousEvent}>
-                      &lt; Previous
-                    </button>
+                    <button onClick={this.handlePreviousEvent}>&lt; Previous</button>
                     <button onClick={this.handleNextEvent}>Next &gt;</button>
                   </div>
-                  <button onClick={this.handlePlayStop}>
-                    {this.state.isPlaying ? "Stop" : "Play"}
-                  </button>
+                  <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
                   <select
                     value={this.state.playSpeed}
                     onChange={this.handleSpeedChange}
@@ -754,13 +676,9 @@ class App extends React.Component {
                     flexDirection: "column",
                   }}
                 >
+                  <div>Data remains client side, click and hold dataset to replace it</div>
                   <div>
-                    Data remains client side, click and hold dataset to replace
-                    it
-                  </div>
-                  <div>
-                    <strong>&lt;</strong> and <strong>&gt;</strong> to quickly
-                    navigate selected events
+                    <strong>&lt;</strong> and <strong>&gt;</strong> to quickly navigate selected events
                   </div>
                 </div>
               </div>
@@ -772,9 +690,7 @@ class App extends React.Component {
               style={{ width: "100%" }}
               timeRange={this.state.timeRange}
               extraColumns={this.state.extraColumns}
-              onSelectionChange={(featuredObject) =>
-                this.onSelectionChange(featuredObject)
-              }
+              onSelectionChange={(featuredObject) => this.onSelectionChange(featuredObject)}
               setFocusOnRowFunction={this.setFocusOnRowFunction}
               centerOnLocation={this.centerOnLocation}
             />

@@ -1,4 +1,4 @@
-// PolylineCreation.js
+// src/PolylineCreation.js
 
 import { useState } from "react";
 import { decode } from "s2polyline-ts";
@@ -35,14 +35,9 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
       }
 
       // Existing JSON parsing logic
-      const jsonString = trimmedInput
-        .replace(/(\w+):/g, '"$1":')
-        .replace(/\s+/g, " ");
+      const jsonString = trimmedInput.replace(/(\w+):/g, '"$1":').replace(/\s+/g, " ");
 
-      const inputWithBrackets =
-        jsonString.startsWith("[") && jsonString.endsWith("]")
-          ? jsonString
-          : `[${jsonString}]`;
+      const inputWithBrackets = jsonString.startsWith("[") && jsonString.endsWith("]") ? jsonString : `[${jsonString}]`;
 
       const waypoints = JSON.parse(inputWithBrackets);
 
@@ -111,11 +106,7 @@ Or paste an encoded S2 polyline string`;
         <div style={{ margin: "5px" }}>
           <label>
             Color:
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
           </label>
         </div>
         <div style={{ margin: "5px" }}>
@@ -133,11 +124,7 @@ Or paste an encoded S2 polyline string`;
         <button type="submit" className="map-button inner-button">
           Create Polyline
         </button>
-        <button
-          type="button"
-          className="map-button inner-button"
-          onClick={onClose}
-        >
+        <button type="button" className="map-button inner-button" onClick={onClose}>
           Close
         </button>
       </form>

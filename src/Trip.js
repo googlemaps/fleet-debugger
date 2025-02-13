@@ -1,5 +1,5 @@
 /*
- * Trip.js
+ * src/Trip.js
  *
  * Processed log for a trip. Currently only includes very basic information
  * about the trip

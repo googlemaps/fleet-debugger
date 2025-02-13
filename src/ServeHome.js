@@ -1,9 +1,5 @@
-/*
- * App.js
- *
- * Basic react app container.  Handles state for the app and
- * propagation for state changes into the non-react map
- */
+// src/ServeHome.js
+
 import React from "react";
 
 class ServeHome extends React.Component {
@@ -19,9 +15,7 @@ class ServeHome extends React.Component {
     };
 
     this.goVehicle = () => {
-      window.location.href = `/debugger?dataFile=/vehicles/${encodeURI(
-        this.state.vehicle
-      )}`;
+      window.location.href = `/debugger?dataFile=/vehicles/${encodeURI(this.state.vehicle)}`;
     };
 
     this.handleTripChange = (event) => {
@@ -29,9 +23,7 @@ class ServeHome extends React.Component {
     };
 
     this.goTrip = () => {
-      window.location.href = `/debugger?dataFile=/trips/${encodeURI(
-        this.state.trip
-      )}`;
+      window.location.href = `/debugger?dataFile=/trips/${encodeURI(this.state.trip)}`;
     };
   }
 
@@ -40,21 +32,11 @@ class ServeHome extends React.Component {
       <div>
         <h1>Fleet Debugger Live Mode</h1>
         <div>
-          <textarea
-            value={this.state.vehicle}
-            onChange={this.handleVehicleChange}
-            rows={1}
-            cols={64}
-          />
+          <textarea value={this.state.vehicle} onChange={this.handleVehicleChange} rows={1} cols={64} />
           <button onClick={this.goVehicle}>Debug Vehicle</button>
         </div>
         <div>
-          <textarea
-            value={this.state.trip}
-            onChange={this.handleTripChange}
-            rows={1}
-            cols={64}
-          />
+          <textarea value={this.state.trip} onChange={this.handleTripChange} rows={1} cols={64} />
           <button onClick={this.goTrip}>Debug Trip</button>
         </div>
       </div>

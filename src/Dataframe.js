@@ -1,5 +1,5 @@
 /*
- * Dataframe.js
+ * src/Dataframe.js
  *
  * JSON viewer for log entries.   Clicking on a property _value_
  * adds it to the log viewer.

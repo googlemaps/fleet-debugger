@@ -1,6 +1,5 @@
-/*
- * stats helpers
- */
+// src/Stats.js
+
 class Stats {
   static median(dataSet) {
     if (dataSet.length === 1) return dataSet[0];

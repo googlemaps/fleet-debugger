@@ -1,3 +1,5 @@
+// src/Utils.js
+
 class Utils {
   // If undefined defaults to false
   static isDebugEnabled = localStorage.getItem("debug") === "true";
