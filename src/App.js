@@ -606,7 +606,7 @@ class App extends React.Component {
       <div style={{ display: "flex", height: "100vh" }}>
         <div style={{ width: "70%", display: "flex", flexDirection: "column" }}>
           <div style={{ height: "33vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ flex: 1 }}>
+            <div className="map-container" style={{ flex: 1 }}>
               <Map
                 key={`map-${this.state.activeDatasetIndex}`}
                 logData={this.props.logData}

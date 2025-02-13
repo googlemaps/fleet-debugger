@@ -166,7 +166,11 @@ function processRawLogs(rawLogs, solutionType) {
         log("Updating last known location:", lastKnownState.location);
       }
 
-      if (currentRouteSegment) {
+      // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic.
+      if (_.get(newLog, `${vehiclePath}.navstatus`) == "NAVIGATION_STATUS_NO_GUIDANCE") {
+        lastKnownState.routeSegment = null;
+        lastKnownState.routeSegmentTraffic = null;
+      } else if (currentRouteSegment) {
         lastKnownState.routeSegment = currentRouteSegment;
         lastKnownState.routeSegmentTraffic = currentRouteSegmentTraffic;
         log("Updating last known route segment");
