@@ -1,31 +1,20 @@
-/*
- * LogTable.js
- *
- * Handles the log viewing component.
- */
+// src/LogTable.js
+
 import React, { useState } from "react";
 import { useSortBy, useTable } from "react-table";
 import { FixedSizeList as List } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import _ from "lodash";
 
-function Table({
-  columns,
-  data,
-  onSelectionChange,
-  listRef,
-  selectedRow,
-  centerOnLocation,
-}) {
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-    useTable(
-      {
-        columns,
-        data,
-        autoResetSortBy: false,
-      },
-      useSortBy
-    );
+function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerOnLocation }) {
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable(
+    {
+      columns,
+      data,
+      autoResetSortBy: false,
+    },
+    useSortBy
+  );
 
   const handleRowSelection = React.useCallback(
     (index, rowData) => {
@@ -60,25 +49,13 @@ function Table({
       };
 
       const handleLongPress = () => {
-        const lat = _.get(
-          row.original,
-          "lastlocationResponse.rawlocation.latitude"
-        );
-        const lng = _.get(
-          row.original,
-          "lastlocationResponse.rawlocation.longitude"
-        );
+        const lat = _.get(row.original, "lastlocationResponse.rawlocation.latitude");
+        const lng = _.get(row.original, "lastlocationResponse.rawlocation.longitude");
         if (lat && lng && centerOnLocation) {
-          console.log(
-            "Calling centerOnLocation due to long press with:",
-            lat,
-            lng
-          );
+          console.log("Calling centerOnLocation due to long press with:", lat, lng);
           centerOnLocation(lat, lng);
         } else {
-          console.log(
-            "Unable to center: Invalid coordinates or centerOnLocation not available"
-          );
+          console.log("Unable to center: Invalid coordinates or centerOnLocation not available");
         }
       };
 
@@ -137,16 +114,11 @@ function Table({
             <div {...getTableProps()}>
               <div>
                 {headerGroups.map((headerGroup) => (
-                  <div
-                    {...headerGroup.getHeaderGroupProps()}
-                    className="logtable-header-row"
-                  >
+                  <div {...headerGroup.getHeaderGroupProps()} className="logtable-header-row">
                     {headerGroup.headers.map((column) => (
                       <div
                         {...column.getHeaderProps()}
-                        className={`logtable-header-cell ${
-                          column.className || ""
-                        }`}
+                        className={`logtable-header-cell ${column.className || ""}`}
                         style={{ width: column.width }}
                       >
                         {column.render("Header")}
@@ -180,9 +152,7 @@ function LogTable(props) {
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const minTime = props.timeRange.minTime;
   const maxTime = props.timeRange.maxTime;
-  const data = props.logData.tripLogs
-    .getLogs_(new Date(minTime), new Date(maxTime))
-    .value();
+  const data = props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime)).value();
   const columnShortWidth = 50;
   const columnRegularWidth = 120;
   const columnLargeWidth = 150;
@@ -192,8 +162,7 @@ function LogTable(props) {
         {
           Header: "DayTime",
           accessor: "formattedDate",
-          Cell: ({ cell: { value } }) =>
-            value.substring(8, 10) + "T" + value.substring(11, 23),
+          Cell: ({ cell: { value } }) => value.substring(8, 10) + "T" + value.substring(11, 23),
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -201,12 +170,7 @@ function LogTable(props) {
         {
           Header: "Method",
           accessor: "@type",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell
-              value={value}
-              trim="type.googleapis.com/maps.fleetengine."
-            />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="type.googleapis.com/maps.fleetengine." />,
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -228,9 +192,7 @@ function LogTable(props) {
           Header: "Sensor",
           accessor: "lastlocation.rawlocationsensor",
           id: "lastlocation_rawlocationsensor",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="LOCATION_SENSOR_" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="LOCATION_SENSOR_" />,
           width: columnShortWidth,
           maxWidth: columnShortWidth,
           className: "logtable-cell",
@@ -240,9 +202,7 @@ function LogTable(props) {
           Header: "Location",
           accessor: "lastlocation.locationsensor",
           id: "lastlocation_locationsensor",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="_LOCATION_PROVIDER" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="_LOCATION_PROVIDER" />,
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -266,9 +226,7 @@ function LogTable(props) {
           Header: "Vehicle State",
           accessor: "response.vehiclestate",
           id: "response_vehiclestate",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="VEHICLE_STATE_" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="VEHICLE_STATE_" />,
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
@@ -276,9 +234,7 @@ function LogTable(props) {
         {
           Header: "Task State",
           accessor: "response.state",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="TASK_STATE_" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="TASK_STATE_" />,
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["LMFS"],
@@ -287,9 +243,7 @@ function LogTable(props) {
           Header: "Trip Status",
           accessor: "response.tripstatus",
           id: "response_tripstatus",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="TRIP_STATUS_" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="TRIP_STATUS_" />,
           width: columnLargeWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
@@ -298,9 +252,7 @@ function LogTable(props) {
           Header: "Remaining tasks",
           id: "reamining_tasks",
           accessor: "response.remainingvehiclejourneysegments",
-          Cell: ({ cell: { value } }) => (
-            <>{value && _.sumBy(value, "stop.tasks.length")}</>
-          ),
+          Cell: ({ cell: { value } }) => <>{value && _.sumBy(value, "stop.tasks.length")}</>,
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["LMFS"],
@@ -323,9 +275,7 @@ function LogTable(props) {
         {
           Header: "Nav Status",
           accessor: "navStatus",
-          Cell: ({ cell: { value } }) => (
-            <TrimCell value={value} trim="NAVIGATION_STATUS_" />
-          ),
+          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="NAVIGATION_STATUS_" />,
           width: columnLargeWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -348,8 +298,7 @@ function LogTable(props) {
     });
     const headers = [
       {
-        Header:
-          "Event Logs Table (click row to view full log entry and long click to also center map)",
+        Header: "Event Logs Table (click row to view full log entry and long click to also center map)",
         columns: stdColumns,
       },
     ];
@@ -367,9 +316,7 @@ function LogTable(props) {
   const focusOnRow = React.useCallback(
     (rowData) => {
       if (rowData && listRef.current) {
-        const rowIndex = data.findIndex(
-          (row) => row.timestamp === rowData.timestamp
-        );
+        const rowIndex = data.findIndex((row) => row.timestamp === rowData.timestamp);
         if (rowIndex !== -1) {
           listRef.current.scrollToItem(rowIndex, "center");
           setSelectedRowIndex(rowIndex);
@@ -404,6 +351,4 @@ const TrimCell = ({ value, trim }) => {
   return <>{value && value.replace(trim, "")}</>;
 };
 
-export default React.forwardRef((props, ref) => (
-  <LogTable {...props} ref={ref} />
-));
+export default React.forwardRef((props, ref) => <LogTable {...props} ref={ref} />);

@@ -1,4 +1,5 @@
-// TrafficPolyline.test.js
+// src/TrafficPolyline.test.js
+
 import { TRAFFIC_COLORS } from "./TrafficPolyline";
 
 // Mock turf due to module compatibility
@@ -55,9 +56,7 @@ describe("TrafficPolyline", () => {
     });
 
     expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(
-      TRAFFIC_COLORS.STYLE_NORMAL
-    );
+    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
   });
 
   test("creates NORMAL polylines when traffic data exists but no stretches", () => {
@@ -68,9 +67,7 @@ describe("TrafficPolyline", () => {
     });
 
     expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(
-      TRAFFIC_COLORS.STYLE_NORMAL
-    );
+    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
   });
 
   test("creates multiple polylines for different traffic segments", () => {
@@ -109,9 +106,7 @@ describe("TrafficPolyline", () => {
     });
 
     expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(
-      TRAFFIC_COLORS.STYLE_NO_DATA
-    );
+    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NO_DATA);
   });
 
   test("setMap updates all polylines", () => {

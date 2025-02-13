@@ -1,4 +1,5 @@
-// TrafficPolyline.js
+// src/TrafficPolyline.js
+
 import * as turf from "@turf/turf";
 import { log } from "./Utils";
 
@@ -37,24 +38,14 @@ export class TrafficPolyline {
       }
 
       // Add traveled route as NO_DATA if we have currentLatLng
-      if (
-        this.currentLatLng &&
-        this.currentLatLng.longitude &&
-        this.currentLatLng.latitude
-      ) {
-        const line = turf.lineString(
-          this.path.map((point) => [point.lng, point.lat])
-        );
-        const currentPoint = turf.point([
-          this.currentLatLng.longitude,
-          this.currentLatLng.latitude,
-        ]);
+      if (this.currentLatLng && this.currentLatLng.longitude && this.currentLatLng.latitude) {
+        const line = turf.lineString(this.path.map((point) => [point.lng, point.lat]));
+        const currentPoint = turf.point([this.currentLatLng.longitude, this.currentLatLng.latitude]);
         const startPoint = turf.point(line.geometry.coordinates[0]);
 
         try {
           const traveledLine = turf.lineSlice(startPoint, currentPoint, line);
-          const distanceInMeters =
-            turf.length(traveledLine, { units: "kilometers" }) * 1000;
+          const distanceInMeters = turf.length(traveledLine, { units: "kilometers" }) * 1000;
 
           // Add the traveled segment at the start of roadstretch array
           if (distanceInMeters > 0) {
@@ -86,20 +77,11 @@ export class TrafficPolyline {
         ];
       }
 
-      const line = turf.lineString(
-        this.path.map((point) => [point.lng, point.lat])
-      );
+      const line = turf.lineString(this.path.map((point) => [point.lng, point.lat]));
       const totalLength = turf.length(line, { units: "meters" });
-      const splitPoints = this.calculateSplitPoints(
-        trafficRendering.roadstretch,
-        totalLength
-      );
+      const splitPoints = this.calculateSplitPoints(trafficRendering.roadstretch, totalLength);
 
-      return this.createSegmentsData(
-        line,
-        splitPoints,
-        trafficRendering.roadstretch
-      );
+      return this.createSegmentsData(line, splitPoints, trafficRendering.roadstretch);
     } catch (error) {
       log("Error calculating segments:", error);
       return [
@@ -139,10 +121,7 @@ export class TrafficPolyline {
 
   getSegmentStyle(startDistance, roadStretches) {
     for (const stretch of roadStretches) {
-      if (
-        startDistance >= stretch.offsetmeters &&
-        startDistance < stretch.offsetmeters + stretch.lengthmeters
-      ) {
+      if (startDistance >= stretch.offsetmeters && startDistance < stretch.offsetmeters + stretch.lengthmeters) {
         return stretch.style;
       }
     }

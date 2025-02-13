@@ -1,70 +1,70 @@
 /* global.css */
 
 [class^="rc-slider-tooltip"] {
-    min-height: 30px;
-    max-width: 160px;
-    position: fixed;
-  }
+  min-height: 30px;
+  max-width: 160px;
+  position: fixed;
+}
 
-  .logtable-header-row,
-  .logtable-row {
-    display: flex;
-    width: 100%;
-  }
-  
-  .logtable-header-cell,
-  .logtable-cell {
-    flex: 0 0 auto;
-    padding: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-  }
-  
-  .logtable-header-row {
-    border-bottom: 1px solid black;
-  }
-  
-  .logtable-row {
-    border-bottom: 1px solid #eee;
-  }
-  
-  .logtable-row.selected {
-    background-color: #d0d0ff;
-  }
-  
-  .logtable-header-cell.short-column,
-  .logtable-cell.short-column {
-    width: 50px;
-  }
-  
-  .logtable-header-cell > *,
-  .logtable-cell > * {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+.logtable-header-row,
+.logtable-row {
+  display: flex;
+  width: 100%;
+}
 
-  .selected-event-indicator-container {
-    position: relative;
-    width: 0;
-    height: 0;
-  }
-  
-  .selected-event-indicator {
-    position: absolute;
-    top: -22px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-  
-  /* Ensure the mark text container doesn't clip our indicator */
-  .rc-slider-mark-text {
-    height: 30px;
-    overflow: visible;
-  }
+.logtable-header-cell,
+.logtable-cell {
+  flex: 0 0 auto;
+  padding: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.logtable-header-row {
+  border-bottom: 1px solid black;
+}
+
+.logtable-row {
+  border-bottom: 1px solid #eee;
+}
+
+.logtable-row.selected {
+  background-color: #d0d0ff;
+}
+
+.logtable-header-cell.short-column,
+.logtable-cell.short-column {
+  width: 50px;
+}
+
+.logtable-header-cell > *,
+.logtable-cell > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-event-indicator-container {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+.selected-event-indicator {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Ensure the mark text container doesn't clip our indicator */
+.rc-slider-mark-text {
+  height: 30px;
+  overflow: visible;
+}
 
 .map-button {
   padding: 8px 12px;
@@ -86,5 +86,3 @@
 .map-button:hover {
   background: #f1f1f1;
 }
-
-

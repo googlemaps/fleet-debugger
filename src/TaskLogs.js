@@ -1,5 +1,5 @@
 /*
- * TaskLogs.js
+ * src/TaskLogs.js
  *
  * Processes raw logs into task oriented logs where a single entry
  * contains all the information about a task.
@@ -18,10 +18,7 @@ class TaskLogs {
     _(logs)
       .filter(
         // TODO #133: response can be empty on errors -- we should highlight those rows!!
-        (le) =>
-          (le["@type"].match("createTask") ||
-            le["@type"].match("updateTask")) &&
-          le.response
+        (le) => (le["@type"].match("createTask") || le["@type"].match("updateTask")) && le.response
       )
       .forEach((le, taskIdx) => {
         const taskReq = le.request;
@@ -34,13 +31,7 @@ class TaskLogs {
             const taskId = match[1];
             let task = this.tasks[taskId];
             if (!task) {
-              task = this.tasks[taskId] = new Task(
-                le.date,
-                taskIdx,
-                taskId,
-                taskReq,
-                taskResp
-              );
+              task = this.tasks[taskId] = new Task(le.date, taskIdx, taskId, taskReq, taskResp);
             } else {
               task.addUpdate(le.date, taskReq, taskResp);
             }

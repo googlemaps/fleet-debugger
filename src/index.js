@@ -1,20 +1,10 @@
-/*
- * index.js
- */
+// src/index.js
+
 import ReactDOM from "react-dom";
 import App from "./App";
 import ServeHome from "./ServeHome";
 import { getQueryStringValue } from "./queryString";
-import {
-  tripLogs,
-  taskLogs,
-  loadData,
-  apikey,
-  mapId,
-  jwt,
-  projectId,
-  solutionType,
-} from "./vehicleData";
+import { tripLogs, taskLogs, loadData, apikey, mapId, jwt, projectId, solutionType } from "./vehicleData";
 
 console.log(`
   Detailed console logging is disabled by default.

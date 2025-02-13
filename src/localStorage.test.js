@@ -1,10 +1,7 @@
-// localStorage.test.js
+// src/localStorage.test.js
+
 import fs from "fs";
-import {
-  parseJsonContent,
-  removeEmptyObjects,
-  ensureCorrectFormat,
-} from "./localStorage";
+import { parseJsonContent, removeEmptyObjects, ensureCorrectFormat } from "./localStorage";
 
 // Helper function to load test data
 function loadTestData(filename) {
@@ -82,10 +79,7 @@ test("ensureCorrectFormat merges restricted attributes", () => {
   };
 
   const result = ensureCorrectFormat([parentLog, restrictedLog]);
-  expect(result.rawLogs[0].jsonPayload.request.waypoints).toStrictEqual([
-    "point1",
-    "point2",
-  ]);
+  expect(result.rawLogs[0].jsonPayload.request.waypoints).toStrictEqual(["point1", "point2"]);
   expect(result.rawLogs.length).toBe(1);
 });
 
@@ -105,8 +99,7 @@ test("ensureCorrectFormat merges non top level vehicle restricted attributes", (
 
   const restrictedLog = {
     jsonPayload: {
-      "@type":
-        "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleRestrictedLog",
+      "@type": "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleRestrictedLog",
       parentInsertId: "parent",
       request: {
         vehicle: {
@@ -130,20 +123,12 @@ test("ensureCorrectFormat merges non top level vehicle restricted attributes", (
   expect(result.rawLogs.length).toBe(1);
 
   // Verify vehicle attributes are merged correctly
-  expect(
-    result.rawLogs[0].jsonPayload.request.vehicle.currentRouteSegment
-  ).toBe("testSegment123");
+  expect(result.rawLogs[0].jsonPayload.request.vehicle.currentRouteSegment).toBe("testSegment123");
 
   // Verify direct response attributes are merged
-  expect(result.rawLogs[0].jsonPayload.response.currentRouteSegment).toBe(
-    "responseSegment456"
-  );
-  expect(
-    result.rawLogs[0].jsonPayload.response.waypoints[0].encodedPathToWaypoint
-  ).toBe("encodedPath789");
+  expect(result.rawLogs[0].jsonPayload.response.currentRouteSegment).toBe("responseSegment456");
+  expect(result.rawLogs[0].jsonPayload.response.waypoints[0].encodedPathToWaypoint).toBe("encodedPath789");
 
   // Verify original vehicle attributes are preserved
-  expect(result.rawLogs[0].jsonPayload.request.vehicle.name).toBe(
-    "test-vehicle"
-  );
+  expect(result.rawLogs[0].jsonPayload.request.vehicle.name).toBe("test-vehicle");
 });

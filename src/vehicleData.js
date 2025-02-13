@@ -1,5 +1,5 @@
 /*
- * vehicleData.js
+ * src/vehicleData.js
  *
  * Load raw log data for easier consumption by other components.
  */
@@ -35,10 +35,7 @@ async function loadData() {
       const response = await fetch(dataFileName);
       parsedData = await response.json();
     } catch (error) {
-      console.info(
-        `Failed to load data from ${dataFileName}. Using default values.`,
-        error
-      );
+      console.info(`Failed to load data from ${dataFileName}. Using default values.`, error);
     }
   }
 
@@ -54,13 +51,4 @@ async function loadData() {
   }
 }
 
-export {
-  loadData,
-  tripLogs,
-  taskLogs,
-  apikey,
-  mapId,
-  jwt,
-  projectId,
-  solutionType,
-};
+export { loadData, tripLogs, taskLogs, apikey, mapId, jwt, projectId, solutionType };

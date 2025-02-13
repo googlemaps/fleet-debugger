@@ -1,5 +1,5 @@
 /*
- * TimeSlider.js
+ * src/TimeSlider.js
  *
  * Provides a time-based visualaziton of key events (vehicle status changes) as well
  * as filtering control for the log viewer & map view.
@@ -38,20 +38,8 @@ function TimeSlider(props) {
         style: {},
         label: (
           <div className="selected-event-indicator-container">
-            <svg
-              className="selected-event-indicator"
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-            >
-              <circle
-                cx="10"
-                cy="10"
-                r="8"
-                fill="red"
-                stroke="white"
-                strokeWidth="2"
-              />
+            <svg className="selected-event-indicator" width="20" height="20" viewBox="0 0 20 20">
+              <circle cx="10" cy="10" r="8" fill="red" stroke="white" strokeWidth="2" />
             </svg>
           </div>
         ),

@@ -1,8 +1,5 @@
-/*
- * MissingUpdate.js
- *
- * Representation of a missing update
- */
+// src/MissingUpdate.js
+
 import _ from "lodash";
 const updateOutlier = 60000; // 60 seconds
 import Stats from "./Stats";

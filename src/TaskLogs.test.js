@@ -1,3 +1,5 @@
+// src/TaskLogs.test.js
+
 import TripLogs from "./TripLogs";
 import TaskLogs from "./TaskLogs";
 import fs from "fs";
@@ -21,10 +23,7 @@ function haversineDistanceMeters(coords1, coords2) {
   let dLon = toRad(x2);
   let a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   let d = R * c;
 
@@ -87,22 +86,7 @@ test("basic lmfs task log loading", async () => {
   expect(
     taskLogs
       .getTasks()
-      .map(
-        (t) =>
-          t.plannedVsActualDeltaMeters && parseInt(t.plannedVsActualDeltaMeters)
-      )
+      .map((t) => t.plannedVsActualDeltaMeters && parseInt(t.plannedVsActualDeltaMeters))
       .value()
-  ).toStrictEqual([
-    43,
-    57,
-    40,
-    21,
-    undefined,
-    283,
-    undefined,
-    25,
-    undefined,
-    30,
-    108,
-  ]);
+  ).toStrictEqual([43, 57, 40, 21, undefined, 283, undefined, 25, undefined, 30, 108]);
 });

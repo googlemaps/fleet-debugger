@@ -1,4 +1,4 @@
-// localStorage.js
+// src/localStorage.js
 
 import JSZip from "jszip";
 import { DEFAULT_API_KEY } from "./constants";
@@ -35,9 +35,7 @@ export async function uploadFile(file, index) {
   } else if (file.name.endsWith(".json")) {
     parsedData = await processJsonFile(file);
   } else {
-    throw new Error(
-      "Unsupported file format. Please upload a ZIP or JSON file."
-    );
+    throw new Error("Unsupported file format. Please upload a ZIP or JSON file.");
   }
 
   parsedData = ensureCorrectFormat(parsedData);
@@ -49,9 +47,7 @@ export async function uploadFile(file, index) {
 async function processZipFile(file) {
   const zip = new JSZip();
   const contents = await zip.loadAsync(file);
-  const jsonFile = Object.values(contents.files).find((file) =>
-    file.name.endsWith(".json")
-  );
+  const jsonFile = Object.values(contents.files).find((file) => file.name.endsWith(".json"));
   if (!jsonFile) {
     throw new Error("No JSON file found in the ZIP archive");
   }
@@ -139,8 +135,7 @@ export function ensureCorrectFormat(data) {
               log.jsonPayload[section][attr] = restrictedLog[section][attr];
             }
             if (restrictedLog[section].vehicle?.[attr] !== undefined) {
-              log.jsonPayload[section].vehicle[attr] =
-                restrictedLog[section].vehicle[attr];
+              log.jsonPayload[section].vehicle[attr] = restrictedLog[section].vehicle[attr];
             }
           });
         }
@@ -150,9 +145,7 @@ export function ensureCorrectFormat(data) {
   });
 
   // Determine the solution type based on the presence of _delivery_vehicle logs
-  const isLMFS = mergedLogs.some((log) =>
-    log.logName?.includes("_delivery_vehicle")
-  );
+  const isLMFS = mergedLogs.some((log) => log.logName?.includes("_delivery_vehicle"));
   const solutionType = isLMFS ? "LMFS" : "ODRD";
   console.log(`Determined solution type: ${solutionType}`);
 
@@ -184,8 +177,7 @@ export async function getUploadedData(index) {
   return new Promise((resolve, reject) => {
     const request = store.get(`uploadedData${index}`);
     request.onerror = () => reject(request.error);
-    request.onsuccess = () =>
-      resolve(request.result ? request.result.data : null);
+    request.onsuccess = () => resolve(request.result ? request.result.data : null);
   });
 }
 

@@ -1,8 +1,5 @@
-/*
- * HighVelocityJump.js
- *
- * Representation of a HighVelocityJump
- */
+// src/HighVelocityJump.js
+
 import _ from "lodash";
 const velocityOutlier = 68; // true velocities higher than this unlikely (in Meters/sec aprrox 150 MPH)
 import Stats from "./Stats";
@@ -21,11 +18,7 @@ class HighVelocityJump {
       lng: curLoc.rawlocation.longitude,
     });
 
-    const distanceTraveled =
-      window.google.maps.geometry.spherical.computeDistanceBetween(
-        startLoc,
-        endLoc
-      );
+    const distanceTraveled = window.google.maps.geometry.spherical.computeDistanceBetween(startLoc, endLoc);
     const timeSpentMS = curEntry.date - prevEntry.date;
     const velocity = distanceTraveled / (timeSpentMS / 1000.0);
 
@@ -95,9 +88,7 @@ class HighVelocityJump {
     const velocities = jumps.map((jump) => jump.velocity);
     const avgVelocity = _.mean(velocities);
     const medianVelocity = Stats.median(velocities);
-    const stdDevVelocity = Math.sqrt(
-      _.mean(velocities.map((v) => Math.pow(v - avgVelocity, 2)))
-    );
+    const stdDevVelocity = Math.sqrt(_.mean(velocities.map((v) => Math.pow(v - avgVelocity, 2))));
 
     console.log("avgVelocity", avgVelocity);
     console.log("medianVelocity", medianVelocity);
@@ -107,15 +98,11 @@ class HighVelocityJump {
     // 1. Its velocity is greater than the median + 2 standard deviations
     // 2. OR its velocity is greater than velocityOutlier (150 MPH)
     // 3. AND the distance traveled is more than 1 meter
-    const significantThreshold = Math.min(
-      medianVelocity + 2 * stdDevVelocity,
-      velocityOutlier
-    );
+    const significantThreshold = Math.min(medianVelocity + 2 * stdDevVelocity, velocityOutlier);
 
     const significantJumps = jumps.filter(
       (jump) =>
-        (jump.velocity > significantThreshold ||
-          jump.velocity > velocityOutlier) &&
+        (jump.velocity > significantThreshold || jump.velocity > velocityOutlier) &&
         jump.distanceTraveled > 1 &&
         jump.timeSpentMS > 0 // Ensure we're not dividing by zero
     );
