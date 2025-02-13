@@ -33,8 +33,7 @@ function toLowerKeys(input) {
   if (Array.isArray(input)) return input.map(toLowerKeys);
   return Object.keys(input).reduce((newObj, key) => {
     let val = input[key];
-    let newVal =
-      typeof val === "object" && val !== null ? toLowerKeys(val) : val;
+    let newVal = typeof val === "object" && val !== null ? toLowerKeys(val) : val;
     newObj[key.toLowerCase()] = newVal;
     return newObj;
   }, {});
@@ -71,10 +70,38 @@ function processApiCall(origLog) {
     }
   }
 
-  console.warn(
-    `Could not find API call type for log entry: ${JSON.stringify(origLog)}`
-  );
+  console.warn(`Could not find API call type for log entry: ${JSON.stringify(origLog)}`);
   return null;
+}
+
+function adjustFieldFormats(solutionType, newLog) {
+  adjustFieldFormat(newLog, "request.vehicle.state", "request.vehicle.vehiclestate", "VEHICLE_STATE_");
+  adjustFieldFormat(
+    newLog,
+    "request.vehicle.lastlocation.locsensor",
+    "request.vehicle.lastlocation.locationsensor",
+    "LOCATION_SENSOR_"
+  );
+  adjustFieldFormat(
+    newLog,
+    "request.vehicle.lastlocation.bearingaccuracy",
+    "request.vehicle.lastlocation.headingaccuracy"
+  );
+  adjustFieldFormat(newLog, "response.vehicletype.vehiclecategory", "response.vehicletype.category");
+  adjustFieldFormat(newLog, "response.supportedtrips", "response.supportedtriptypes", "_TRIP");
+  adjustFieldFormat(newLog, "response.navigationstatus", "response.navigationstatus", "NAVIGATION_STATUS_");
+  adjustFieldFormat(newLog, "response.navstatus", "response.navigationstatus", "NAVIGATION_STATUS_");
+  adjustFieldFormat(
+    newLog,
+    "response.lastlocation.locsensor",
+    "response.lastlocation.locationsensor",
+    "LOCATION_SENSOR_"
+  );
+  adjustFieldFormat(newLog, "response.status", "response.tripstatus", "TRIP_STATUS_");
+
+  if (solutionType === "ODRD") {
+    adjustFieldFormat(newLog, "response.state", "response.vehiclestate", "VEHICLE_STATE_");
+  }
 }
 
 function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
@@ -82,14 +109,9 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
   if (origVal) {
     let newVal;
     if (Array.isArray(origVal)) {
-      newVal = origVal.map((val) =>
-        typeof val === "string" ? val.replace(stringToTrim, "") : val
-      );
+      newVal = origVal.map((val) => (typeof val === "string" ? val.replace(stringToTrim, "") : val));
     } else {
-      newVal =
-        typeof origVal === "string"
-          ? origVal.replace(stringToTrim, "")
-          : origVal;
+      newVal = typeof origVal === "string" ? origVal.replace(stringToTrim, "") : origVal;
     }
     _.unset(log, origPath);
     _.set(log, newPath, newVal);
@@ -100,17 +122,20 @@ function processRawLogs(rawLogs, solutionType) {
   log(`Processing ${rawLogs.length} raw logs for ${solutionType}`);
   const origLogs = rawLogs.map(toLowerKeys);
   const isReversed =
-    origLogs.length > 1 &&
-    new Date(origLogs[0].timestamp) >
-      new Date(origLogs[origLogs.length - 1].timestamp);
+    origLogs.length > 1 && new Date(origLogs[0].timestamp) > new Date(origLogs[origLogs.length - 1].timestamp);
   log(`Raw logs are ${isReversed ? "reversed" : "chronological"}`);
 
   let sortedLogs = isReversed ? _.reverse(origLogs) : origLogs;
   let newLogs = [];
-  let lastKnownLocation = null;
-  let lastKnownHeading = 0;
-  const vehiclePath =
-    solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
+
+  const lastKnownState = {
+    location: null,
+    heading: 0,
+    routeSegment: null,
+    routeSegmentTraffic: null,
+  };
+
+  const vehiclePath = solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
 
   for (let idx = 0; idx < sortedLogs.length; idx++) {
     const origLog = sortedLogs[idx];
@@ -128,78 +153,35 @@ function processRawLogs(rawLogs, solutionType) {
       newLog.response = apiCall.response;
       newLog.error = apiCall.error;
 
-      adjustFieldFormat(
-        newLog,
-        "request.vehicle.state",
-        "request.vehicle.vehiclestate",
-        "VEHICLE_STATE_"
-      );
-      adjustFieldFormat(
-        newLog,
-        "request.vehicle.lastlocation.locsensor",
-        "request.vehicle.lastlocation.locationsensor",
-        "LOCATION_SENSOR_"
-      );
-      adjustFieldFormat(
-        newLog,
-        "request.vehicle.lastlocation.bearingaccuracy",
-        "request.vehicle.lastlocation.headingaccuracy"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.vehicletype.vehiclecategory",
-        "response.vehicletype.category"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.supportedtrips",
-        "response.supportedtriptypes",
-        "_TRIP"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.navigationstatus",
-        "response.navigationstatus",
-        "NAVIGATION_STATUS_"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.navstatus",
-        "response.navigationstatus",
-        "NAVIGATION_STATUS_"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.lastlocation.locsensor",
-        "response.lastlocation.locationsensor",
-        "LOCATION_SENSOR_"
-      );
-      adjustFieldFormat(
-        newLog,
-        "response.status",
-        "response.tripstatus",
-        "TRIP_STATUS_"
-      );
+      adjustFieldFormats(solutionType, newLog);
 
-      if (solutionType === "ODRD") {
-        adjustFieldFormat(
-          newLog,
-          "response.state",
-          "response.vehiclestate",
-          "VEHICLE_STATE_"
-        );
+      // Update last known location, heading, traffic
+      const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
+      const currentRouteSegment = _.get(newLog, `${vehiclePath}.currentroutesegment`);
+      const currentRouteSegmentTraffic = _.get(newLog, `${vehiclePath}.currentroutesegmenttraffic`);
+
+      if (currentLocation?.rawlocation) {
+        lastKnownState.location = currentLocation.rawlocation;
+        lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
+        log("Updating last known location:", lastKnownState.location);
       }
 
-      // Creating lastlocation for trip rows so that these still show the last known car marker
-      const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
-      if (currentLocation?.rawlocation) {
-        lastKnownLocation = currentLocation.rawlocation;
-        lastKnownHeading = currentLocation.heading;
-      } else if (lastKnownLocation) {
-        _.set(newLog, `${vehiclePath}.lastlocation`, {
-          rawlocation: lastKnownLocation,
-          heading: lastKnownHeading,
-        });
+      if (currentRouteSegment) {
+        lastKnownState.routeSegment = currentRouteSegment;
+        lastKnownState.routeSegmentTraffic = currentRouteSegmentTraffic;
+        log("Updating last known route segment");
+      }
+
+      // Apply last known state to a log entry
+      const basePath = `${vehiclePath}.lastlocation`;
+      if (!_.get(newLog, `${basePath}.rawlocation`) && lastKnownState.location) {
+        _.set(newLog, `${basePath}.rawlocation`, lastKnownState.location);
+        _.set(newLog, `${basePath}.heading`, lastKnownState.heading);
+      }
+
+      if (!_.get(newLog, `${vehiclePath}.currentroutesegment`) && lastKnownState.routeSegment) {
+        _.set(newLog, `${basePath}.currentroutesegment`, lastKnownState.routeSegment);
+        _.set(newLog, `${basePath}.currentroutesegmenttraffic`, lastKnownState.routeSegmentTraffic);
       }
 
       newLogs.push(newLog);
@@ -212,18 +194,13 @@ function processRawLogs(rawLogs, solutionType) {
 
 class TripLogs {
   constructor(rawLogs, solutionType) {
-    log(
-      `Initializing TripLogs with ${rawLogs.length} raw logs for ${solutionType}`
-    );
+    log(`Initializing TripLogs with ${rawLogs.length} raw logs for ${solutionType}`);
     this.initialize(rawLogs, solutionType);
   }
 
   initialize(rawLogs, solutionType) {
     this.solutionType = solutionType;
-    this.vehiclePath =
-      this.solutionType === "LMFS"
-        ? "request.deliveryvehicle"
-        : "request.vehicle";
+    this.vehiclePath = this.solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
     this.trip_ids = [];
     this.trips = [];
     this.tripStatusChanges = [];
@@ -265,27 +242,20 @@ class TripLogs {
     }
 
     this.processTripSegments();
-    this.debouncedGetHighVelocityJumps = _.debounce(
-      (minDate, maxDate, callback) => {
-        log("debouncedGetHighVelocityJumps executing");
-        const jumps = this.getHighVelocityJumps(minDate, maxDate);
-        log(`debouncedGetHighVelocityJumps found ${jumps.length} jumps`);
-        callback(jumps);
-      },
-      300
-    );
+    this.debouncedGetHighVelocityJumps = _.debounce((minDate, maxDate, callback) => {
+      log("debouncedGetHighVelocityJumps executing");
+      const jumps = this.getHighVelocityJumps(minDate, maxDate);
+      log(`debouncedGetHighVelocityJumps found ${jumps.length} jumps`);
+      callback(jumps);
+    }, 300);
 
-    console.log(
-      `TripLogs initialization complete. ${this.trips.length} trips processed.`
-    );
+    console.log(`TripLogs initialization complete. ${this.trips.length} trips processed.`);
   }
 
   getRawLogs_(minDate, maxDate) {
     minDate = minDate || this.minDate;
     maxDate = maxDate || this.maxDate;
-    return _(this.rawLogs).filter(
-      (le) => le.date >= minDate && le.date <= maxDate
-    );
+    return _(this.rawLogs).filter((le) => le.date >= minDate && le.date <= maxDate);
   }
 
   getLogs_(minDate, maxDate) {
@@ -349,11 +319,7 @@ class TripLogs {
     log(`Getting ETA deltas between ${minDate} and ${maxDate}`);
     let prevEntry;
     this.etaDeltas = this.getRawLogs_(minDate, maxDate)
-      .filter(
-        (le) =>
-          _.get(le, this.vehiclePath + ".etatofirstwaypoint") &&
-          _.get(le, "lastlocation.rawlocation")
-      )
+      .filter((le) => _.get(le, this.vehiclePath + ".etatofirstwaypoint") && _.get(le, "lastlocation.rawlocation"))
       .map((curEntry) => {
         let ret;
         if (prevEntry) {
@@ -427,12 +393,7 @@ class TripLogs {
     const dwellLocations = [];
     _.forEach(this.rawLogs, (le) => {
       const lastLocation = le.lastlocation;
-      if (
-        !lastLocation ||
-        !lastLocation.rawlocation ||
-        le.date < minDate ||
-        le.date > maxDate
-      ) {
+      if (!lastLocation || !lastLocation.rawlocation || le.date < minDate || le.date > maxDate) {
         return;
       }
       const coord = {
@@ -459,20 +420,14 @@ class TripLogs {
       }
     });
 
-    this.dwellLocations = _.filter(
-      dwellLocations,
-      (dl) => dl.updates >= requiredUpdatesForDwell
-    );
+    this.dwellLocations = _.filter(dwellLocations, (dl) => dl.updates >= requiredUpdatesForDwell);
     console.log(`Found ${this.dwellLocations.length} dwell locations`);
     return this.dwellLocations;
   }
 
   getSegmentID(logEntry) {
     if (this.solutionType === "LMFS") {
-      const stopsLeft = _.get(
-        logEntry,
-        "response.remainingvehiclejourneysegments"
-      );
+      const stopsLeft = _.get(logEntry, "response.remainingvehiclejourneysegments");
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
       const currentTrips = _.get(logEntry, "response.currenttrips");
@@ -494,16 +449,11 @@ class TripLogs {
     // if this is a good assumption, but it might be worth it to call out
     // places where it happens (since that might actually be a client bug).
     _.forEach(this.rawLogs, (le) => {
-      if (
-        le["@type"] === "updateVehicle" ||
-        le["@type"] === "updateDeliveryVehicle"
-      ) {
+      if (le["@type"] === "updateVehicle" || le["@type"] === "updateDeliveryVehicle") {
         const newTripId = this.getSegmentID(le);
         if (newTripId !== curTripId) {
           curTripId = newTripId;
-          const tripName = newTripId
-            ? newTripId
-            : "non-trip-segment-" + nonTripIdx;
+          const tripName = newTripId ? newTripId : "non-trip-segment-" + nonTripIdx;
           curTripData = new Trip(tripIdx, tripName, new Date(le.timestamp));
           this.trips.push(curTripData);
           this.trip_ids.push(curTripData.tripName);
@@ -512,17 +462,13 @@ class TripLogs {
           if (newTripId === undefined) {
             nonTripIdx++;
           }
-          const plannedPath = _.get(
-            le,
-            "response.remainingvehiclejourneysegments[0].path"
-          );
+          const plannedPath = _.get(le, "response.remainingvehiclejourneysegments[0].path");
           if (plannedPath && plannedPath.length > 0) {
             curTripData.setPlannedPath(plannedPath, le.timestamp);
           }
         } else {
           curTripData.lastUpdate = new Date(le.timestamp);
-          curTripData.tripDuration =
-            curTripData.lastUpdate - curTripData.firstUpdate;
+          curTripData.tripDuration = curTripData.lastUpdate - curTripData.firstUpdate;
           curTripData.updateRequests++;
         }
         const lastLocation = le.lastlocation;

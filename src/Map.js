@@ -115,11 +115,10 @@ function initializeMapObject(element) {
     return authToken;
   }
 
-  locationProvider =
-    new google.maps.journeySharing.FleetEngineTripLocationProvider({
-      projectId,
-      authTokenFetcher,
-    });
+  locationProvider = new google.maps.journeySharing.FleetEngineTripLocationProvider({
+    projectId,
+    authTokenFetcher,
+  });
   const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
     element: element,
     locationProvider,
@@ -200,10 +199,9 @@ function MyMapComponent(props) {
     setPolylines(polylines.filter((p) => !p.isRouteSegment));
 
     // Get the current route segment from the selected row
-    const routeSegment = _.get(
-      props.selectedRow,
-      "request.vehicle.currentroutesegment"
-    );
+    const routeSegment =
+      _.get(props.selectedRow, "request.vehicle.currentroutesegment") ||
+      _.get(props.selectedRow, "lastlocation.currentroutesegment");
 
     if (routeSegment) {
       log("Processing new route segment polyline:", {
@@ -226,15 +224,11 @@ function MyMapComponent(props) {
             lastPoint: validWaypoints[validWaypoints.length - 1],
           });
 
-          const trafficRendering = _.get(
-            props.selectedRow,
-            "request.vehicle.currentroutesegmenttraffic.trafficrendering"
-          );
+          const trafficRendering =
+            _.get(props.selectedRow, "request.vehicle.currentroutesegmenttraffic.trafficrendering") ||
+            _.get(props.selectedRow, "lastlocation.currentroutesegmenttraffic.trafficrendering");
 
-          const rawLocation = _.get(
-            props.selectedRow.lastlocation,
-            "rawlocation"
-          );
+          const rawLocation = _.get(props.selectedRow.lastlocation, "rawlocation");
 
           const trafficPolyline = new TrafficPolyline({
             path: validWaypoints,
@@ -256,9 +250,7 @@ function MyMapComponent(props) {
   }, [props.selectedRow, map]);
 
   const handlePolylineSubmit = (waypoints, properties) => {
-    const path = waypoints.map(
-      (wp) => new google.maps.LatLng(wp.latitude, wp.longitude)
-    );
+    const path = waypoints.map((wp) => new google.maps.LatLng(wp.latitude, wp.longitude));
 
     const arrowIcon = {
       path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
@@ -287,11 +279,9 @@ function MyMapComponent(props) {
     polyline.setMap(map);
     setPolylines([...polylines, polyline]);
     log(
-      `Polyline ${polylines.length + 1} created with color: ${
-        properties.color
-      }, opacity: ${properties.opacity}, stroke weight: ${
-        properties.strokeWeight
-      }`
+      `Polyline ${polylines.length + 1} created with color: ${properties.color}, opacity: ${
+        properties.opacity
+      }, stroke weight: ${properties.strokeWeight}`
     );
   };
 
@@ -411,14 +401,7 @@ function getPolyBounds(bounds, p) {
  * Colors were chosen for visibility
  */
 function getColor(tripIdx) {
-  const colors = [
-    "#2d7dd2",
-    "#97cc04",
-    "#eeb902",
-    "#f45d01",
-    "#474647",
-    "00aa00",
-  ];
+  const colors = ["#2d7dd2", "#97cc04", "#eeb902", "#f45d01", "#474647", "00aa00"];
   return colors[tripIdx % colors.length];
 }
 
@@ -450,12 +433,7 @@ function Map(props) {
   props.setCenterOnLocation(centerOnLocation);
 
   return (
-    <Wrapper
-      apiKey={apikey}
-      render={render}
-      version="beta"
-      libraries={["geometry", "journeySharing"]}
-    >
+    <Wrapper apiKey={apikey} render={render} version="beta" libraries={["geometry", "journeySharing"]}>
       <MyMapComponent
         rangeStart={props.rangeStart}
         rangeEnd={props.rangeEnd}
@@ -506,52 +484,49 @@ function GenerateBubbles(bubbleName, cb) {
  * Draws circles on map with a radius equal to the
  * GPS accuracy.
  */
-toggleHandlers["showGPSBubbles"] = GenerateBubbles(
-  "showGPSBubbles",
-  (rawLocationLatLng, lastLocation) => {
-    let color;
-    switch (lastLocation.locationsensor) {
-      case "GPS":
-        color = "#11FF11";
-        break;
-      case "NETWORK":
-        color = "#FF1111";
-        break;
-      case "PASSIVE":
-        color = "#FF0000";
-        break;
-      case "ROAD_SNAPPED_LOCATION_PROVIDER":
-        color = "#00FF00";
-        break;
-      case "FUSED_LOCATION_PROVIDER":
-        color = "#11FF11";
-        break;
-      case "LOG_UNSPECIFIED":
-      default:
-        color = "#000000";
-    }
-    const accuracy = lastLocation.rawlocationaccuracy;
-    if (accuracy) {
-      let circ = new google.maps.Circle({
-        strokeColor: color,
-        strokeOpacity: 0.6,
-        strokeWeight: 2,
-        fillColor: color,
-        fillOpacity: 0.2,
-        map,
-        center: rawLocationLatLng,
-        radius: accuracy, // units is this actually meters?
-      });
-      google.maps.event.addListener(circ, "mouseover", () => {
-        setFeaturedObject({
-          rawlocationaccuracy: lastLocation.rawlocationaccuracy,
-          locationsensor: lastLocation.locationsensor,
-        });
-      });
-      return circ;
-    }
+toggleHandlers["showGPSBubbles"] = GenerateBubbles("showGPSBubbles", (rawLocationLatLng, lastLocation) => {
+  let color;
+  switch (lastLocation.locationsensor) {
+    case "GPS":
+      color = "#11FF11";
+      break;
+    case "NETWORK":
+      color = "#FF1111";
+      break;
+    case "PASSIVE":
+      color = "#FF0000";
+      break;
+    case "ROAD_SNAPPED_LOCATION_PROVIDER":
+      color = "#00FF00";
+      break;
+    case "FUSED_LOCATION_PROVIDER":
+      color = "#11FF11";
+      break;
+    case "LOG_UNSPECIFIED":
+    default:
+      color = "#000000";
   }
-);
+  const accuracy = lastLocation.rawlocationaccuracy;
+  if (accuracy) {
+    let circ = new google.maps.Circle({
+      strokeColor: color,
+      strokeOpacity: 0.6,
+      strokeWeight: 2,
+      fillColor: color,
+      fillOpacity: 0.2,
+      map,
+      center: rawLocationLatLng,
+      radius: accuracy, // units is this actually meters?
+    });
+    google.maps.event.addListener(circ, "mouseover", () => {
+      setFeaturedObject({
+        rawlocationaccuracy: lastLocation.rawlocationaccuracy,
+        locationsensor: lastLocation.locationsensor,
+      });
+    });
+    return circ;
+  }
+});
 
 /*
  * Draws circles on map with a radius equal to the
@@ -560,16 +535,12 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles(
 toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
   "showClientServerTimeDeltas",
   (rawLocationLatLng, lastLocation, logEntry) => {
-    const clientTimeStr = _.get(
-      logEntry.lastlocationResponse,
-      "rawlocationtime"
-    );
+    const clientTimeStr = _.get(logEntry.lastlocationResponse, "rawlocationtime");
     const serverTimeStr = _.get(logEntry.lastlocationResponse, "servertime");
     if (clientTimeStr && serverTimeStr) {
       const clientDate = new Date(clientTimeStr);
       const serverDate = new Date(serverTimeStr);
-      const timeDeltaSeconds =
-        Math.abs(clientDate.getTime() - serverDate.getTime()) / 1000;
+      const timeDeltaSeconds = Math.abs(clientDate.getTime() - serverDate.getTime()) / 1000;
       let color;
       if (clientDate > serverDate) {
         color = "#0000F0";
@@ -603,88 +574,72 @@ toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
  * Draws arrows on map showing the measured heading
  * of the vehicle (ie which direction vehicle was traveling
  */
-toggleHandlers["showHeading"] = GenerateBubbles(
-  "showHeading",
-  (rawLocationLatLng, lastLocation, logEntry) => {
-    // Note: Heading & accuracy are only on the _request_ not the
-    // response.
-    const heading = _.get(logEntry.lastlocation, "heading");
-    const accuracy = _.get(logEntry.lastlocation, "headingaccuracy");
+toggleHandlers["showHeading"] = GenerateBubbles("showHeading", (rawLocationLatLng, lastLocation, logEntry) => {
+  // Note: Heading & accuracy are only on the _request_ not the
+  // response.
+  const heading = _.get(logEntry.lastlocation, "heading");
+  const accuracy = _.get(logEntry.lastlocation, "headingaccuracy");
 
-    // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
-    const arrowLength = 20; // meters??
-    if (!(heading && accuracy)) {
-      return;
-    }
-    const headingLine = new google.maps.Polyline({
-      strokeColor: "#0000F0",
-      strokeOpacity: 0.6,
-      strokeWeight: 2,
-      icons: [
-        {
-          icon: {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            strokeColor: "#0000FF",
-            strokeWeight: 4,
-          },
-          offset: "100%",
-        },
-      ],
-      map,
-      path: [
-        rawLocationLatLng,
-        google.maps.geometry.spherical.computeOffset(
-          rawLocationLatLng,
-          arrowLength,
-          heading
-        ),
-      ],
-    });
-    google.maps.event.addListener(headingLine, "click", () => {
-      // TODO: allow updating panorama based on forward/back
-      // stepper buttons (ie at each updatevehicle log we have a heading)
-      panorama = new google.maps.StreetViewPanorama(
-        document.getElementById("map"),
-        {
-          position: rawLocationLatLng,
-          pov: { heading: heading, pitch: 10 },
-          addressControlOptions: {
-            position: google.maps.ControlPosition.BOTTOM_CENTER,
-          },
-          linksControl: false,
-          panControl: false,
-          enableCloseButton: true,
-        }
-      );
-      console.log("loaded panorama", panorama);
-    });
-    return headingLine;
+  // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
+  const arrowLength = 20; // meters??
+  if (!(heading && accuracy)) {
+    return;
   }
-);
+  const headingLine = new google.maps.Polyline({
+    strokeColor: "#0000F0",
+    strokeOpacity: 0.6,
+    strokeWeight: 2,
+    icons: [
+      {
+        icon: {
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          strokeColor: "#0000FF",
+          strokeWeight: 4,
+        },
+        offset: "100%",
+      },
+    ],
+    map,
+    path: [rawLocationLatLng, google.maps.geometry.spherical.computeOffset(rawLocationLatLng, arrowLength, heading)],
+  });
+  google.maps.event.addListener(headingLine, "click", () => {
+    // TODO: allow updating panorama based on forward/back
+    // stepper buttons (ie at each updatevehicle log we have a heading)
+    panorama = new google.maps.StreetViewPanorama(document.getElementById("map"), {
+      position: rawLocationLatLng,
+      pov: { heading: heading, pitch: 10 },
+      addressControlOptions: {
+        position: google.maps.ControlPosition.BOTTOM_CENTER,
+      },
+      linksControl: false,
+      panControl: false,
+      enableCloseButton: true,
+    });
+    console.log("loaded panorama", panorama);
+  });
+  return headingLine;
+});
 
 /*
  * Draws circles on the map. Color indicates vehicle speed at that
  * location.
  */
-toggleHandlers["showSpeed"] = GenerateBubbles(
-  "showSpeed",
-  (rawLocationLatLng, lastLocation) => {
-    const speed = lastLocation.speed;
-    if (lastLocation.speed === undefined) {
-      return;
-    }
-    const color = speed < 0 ? "#FF0000" : "#00FF00";
-    return new google.maps.Circle({
-      strokeColor: color,
-      strokeOpacity: 0.5,
-      fillColor: color,
-      fillOpacity: 0.5,
-      map,
-      center: rawLocationLatLng,
-      radius: Math.abs(speed),
-    });
+toggleHandlers["showSpeed"] = GenerateBubbles("showSpeed", (rawLocationLatLng, lastLocation) => {
+  const speed = lastLocation.speed;
+  if (lastLocation.speed === undefined) {
+    return;
   }
-);
+  const color = speed < 0 ? "#FF0000" : "#00FF00";
+  return new google.maps.Circle({
+    strokeColor: color,
+    strokeOpacity: 0.5,
+    fillColor: color,
+    fillOpacity: 0.5,
+    map,
+    center: rawLocationLatLng,
+    radius: Math.abs(speed),
+  });
+});
 
 /*
  * Draws circles on the map. Color indicates trip status
@@ -693,61 +648,58 @@ toggleHandlers["showSpeed"] = GenerateBubbles(
  * just be the trip status at the time of the vehicle update  --
  * which is a bit wrong and wonky on the boundaries.
  */
-toggleHandlers["showTripStatus"] = GenerateBubbles(
-  "showTripStatus",
-  (rawLocationLatLng, lastLocation, le) => {
-    let color,
-      radius = 5;
-    const tripStatus = tripLogs.getTripStatusAtDate(le.date);
-    switch (tripStatus) {
-      case "NEW":
-        color = "#002200";
-        radius = 30;
-        break;
-      case "ENROUTE_TO_PICKUP":
-        color = "#FFFF00";
-        break;
-      case "ARRIVED_AT_PICKUP":
-        color = "#FFFF10";
-        radius = 10;
-        break;
-      case "ARRIVED_AT_INTERMEDIATE_DESTINATION":
-        color = "#10FFFF";
-        radius = 20;
-        break;
-      case "ENROUTE_TO_DROPOFF":
-        color = "#00FFFF";
-        break;
-      case "COMPLETE":
-        radius = 30;
-        color = "#00FF00";
-        break;
-      case "CANCELED":
-        radius = 30;
-        color = "#FF0000";
-        break;
-      case "UNKNOWN_TRIP_STATUS":
-      default:
-        color = "#000000";
-    }
-
-    const statusCirc = new google.maps.Circle({
-      strokeColor: color,
-      strokeOpacity: 0.5,
-      fillColor: color,
-      fillOpacity: 0.5,
-      map,
-      center: rawLocationLatLng,
-      radius: radius, // set based on trip status?
-    });
-    google.maps.event.addListener(statusCirc, "mouseover", () => {
-      setFeaturedObject({
-        tripStatus: tripStatus,
-      });
-    });
-    return statusCirc;
+toggleHandlers["showTripStatus"] = GenerateBubbles("showTripStatus", (rawLocationLatLng, lastLocation, le) => {
+  let color,
+    radius = 5;
+  const tripStatus = tripLogs.getTripStatusAtDate(le.date);
+  switch (tripStatus) {
+    case "NEW":
+      color = "#002200";
+      radius = 30;
+      break;
+    case "ENROUTE_TO_PICKUP":
+      color = "#FFFF00";
+      break;
+    case "ARRIVED_AT_PICKUP":
+      color = "#FFFF10";
+      radius = 10;
+      break;
+    case "ARRIVED_AT_INTERMEDIATE_DESTINATION":
+      color = "#10FFFF";
+      radius = 20;
+      break;
+    case "ENROUTE_TO_DROPOFF":
+      color = "#00FFFF";
+      break;
+    case "COMPLETE":
+      radius = 30;
+      color = "#00FF00";
+      break;
+    case "CANCELED":
+      radius = 30;
+      color = "#FF0000";
+      break;
+    case "UNKNOWN_TRIP_STATUS":
+    default:
+      color = "#000000";
   }
-);
+
+  const statusCirc = new google.maps.Circle({
+    strokeColor: color,
+    strokeOpacity: 0.5,
+    fillColor: color,
+    fillOpacity: 0.5,
+    map,
+    center: rawLocationLatLng,
+    radius: radius, // set based on trip status?
+  });
+  google.maps.event.addListener(statusCirc, "mouseover", () => {
+    setFeaturedObject({
+      tripStatus: tripStatus,
+    });
+  });
+  return statusCirc;
+});
 
 /*
  * Enable/disables live traffic layer
@@ -835,8 +787,7 @@ toggleHandlers["showTasksAsCreated"] = function (enabled) {
           setFeaturedObject(task);
         });
         const ret = [marker];
-        const arrowColor =
-          task.plannedVsActualDeltaMeters > 50 ? "#FF1111" : "#11FF11";
+        const arrowColor = task.plannedVsActualDeltaMeters > 50 ? "#FF1111" : "#11FF11";
         if (task.taskoutcomelocation) {
           const offSetPath = new window.google.maps.Polyline({
             path: [
@@ -886,11 +837,7 @@ toggleHandlers["showPlannedPaths"] = function (enabled) {
     const trips = tripLogs.getTrips();
     bubbleMap[bubbleName] = trips
       .filter((trip) => {
-        return (
-          trip.firstUpdate <= maxDate &&
-          trip.lastUpdate >= minDate &&
-          trip.getPlannedPath().length > 0
-        );
+        return trip.firstUpdate <= maxDate && trip.lastUpdate >= minDate && trip.getPlannedPath().length > 0;
       })
       .map((trip) => {
         const plannedPath = trip.getPlannedPath();
@@ -911,55 +858,52 @@ toggleHandlers["showPlannedPaths"] = function (enabled) {
  * Draws circles on the map. Size indicates dwell time at that
  * location.
  */
-toggleHandlers["showNavStatus"] = GenerateBubbles(
-  "showNavStatus",
-  (rawLocationLatLng, lastLocation, le) => {
-    const navStatus = le.navStatus;
-    if (navStatus === undefined) {
-      return;
-    }
-    let color,
-      radius = 5;
-    switch (navStatus) {
-      case "UNKNOWN_NAVIGATION_STATUS":
-        color = "#222222";
-        break;
-      case "NO_GUIDANCE":
-        color = "#090909";
-        break;
-      case "ENROUTE_TO_DESTINATION":
-        color = "#00FF00";
-        break;
-      case "OFF_ROUTE":
-        color = "#FF0000";
-        radius = 30;
-        break;
-      case "ARRIVED_AT_DESTINATION":
-        color = "0000FF";
-        radius = 10;
-        break;
-      default:
-        color = "#000000";
-    }
-    const statusCirc = new google.maps.Circle({
-      strokeColor: color,
-      strokeOpacity: 0.5,
-      fillColor: color,
-      fillOpacity: 0.5,
-      map,
-      center: rawLocationLatLng,
-      radius: radius, // set based on trip status?
-    });
-    google.maps.event.addListener(statusCirc, "mouseover", () => {
-      setFeaturedObject({
-        navStatus: navStatus,
-        vehicleState: _.get(le, "response.vehiclestate"),
-        tripStatus: "??",
-      });
-    });
-    return statusCirc;
+toggleHandlers["showNavStatus"] = GenerateBubbles("showNavStatus", (rawLocationLatLng, lastLocation, le) => {
+  const navStatus = le.navStatus;
+  if (navStatus === undefined) {
+    return;
   }
-);
+  let color,
+    radius = 5;
+  switch (navStatus) {
+    case "UNKNOWN_NAVIGATION_STATUS":
+      color = "#222222";
+      break;
+    case "NO_GUIDANCE":
+      color = "#090909";
+      break;
+    case "ENROUTE_TO_DESTINATION":
+      color = "#00FF00";
+      break;
+    case "OFF_ROUTE":
+      color = "#FF0000";
+      radius = 30;
+      break;
+    case "ARRIVED_AT_DESTINATION":
+      color = "0000FF";
+      radius = 10;
+      break;
+    default:
+      color = "#000000";
+  }
+  const statusCirc = new google.maps.Circle({
+    strokeColor: color,
+    strokeOpacity: 0.5,
+    fillColor: color,
+    fillOpacity: 0.5,
+    map,
+    center: rawLocationLatLng,
+    radius: radius, // set based on trip status?
+  });
+  google.maps.event.addListener(statusCirc, "mouseover", () => {
+    setFeaturedObject({
+      navStatus: navStatus,
+      vehicleState: _.get(le, "response.vehiclestate"),
+      tripStatus: "??",
+    });
+  });
+  return statusCirc;
+});
 
 /*
  * Draws circles on the map. Size indicates delta in seconds at that
@@ -1044,10 +988,7 @@ toggleHandlers["showHighVelocityJumps"] = function (enabled) {
           google.maps.event.addListener(path, "click", () => {
             setFeaturedObject(jump.getFeaturedData());
             // show a minute +/- on each side of a jump
-            setTimeRange(
-              jump.startDate.getTime() - 60 * 1000,
-              jump.endDate.getTime() + 60 * 1000
-            );
+            setTimeRange(jump.startDate.getTime() - 60 * 1000, jump.endDate.getTime() + 60 * 1000);
           });
           return [path];
         })
@@ -1083,10 +1024,7 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
             return 14;
           }
         }
-        const heading = google.maps.geometry.spherical.computeHeading(
-          update.startLoc,
-          update.endLoc
-        );
+        const heading = google.maps.geometry.spherical.computeHeading(update.startLoc, update.endLoc);
         const offsetHeading = ((heading + 360 + 90) % 360) - 180;
         const points = [
           update.startLoc,
@@ -1167,10 +1105,7 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
         google.maps.event.addListener(path, "click", () => {
           setFeaturedObject(update.getFeaturedData());
           // show a minute +/- on each side of a update
-          setTimeRange(
-            update.startDate.getTime() - 60 * 1000,
-            update.endDate.getTime() + 60 * 1000
-          );
+          setTimeRange(update.startDate.getTime() - 60 * 1000, update.endDate.getTime() + 60 * 1000);
         });
         return [path];
       })
