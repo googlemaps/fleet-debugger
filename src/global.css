@@ -86,3 +86,9 @@
 .map-button:hover {
   background: #f1f1f1;
 }
+
+.map-container {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
