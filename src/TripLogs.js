@@ -163,7 +163,6 @@ function processRawLogs(rawLogs, solutionType) {
       if (currentLocation?.rawlocation) {
         lastKnownState.location = currentLocation.rawlocation;
         lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
-        log("Updating last known location:", lastKnownState.location);
       }
 
       // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic.
@@ -173,7 +172,6 @@ function processRawLogs(rawLogs, solutionType) {
       } else if (currentRouteSegment) {
         lastKnownState.routeSegment = currentRouteSegment;
         lastKnownState.routeSegmentTraffic = currentRouteSegmentTraffic;
-        log("Updating last known route segment");
       }
 
       // Apply last known state to a log entry
