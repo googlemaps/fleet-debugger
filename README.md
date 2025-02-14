@@ -2,7 +2,7 @@
 
 A visualization and debugging tool for Google Maps Platform's Mobility Solutions, supporting [Scheduled tasks](https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/tasks-intro) and [On-demand trips](https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro).
 
-![Screenshot](docs/screenshots/fleetdebugger.png)
+![Screenshot](docs/screenshots/vehiclereplay.gif)
 
 ## Using the Demo Site(s)
 
@@ -55,7 +55,7 @@ AND (
 
 - Filter & inspect log messages with customizable table views
 - View planned navigation routes with traffic conditions as experienced by drivers
-- [Replay vehicle movement](docs/ReplaceVehicleMovement.md)
+- Replay vehicle movement (real time or time lapse)
 - See requested vs. actual pickup and dropoff points
 - View status changes (vehicle, trip, navigation)
 - Analyze GPS data (location, accuracy, heading)
