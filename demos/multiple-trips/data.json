@@ -37,6 +37,57 @@
       "receiveTimestamp": "2025-02-05T17:02:31.930882511Z"
     },
     {
+      "insertId": "8e52d8598e91a29781900b4cd57b0d41.tos",
+      "jsonPayload": {
+        "request": {
+          "trip": {
+            "pickupPoint": {
+              "point": {
+                "longitude": -122.06790357828139,
+                "latitude": 37.34471314799388
+              }
+            },
+            "dropoffPoint": {
+              "point": {
+                "latitude": 37.40531584395862,
+                "longitude": -122.02161066234112
+              }
+            }
+          }
+        },
+        "response": {
+          "pickupPoint": {
+            "point": {
+              "longitude": -122.06790357828139,
+              "latitude": 37.34471314799388
+            }
+          },
+          "dropoffPoint": {
+            "point": {
+              "longitude": -122.02161066234112,
+              "latitude": 37.40531584395862
+            }
+          }
+        },
+        "parentInsertId": "8e52d8598e91a29781900b4cd57b0d41",
+        "@type": "type.googleapis.com/maps.fleetengine.v1.CreateTripRestrictedLog"
+      },
+      "resource": {
+        "type": "fleetengine.googleapis.com/Fleet",
+        "labels": {
+          "location": "global",
+          "resource_container": "projects/geod-support-gems"
+        }
+      },
+      "timestamp": "2025-02-05T17:02:31.483732Z",
+      "labels": {
+        "trip_id": "fb1318df-9a2e-4455-9b17-3a7433a681e4",
+        "restriction": "TOS_RESTRICTED"
+      },
+      "logName": "projects/geod-support-gems/logs/fleetengine.googleapis.com%2Fcreate_trip_restricted",
+      "receiveTimestamp": "2025-02-05T17:02:31.930882511Z"
+    },
+    {
       "insertId": "0bca336ca8378607a53814a212d744c2",
       "jsonPayload": {
         "request": {
@@ -50061,6 +50112,57 @@
         "trip_id": "1906d1b8-cc4e-43a1-a649-43adb926d3e3"
       },
       "logName": "projects/geod-support-gems/logs/fleetengine.googleapis.com%2Fcreate_trip",
+      "receiveTimestamp": "2025-02-05T17:49:42.201753772Z"
+    },
+    {
+      "insertId": "6b39a9a3b3f2216ba46f894b57b48ddf.tos",
+      "jsonPayload": {
+        "@type": "type.googleapis.com/maps.fleetengine.v1.CreateTripRestrictedLog",
+        "parentInsertId": "6b39a9a3b3f2216ba46f894b57b48ddf",
+        "response": {
+          "dropoffPoint": {
+            "point": {
+              "longitude": -122.09279280155899,
+              "latitude": 37.42417038875794
+            }
+          },
+          "pickupPoint": {
+            "point": {
+              "longitude": -122.02984202653171,
+              "latitude": 37.40465747488186
+            }
+          }
+        },
+        "request": {
+          "trip": {
+            "pickupPoint": {
+              "point": {
+                "longitude": -122.02984202653171,
+                "latitude": 37.40465747488186
+              }
+            },
+            "dropoffPoint": {
+              "point": {
+                "latitude": 37.42417038875794,
+                "longitude": -122.09279280155899
+              }
+            }
+          }
+        }
+      },
+      "resource": {
+        "type": "fleetengine.googleapis.com/Fleet",
+        "labels": {
+          "resource_container": "projects/geod-support-gems",
+          "location": "global"
+        }
+      },
+      "timestamp": "2025-02-05T17:49:41.419859Z",
+      "labels": {
+        "trip_id": "1906d1b8-cc4e-43a1-a649-43adb926d3e3",
+        "restriction": "TOS_RESTRICTED"
+      },
+      "logName": "projects/geod-support-gems/logs/fleetengine.googleapis.com%2Fcreate_trip_restricted",
       "receiveTimestamp": "2025-02-05T17:49:42.201753772Z"
     },
     {
