@@ -2,6 +2,7 @@
 
 import JSZip from "jszip";
 import { DEFAULT_API_KEY } from "./constants";
+import { log } from "./Utils";
 
 const DB_NAME = "FleetDebuggerDB";
 const STORE_NAME = "uploadedData";
@@ -28,7 +29,7 @@ async function openDB() {
 }
 
 export async function uploadFile(file, index) {
-  console.log(`Uploading file: ${file.name}`);
+  console.log(`Importing file: ${file.name}`);
   let parsedData;
   if (file.name.endsWith(".zip")) {
     parsedData = await processZipFile(file);
@@ -41,7 +42,7 @@ export async function uploadFile(file, index) {
   parsedData = ensureCorrectFormat(parsedData);
 
   await saveToIndexedDB(parsedData, index);
-  console.log("File uploaded and saved successfully");
+  log("File imported and stored successfully");
 }
 
 async function processZipFile(file) {
@@ -73,11 +74,11 @@ async function processJsonFile(file) {
 }
 
 export function parseJsonContent(content) {
-  console.log("Parsing JSON content");
+  log("Parsing JSON content");
   try {
     return JSON.parse(content);
   } catch (error) {
-    console.log("Initial JSON parsing failed, attempting to wrap in array");
+    log("Initial JSON parsing failed, attempting to wrap in array");
     try {
       return JSON.parse(`[${content}]`);
     } catch (innerError) {
@@ -100,8 +101,8 @@ export function removeEmptyObjects(obj) {
   return obj;
 }
 
-function isRestrictedLog(log) {
-  return log.jsonPayload?.["@type"]?.includes("Restricted") || false;
+function isRestrictedLog(row) {
+  return row.jsonPayload?.["@type"]?.includes("Restricted") || false;
 }
 
 export function ensureCorrectFormat(data) {
@@ -114,28 +115,33 @@ export function ensureCorrectFormat(data) {
   const logsArray = Array.isArray(data) ? data : [data];
 
   const restrictedLogsMap = new Map();
-  logsArray.forEach((log) => {
-    if (isRestrictedLog(log)) {
-      removeEmptyObjects(log.jsonPayload);
-      restrictedLogsMap.set(log.jsonPayload.parentInsertId, log);
+  logsArray.forEach((row) => {
+    if (isRestrictedLog(row)) {
+      removeEmptyObjects(row.jsonPayload);
+      restrictedLogsMap.set(row.jsonPayload.parentInsertId, row);
     }
   });
 
   // Filter out restricted logs while merging their TOS-restricted attributes into their parent logs.
-  const mergedLogs = logsArray.filter((log) => {
-    if (isRestrictedLog(log)) {
+  const mergedLogs = logsArray.filter((row) => {
+    if (isRestrictedLog(row)) {
       return false;
     }
-    const restrictedLog = restrictedLogsMap.get(log.insertId)?.jsonPayload;
+    const restrictedLog = restrictedLogsMap.get(row.insertId)?.jsonPayload;
     if (restrictedLog) {
       ["request", "response"].forEach((section) => {
-        if (restrictedLog[section] && log.jsonPayload[section]) {
+        if (restrictedLog[section] && row.jsonPayload[section]) {
           TOS_RESTRICTED_ATTRIBUTES.forEach((attr) => {
             if (restrictedLog[section][attr] !== undefined) {
-              log.jsonPayload[section][attr] = restrictedLog[section][attr];
+              row.jsonPayload[section][attr] = restrictedLog[section][attr];
             }
             if (restrictedLog[section].vehicle?.[attr] !== undefined) {
-              log.jsonPayload[section].vehicle[attr] = restrictedLog[section].vehicle[attr];
+              row.jsonPayload[section].vehicle = row.jsonPayload[section].vehicle || {};
+              row.jsonPayload[section].vehicle[attr] = restrictedLog[section].vehicle[attr];
+            }
+            if (restrictedLog[section].trip?.[attr] !== undefined) {
+              row.jsonPayload[section].trip = row.jsonPayload[section].trip || {};
+              row.jsonPayload[section].trip[attr] = restrictedLog[section].trip[attr];
             }
           });
         }
@@ -145,7 +151,7 @@ export function ensureCorrectFormat(data) {
   });
 
   // Determine the solution type based on the presence of _delivery_vehicle logs
-  const isLMFS = mergedLogs.some((log) => log.logName?.includes("_delivery_vehicle"));
+  const isLMFS = mergedLogs.some((row) => row.logName?.includes("_delivery_vehicle"));
   const solutionType = isLMFS ? "LMFS" : "ODRD";
   console.log(`Determined solution type: ${solutionType}`);
 
