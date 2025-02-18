@@ -57,11 +57,6 @@ export class TrafficPolyline {
               },
               ...(trafficRendering.roadstretch || []),
             ];
-
-            log("Added traveled route segment:", {
-              lengthMeters: distanceInMeters,
-              segments: trafficRendering.roadstretch.length,
-            });
           }
         } catch (error) {
           log("Error calculating traveled route segment:", error);

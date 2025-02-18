@@ -161,14 +161,14 @@ class App extends React.Component {
         },
         {
           id: "showTraffic",
-          name: "Traffic",
+          name: "Live Traffic",
           docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
           id: "showLiveJS",
-          name: "Start Live Journey Sharing for newest trip",
+          name: "Live Journey Sharing",
           docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
           columns: [],
           solutionTypes: ["ODRD", "LMFS"],

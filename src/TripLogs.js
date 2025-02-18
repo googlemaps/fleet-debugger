@@ -446,10 +446,24 @@ class TripLogs {
     let tripIdx = 0;
     let nonTripIdx = 0;
     let lastTripStatus = "no status";
-    // assumes logs are already sorted
-    // also assumes out-of-order updates can't happen.  Unclear
-    // if this is a good assumption, but it might be worth it to call out
-    // places where it happens (since that might actually be a client bug).
+
+    // First, create a map of trip IDs to their logs
+    const tripLogs = new Map();
+
+    // Collect all trip-related logs
+    _.forEach(this.rawLogs, (le) => {
+      if (le["@type"] === "createTrip" || le["@type"] === "updateTrip") {
+        const tripId = le.request?.tripid || _.get(le, "request.trip.name");
+        if (tripId) {
+          if (!tripLogs.has(tripId)) {
+            tripLogs.set(tripId, []);
+          }
+          tripLogs.get(tripId).push(le);
+        }
+      }
+    });
+
+    // Process vehicle updates and create trip segments
     _.forEach(this.rawLogs, (le) => {
       if (le["@type"] === "updateVehicle" || le["@type"] === "updateDeliveryVehicle") {
         const newTripId = this.getSegmentID(le);
@@ -457,6 +471,13 @@ class TripLogs {
           curTripId = newTripId;
           const tripName = newTripId ? newTripId : "non-trip-segment-" + nonTripIdx;
           curTripData = new Trip(tripIdx, tripName, new Date(le.timestamp));
+
+          // If this is an actual trip (not a non-trip-segment), add its logs
+          if (tripLogs.has(newTripId)) {
+            curTripData.logs = tripLogs.get(newTripId);
+            log(`Added ${curTripData.logs.length} logs to trip ${newTripId}`);
+          }
+
           this.trips.push(curTripData);
           this.trip_ids.push(curTripData.tripName);
 
@@ -479,7 +500,6 @@ class TripLogs {
         }
       }
       const tripStatus = _.get(le, "response.tripstatus");
-      // if the logs had a trip status, and it changed update
       if (tripStatus && tripStatus !== lastTripStatus) {
         this.tripStatusChanges.push({
           newStatus: tripStatus,
