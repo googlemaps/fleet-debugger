@@ -8,11 +8,11 @@ import Utils, { log } from "./Utils";
 import PolylineCreation from "./PolylineCreation";
 import { decode } from "s2polyline-ts";
 import TrafficPolyline from "./TrafficPolyline";
+import { TripObjects } from "./TripObjects";
+import { getColor } from "./Trip";
 
 let minDate;
 let maxDate;
-let allPaths = [];
-let allMarkers = [];
 let map;
 let apikey;
 let mapId;
@@ -24,7 +24,6 @@ let panorama;
 let jwt;
 let projectId;
 let locationProvider;
-let solutionType;
 let tripLogs;
 let taskLogs;
 let setFeaturedObject;
@@ -37,62 +36,24 @@ const render = (status) => {
 };
 
 function addTripPolys(map) {
-  _.forEach(allPaths, (p) => p.setMap(null));
-  allPaths = [];
-  _.forEach(allMarkers, (m) => m.setMap(null));
-  allMarkers = [];
-
+  const tripObjects = new TripObjects({
+    map,
+    setFeaturedObject,
+    setTimeRange,
+  });
   const trips = tripLogs.getTrips();
   const vehicleBounds = new window.google.maps.LatLngBounds();
-  let lastVehicleCoords;
+
   _.forEach(trips, (trip) => {
+    tripObjects.addTripVisuals(trip, minDate, maxDate);
+
+    // Update bounds
     const tripCoords = trip.getPathCoords(minDate, maxDate);
     if (tripCoords.length > 0) {
-      lastVehicleCoords = _.last(tripCoords);
-      const path = new window.google.maps.Polyline({
-        path: tripCoords,
-        geodesic: true,
-        strokeColor: getColor(trip.tripIdx),
-        strokeOpacity: 0.5,
-        strokeWeight: 6,
-      });
-      google.maps.event.addListener(path, "mouseover", () => {
-        path.setOptions({
-          strokeOpacity: 1,
-          strokeWeight: 8,
-        });
-      });
-      google.maps.event.addListener(path, "mouseout", () => {
-        path.setOptions({
-          strokeOpacity: 0.5,
-          strokeWeight: 6,
-        });
-      });
-      google.maps.event.addListener(path, "click", () => {
-        const fd = trip.getFeaturedData();
-        setFeaturedObject(fd);
-        // TODO: https://github.com/googlemaps/fleet-debugger/issues/79
-        // this time range won't capture the createTrip logs
-        setTimeRange(fd.firstUpdate.getTime(), fd.lastUpdate.getTime());
-      });
-      getPolyBounds(vehicleBounds, path);
-      path.setMap(map);
-      allPaths.push(path);
+      tripCoords.forEach((coord) => vehicleBounds.extend(coord));
     }
   });
-  if (lastVehicleCoords) {
-    const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
-    const lastVehicleLocMark = new window.google.maps.Marker({
-      position: lastVehicleCoords,
-      map: map,
-      icon: {
-        url: urlBase + (solutionType === "LMFS" ? "truck.png" : "cabs.png"),
-        scaledSize: new google.maps.Size(18, 18),
-      },
-      title: "Last Location",
-    });
-    allMarkers.push(lastVehicleLocMark);
-  }
+
   return vehicleBounds;
 }
 
@@ -204,11 +165,6 @@ function MyMapComponent(props) {
       _.get(props.selectedRow, "lastlocation.currentroutesegment");
 
     if (routeSegment) {
-      log("Processing new route segment polyline:", {
-        rowTimestamp: props.selectedRow.timestamp,
-        polyline: routeSegment,
-      });
-
       try {
         const decodedPoints = decode(routeSegment);
 
@@ -217,12 +173,6 @@ function MyMapComponent(props) {
             lat: point.latDegrees(),
             lng: point.lngDegrees(),
           }));
-
-          log("Creating new polyline with", {
-            points: validWaypoints.length,
-            firstPoint: validWaypoints[0],
-            lastPoint: validWaypoints[validWaypoints.length - 1],
-          });
 
           const trafficRendering =
             _.get(props.selectedRow, "request.vehicle.currentroutesegmenttraffic.trafficrendering") ||
@@ -389,22 +339,6 @@ function MyMapComponent(props) {
   );
 }
 
-function getPolyBounds(bounds, p) {
-  p.getPath().forEach((e) => {
-    bounds.extend(e);
-  });
-  return bounds;
-}
-
-/*
- * Deterministically assign a color per trip using tripIdx
- * Colors were chosen for visibility
- */
-function getColor(tripIdx) {
-  const colors = ["#2d7dd2", "#97cc04", "#eeb902", "#f45d01", "#474647", "00aa00"];
-  return colors[tripIdx % colors.length];
-}
-
 function Map(props) {
   tripLogs = props.logData.tripLogs;
   taskLogs = props.logData.taskLogs;
@@ -415,7 +349,6 @@ function Map(props) {
   mapId = urlParams.get("mapId") || props.logData.mapId;
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
-  solutionType = props.logData.solutionType;
   setFeaturedObject = props.setFeaturedObject;
   setTimeRange = props.setTimeRange;
 

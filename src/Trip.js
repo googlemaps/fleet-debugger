@@ -71,5 +71,38 @@ class Trip {
   getPlannedPath() {
     return this.plannedPath;
   }
+
+  getPoint(type, path) {
+    return _.get(
+      _.find(this.logs, (log) => log["@type"] === type && _.get(log, path)),
+      path
+    );
+  }
+
+  getPickupPoint() {
+    return this.getPoint("createTrip", "request.trip.pickuppoint.point");
+  }
+
+  getDropoffPoint() {
+    return this.getPoint("createTrip", "request.trip.dropoffpoint.point");
+  }
+
+  getActualPickupPoint() {
+    return this.getPoint("updateTrip", "response.actualpickuppoint.point");
+  }
+
+  getActualDropoffPoint() {
+    return this.getPoint("updateTrip", "response.actualdropoffpoint.point");
+  }
 }
+
+/*
+ * Deterministically assign a color per trip using tripIdx
+ * Colors were chosen for visibility
+ */
+export function getColor(tripIdx) {
+  const colors = ["#2d7dd2", "#97cc04", "#eeb902", "#f45d01", "#474647", "00aa00"];
+  return colors[tripIdx % colors.length];
+}
+
 export { Trip as default };
