@@ -16,7 +16,7 @@ function PolylineCreation({ onSubmit, onClose, buttonPosition }) {
       const trimmedInput = input.trim();
 
       // Check if input looks like an encoded polyline (single string without spaces)
-      if (/^[A-Za-z0-9+/=-]+$/.test(trimmedInput)) {
+      if (/^[A-Za-z0-9+/=\-_]+$/.test(trimmedInput)) {
         log("Attempting to decode S2 polyline:", trimmedInput);
         const decodedPoints = decode(trimmedInput);
 
