@@ -816,6 +816,8 @@ class App extends React.Component {
               curMax={this.state.timeRange.maxTime}
               onSliderChange={this.onSliderChangeDebounced}
               selectedEventTime={selectedEventTime}
+              onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
+              centerOnLocation={this.centerOnLocation}
             />
             <ToggleBar
               toggles={this.toggles}

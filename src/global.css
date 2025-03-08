@@ -6,17 +6,25 @@
   position: fixed;
 }
 
-.rc-slider {
-  pointer-events: none;
-  .rc-slider-handle {
-      pointer-events: auto;
-  }
-}
-
 /* Slider mark text container */
 .rc-slider-mark-text {
   height: 30px;
   overflow: visible;
+}
+
+.timeslider-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: pointer;
+}
+
+/* Ensure slider handles appear above the overlay */
+.rc-slider-handle {
+  z-index: 20 !important;
 }
 
 /* Log table styles */
