@@ -1,5 +1,4 @@
 // src/localStorage.js
-
 import JSZip from "jszip";
 import { DEFAULT_API_KEY } from "./constants";
 import { log } from "./Utils";
@@ -43,6 +42,58 @@ export async function uploadFile(file, index) {
 
   await saveToIndexedDB(parsedData, index);
   log("File imported and stored successfully");
+}
+
+export async function uploadCloudLogs(logs, index) {
+  try {
+    if (!logs || !Array.isArray(logs) || logs.length === 0) {
+      console.warn("No logs to upload - skipping upload");
+      throw new Error("No logs to upload. Please adjust your search criteria and try again.");
+    }
+    const formattedData = ensureCorrectFormat(logs);
+    await saveToIndexedDB(formattedData, index);
+    return formattedData;
+  } catch (error) {
+    console.error("Error processing cloud logs:", error);
+    throw error;
+  }
+}
+
+export async function saveDatasetAsJson(index) {
+  try {
+    log(`Attempting to save dataset ${index} as JSON`);
+    const data = await getUploadedData(index);
+
+    if (!data || !data.rawLogs || !Array.isArray(data.rawLogs) || data.rawLogs.length === 0) {
+      throw new Error("No data available to save");
+    }
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonContent], { type: "application/json" });
+
+    // Create a temporary download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Set the filename based on the dataset number and current date
+    const date = new Date().toISOString().split("T")[0];
+    link.download = `dataset_${index + 1}_${date}.json`;
+
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
+
+    log(`Dataset ${index} saved successfully`);
+    return true;
+  } catch (error) {
+    console.error(`Error saving dataset ${index}:`, error);
+    throw error;
+  }
 }
 
 async function processZipFile(file) {
@@ -106,13 +157,21 @@ function isRestrictedLog(row) {
 }
 
 export function ensureCorrectFormat(data) {
-  if (data && Array.isArray(data.rawLogs)) {
-    return {
-      ...data,
-      APIKEY: data.APIKEY || DEFAULT_API_KEY,
-    };
+  //Handle if data is not array (like when reading a file).
+  if (!Array.isArray(data)) {
+    // If it's already in the correct format, return it as is.
+    if (data && data.rawLogs && Array.isArray(data.rawLogs)) {
+      return {
+        ...data,
+        APIKEY: data.APIKEY || DEFAULT_API_KEY,
+      };
+    }
+
+    // If it's not an array and not in expected format, throw an error.
+    throw new Error("Invalid input data. Expected an array or an object with a rawLogs property.");
   }
-  const logsArray = Array.isArray(data) ? data : [data];
+
+  const logsArray = data; // It's already an array of logs.
 
   const restrictedLogsMap = new Map();
   logsArray.forEach((row) => {
