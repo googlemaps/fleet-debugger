@@ -44,6 +44,19 @@ function addTripPolys(map) {
   const trips = tripLogs.getTrips();
   const vehicleBounds = new window.google.maps.LatLngBounds();
 
+  // Add click handler to map for finding nearby events
+  map.addListener("click", (event) => {
+    const clickLocation = event.latLng;
+    log("Map click detected at location:", clickLocation.lat(), clickLocation.lng());
+
+    // Find the closest event within 250 meters
+    const closestEvent = findClosestEvent(clickLocation, 250);
+    if (closestEvent) {
+      log("Found closest event:", closestEvent.timestamp);
+      setFeaturedObject(closestEvent);
+    }
+  });
+
   _.forEach(trips, (trip) => {
     tripObjects.addTripVisuals(trip, minDate, maxDate);
 
@@ -376,6 +389,34 @@ function Map(props) {
       />
     </Wrapper>
   );
+}
+
+// Add a new function to find the closest event to a clicked location
+function findClosestEvent(clickLocation, maxDistance) {
+  const logs = tripLogs.getLogs_(minDate, maxDate).value();
+  let closestEvent = null;
+  let closestDistance = maxDistance;
+
+  logs.forEach((event) => {
+    const rawLocation = _.get(event, "lastlocation.rawlocation");
+    if (rawLocation && rawLocation.latitude && rawLocation.longitude) {
+      const eventLocation = new google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
+      const distance = google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
+
+      if (distance < closestDistance) {
+        closestEvent = event;
+        closestDistance = distance;
+      }
+    }
+  });
+
+  if (closestEvent) {
+    log("Found closest event at distance:", closestDistance, "meters");
+  } else {
+    log("No events found within", maxDistance, "meters");
+  }
+
+  return closestEvent;
 }
 
 /*
