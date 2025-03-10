@@ -114,6 +114,43 @@
   flex-direction: column;
 }
 
+.follow-vehicle-button {
+  position: absolute;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.follow-vehicle-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  opacity: 0.5;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.follow-vehicle-chevron {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.follow-vehicle-button.active .follow-vehicle-background {
+  border: 2px solid #4285F4;
+  background-color: #d1dff7;
+  box-shadow: 0 0 8px rgba(66, 133, 244, 0.6), inset 0 0 6px rgba(66, 133, 244, 0.6);
+}
+
 /* Cloud logging styles */
 .cloud-logging-dialog {
   padding: 0;

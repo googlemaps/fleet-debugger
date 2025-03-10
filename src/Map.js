@@ -112,6 +112,8 @@ function MyMapComponent(props) {
   const [showPolylineUI, setShowPolylineUI] = useState(false);
   const [polylines, setPolylines] = useState([]);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 });
+  const [isFollowingVehicle, setIsFollowingVehicle] = useState(false);
+  const lastValidPositionRef = useRef(null);
 
   useEffect(() => {
     const urlZoom = getQueryStringValue("zoom");
@@ -133,10 +135,17 @@ function MyMapComponent(props) {
     map.setOptions({ maxZoom: 100 });
     map.addListener("zoom_changed", () => {
       setQueryStringValue("zoom", map.getZoom());
+      setIsFollowingVehicle(false); // zoom disables following
+      log("Follow mode disabled due to zoom change");
     });
 
     map.addListener("heading_changed", () => {
       setQueryStringValue("heading", map.getHeading());
+    });
+
+    map.addListener("dragstart", () => {
+      setIsFollowingVehicle(false);
+      log("Follow mode disabled due to map drag");
     });
 
     map.addListener(
@@ -158,7 +167,144 @@ function MyMapComponent(props) {
     };
 
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
+
+    // Create follow vehicle button with chevron icon
+    const followButton = document.createElement("div");
+    followButton.className = "follow-vehicle-button";
+    followButton.innerHTML = `
+      <div class="follow-vehicle-background"></div>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20" width="24" height="24" class="follow-vehicle-chevron">
+        <path d="M -10,10 L 0,-10 L 10,10 L 0,5 z" fill="#4285F4" stroke="#4285F4" stroke-width="1"/>
+      </svg>
+    `;
+
+    followButton.onclick = () => {
+      log("Follow vehicle button clicked");
+      recenterOnVehicle();
+    };
+
+    // Add button to map
+    map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
+
+    updateFollowButtonAppearance();
   }, []);
+
+  useEffect(() => {
+    updateFollowButtonAppearance();
+  }, [isFollowingVehicle]);
+
+  const updateFollowButtonAppearance = () => {
+    const followButton = document.querySelector(".follow-vehicle-button");
+    if (followButton) {
+      if (isFollowingVehicle) {
+        followButton.classList.add("active");
+        log("Follow vehicle button updated to active state");
+      } else {
+        followButton.classList.remove("active");
+        log("Follow vehicle button updated to inactive state");
+      }
+    }
+  };
+
+  const handlePolylineSubmit = (waypoints, properties) => {
+    const path = waypoints.map((wp) => new google.maps.LatLng(wp.latitude, wp.longitude));
+
+    const arrowIcon = {
+      path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+      scale: properties.strokeWeight / 2,
+      strokeColor: properties.color,
+    };
+
+    const polyline = new google.maps.Polyline({
+      path: path,
+      geodesic: true,
+      strokeColor: properties.color,
+      strokeOpacity: properties.opacity,
+      strokeWeight: properties.strokeWeight,
+      icons: [
+        {
+          icon: arrowIcon,
+          offset: "0%",
+        },
+        {
+          icon: arrowIcon,
+          offset: "100%",
+        },
+      ],
+    });
+
+    polyline.setMap(map);
+    setPolylines([...polylines, polyline]);
+    log(
+      `Polyline ${polylines.length + 1} created with color: ${properties.color}, opacity: ${
+        properties.opacity
+      }, stroke weight: ${properties.strokeWeight}`
+    );
+  };
+
+  const recenterOnVehicle = () => {
+    log("Executing recenterOnVehicle function");
+
+    let position = null;
+
+    // Try to get position from current row
+    if (props.selectedRow && props.selectedRow.lastlocation && props.selectedRow.lastlocation.rawlocation) {
+      position = props.selectedRow.lastlocation.rawlocation;
+      log(`Found position in selected row: ${position.latitude}, ${position.longitude}`);
+    }
+    // Try to use our last cached valid position
+    else if (lastValidPositionRef.current) {
+      position = lastValidPositionRef.current;
+      log(`Using last cached valid position: ${position.lat}, ${position.lng}`);
+    }
+    if (!position) {
+      log("No vehicle position found");
+    }
+
+    // Center the map
+    if (position && typeof position.latitude !== "undefined") {
+      map.setCenter({ lat: position.latitude, lng: position.longitude });
+      map.setZoom(17);
+    }
+
+    setIsFollowingVehicle((prev) => {
+      const newState = !prev;
+      log(`Map follow mode ${newState ? "enabled" : "disabled"}`);
+      return newState;
+    });
+
+    log(`Map centered on vehicle, follow mode ${!isFollowingVehicle ? "enabled" : "disabled"}`);
+  };
+
+  /*
+   * Handler for timewindow change.  Updates global min/max date globals
+   * and recomputes the paths as well as all the bubble markers to respect the
+   * new date values.
+   *
+   * Debounced to every 100ms as a blance between performance and reactivity when
+   * the slider is dragged.
+   */
+  useEffect(() => {
+    const updateMap = () => {
+      minDate = new Date(props.rangeStart);
+      maxDate = new Date(props.rangeEnd);
+      addTripPolys(map);
+      _.forEach(toggleHandlers, (handler, name) => {
+        if (bubbleMap[name]) {
+          handler(true);
+        }
+      });
+    };
+
+    // Create a debounced version of updateMap
+    const debouncedUpdateMap = _.debounce(updateMap, 200);
+    debouncedUpdateMap();
+
+    // Cleanup function to cancel any pending debounced calls when the effect re-runs or unmounts
+    return () => {
+      debouncedUpdateMap.cancel();
+    };
+  }, [props.rangeStart, props.rangeEnd]);
 
   useEffect(() => {
     if (!props.selectedRow) return;
@@ -210,76 +356,10 @@ function MyMapComponent(props) {
         });
       }
     }
-  }, [props.selectedRow, map]);
-
-  const handlePolylineSubmit = (waypoints, properties) => {
-    const path = waypoints.map((wp) => new google.maps.LatLng(wp.latitude, wp.longitude));
-
-    const arrowIcon = {
-      path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
-      scale: properties.strokeWeight / 2,
-      strokeColor: properties.color,
-    };
-
-    const polyline = new google.maps.Polyline({
-      path: path,
-      geodesic: true,
-      strokeColor: properties.color,
-      strokeOpacity: properties.opacity,
-      strokeWeight: properties.strokeWeight,
-      icons: [
-        {
-          icon: arrowIcon,
-          offset: "0%",
-        },
-        {
-          icon: arrowIcon,
-          offset: "100%",
-        },
-      ],
-    });
-
-    polyline.setMap(map);
-    setPolylines([...polylines, polyline]);
-    log(
-      `Polyline ${polylines.length + 1} created with color: ${properties.color}, opacity: ${
-        properties.opacity
-      }, stroke weight: ${properties.strokeWeight}`
-    );
-  };
-
-  /*
-   * Handler for timewindow change.  Updates global min/max date globals
-   * and recomputes the paths as well as all the bubble markers to respect the
-   * new date values.
-   *
-   * Debounced to every 100ms as a blance between performance and reactivity when
-   * the slider is dragged.
-   */
-  useEffect(() => {
-    const updateMap = () => {
-      minDate = new Date(props.rangeStart);
-      maxDate = new Date(props.rangeEnd);
-      addTripPolys(map);
-      _.forEach(toggleHandlers, (handler, name) => {
-        if (bubbleMap[name]) {
-          handler(true);
-        }
-      });
-    };
-
-    // Create a debounced version of updateMap
-    const debouncedUpdateMap = _.debounce(updateMap, 200);
-    debouncedUpdateMap();
-
-    // Cleanup function to cancel any pending debounced calls when the effect re-runs or unmounts
-    return () => {
-      debouncedUpdateMap.cancel();
-    };
-  }, [props.rangeStart, props.rangeEnd]);
+  }, [props.selectedRow]);
 
   useEffect(() => {
-    // Car location maker
+    // Vehicle chevron location maker
     const data = props.selectedRow;
     if (!data) return;
     _.forEach(dataMakers, (m) => m.setMap(null));
@@ -308,6 +388,8 @@ function MyMapComponent(props) {
 
     const rawLocation = _.get(data.lastlocation, "rawlocation");
     if (rawLocation) {
+      lastValidPositionRef.current = { lat: rawLocation.latitude, lng: rawLocation.longitude };
+
       const heading = _.get(data.lastlocation, "heading") || 0;
       markerSymbols.chevron.rotation = heading;
 
@@ -327,8 +409,12 @@ function MyMapComponent(props) {
       });
 
       dataMakers.push(backgroundMarker, chevronMarker);
+
+      if (isFollowingVehicle) {
+        map.setCenter({ lat: rawLocation.latitude, lng: rawLocation.longitude });
+      }
     }
-  }, [props.selectedRow]);
+  }, [props.selectedRow, isFollowingVehicle]);
 
   for (const toggle of props.toggles) {
     const id = toggle.id;
