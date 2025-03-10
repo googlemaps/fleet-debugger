@@ -1,9 +1,5 @@
-/*
- * src/App.js
- *
- * Basic react app container.  Handles state for the app and
- * propagation for state changes into the non-react map
- */
+// src/App.js
+import ReactDOM from "react-dom";
 import React from "react";
 import Map from "./Map";
 import Dataframe from "./Dataframe";
@@ -11,11 +7,14 @@ import TimeSlider from "./TimeSlider";
 import LogTable from "./LogTable";
 import ToggleBar from "./ToggleBar";
 import TripLogs from "./TripLogs";
-import { uploadFile, getUploadedData, deleteUploadedData } from "./localStorage";
+import CloudLogging from "./CloudLogging";
+import { uploadFile, getUploadedData, deleteUploadedData, uploadCloudLogs, saveDatasetAsJson } from "./localStorage";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
 import { log } from "./Utils";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 /**
  * returns the default value for the button from the url
@@ -35,16 +34,11 @@ class App extends React.Component {
     const nowDate = new Date();
     let urlMinTime = getQueryStringValue("minTime");
     let urlMaxTime = getQueryStringValue("maxTime");
-    this.initialMinTime = urlMinTime ? parseInt(urlMinTime) : 0;
-    // default max time to 1 year in the future
+    this.initialMinTime = urlMinTime ? parseInt(urlMinTime) : 0; // default max time to 1 year in the future
     this.initialMaxTime = urlMaxTime ? parseInt(urlMaxTime) : nowDate.setFullYear(nowDate.getFullYear() + 1);
-
     this.focusOnRowFunction = null;
     this.state = {
-      timeRange: {
-        minTime: this.initialMinTime,
-        maxTime: this.initialMaxTime,
-      },
+      timeRange: { minTime: this.initialMinTime, maxTime: this.initialMaxTime },
       isPlaying: false,
       playSpeed: 1000,
       featuredObject: { msg: "Click a table row to select object" },
@@ -67,8 +61,10 @@ class App extends React.Component {
       },
       uploadedDatasets: [null, null, null],
       activeDatasetIndex: null,
+      activeMenuIndex: null,
+      selectedRowIndexPerDataset: [-1, -1, -1],
     };
-    // Realtime updates are too heavy.  There must be a better/ react way
+    // Realtime updates are too heavy. There must be a better/ react way
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
 
     // TODO: refactor so that visualizations are registered
@@ -183,10 +179,10 @@ class App extends React.Component {
   }
 
   /*
-   * Update react state from data in the url.  This could/should be
-   * cleaned up.  The pure react state is actually set properly in the
+   * Update react state from data in the url. This could/should be
+   * cleaned up. The pure react state is actually set properly in the
    * constructor ... all this does is update the map and associated
-   * data (once it's loaded).  Given this split it's definitely possible
+   * data (once it's loaded). Given this split it's definitely possible
    * that this just overwrites settings a quickfingered user already
    * changed.
    */
@@ -218,7 +214,6 @@ class App extends React.Component {
     this.setState((prevState) => {
       prevState.toggleOptions[toggleName] = newValue;
       setQueryStringValue(toggleName, newValue);
-
       const extraColumns = _.clone(prevState.extraColumns);
       _.forEach(jsonPaths, (path) => {
         if (newValue) {
@@ -228,7 +223,6 @@ class App extends React.Component {
         }
       });
       prevState.extraColumns = _.uniq(extraColumns);
-
       return prevState;
     });
   }
@@ -244,8 +238,24 @@ class App extends React.Component {
   /*
    * Callback to updated selected log row
    */
-  onSelectionChange(selectedRow) {
-    this.setFeaturedObject(selectedRow);
+  onSelectionChange(selectedRow, rowIndex) {
+    log("App - onSelectionChange called with index:", rowIndex); // Debug
+
+    // Save both the selected row and its index for the current dataset
+    if (this.state.activeDatasetIndex !== null && rowIndex !== undefined) {
+      this.setState((prevState) => {
+        log(`Saving index ${rowIndex} for dataset ${prevState.activeDatasetIndex}`); // Debug
+        const newSelectedIndexes = [...prevState.selectedRowIndexPerDataset];
+        newSelectedIndexes[prevState.activeDatasetIndex] = rowIndex;
+        return {
+          selectedRowIndexPerDataset: newSelectedIndexes,
+          featuredObject: selectedRow,
+        };
+      });
+    } else {
+      log("Unable to save index:", rowIndex, "for dataset:", this.state.activeDatasetIndex); // Debug
+      this.setFeaturedObject(selectedRow);
+    }
   }
 
   /*
@@ -273,10 +283,7 @@ class App extends React.Component {
     setQueryStringValue("maxTime", maxTime);
     this.setState(
       {
-        timeRange: {
-          minTime: minTime,
-          maxTime: maxTime,
-        },
+        timeRange: { minTime: minTime, maxTime: maxTime },
       },
       callback
     );
@@ -296,9 +303,7 @@ class App extends React.Component {
       } else {
         newColumns = [...prevState.extraColumns, jsonPath];
       }
-      return {
-        extraColumns: newColumns,
-      };
+      return { extraColumns: newColumns };
     });
   }
 
@@ -308,7 +313,6 @@ class App extends React.Component {
         const minDate = new Date(prevState.timeRange.minTime);
         const maxDate = new Date(prevState.timeRange.maxTime);
         const logs = this.props.logData.tripLogs.getLogs_(minDate, maxDate).value();
-
         if (logs.length > 0) {
           const firstRow = logs[0];
           setTimeout(() => this.focusOnSelectedRow(), 0);
@@ -328,7 +332,6 @@ class App extends React.Component {
     const maxDate = new Date(this.state.timeRange.maxTime);
     const logsWrapper = this.props.logData.tripLogs.getLogs_(minDate, maxDate);
     const logs = logsWrapper.value();
-
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
       this.setFeaturedObject(lastRow);
@@ -343,16 +346,13 @@ class App extends React.Component {
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
     const logs = this.props.logData.tripLogs.getLogs_(minDate, maxDate).value();
-
     let newFeaturedObject = featuredObject;
-
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
     if (direction === "next" && currentIndex < logs.length - 1) {
       newFeaturedObject = logs[currentIndex + 1];
     } else if (direction === "previous" && currentIndex > 0) {
       newFeaturedObject = logs[currentIndex - 1];
     }
-
     if (newFeaturedObject !== featuredObject) {
       this.setState({ featuredObject: newFeaturedObject }, () => {
         this.focusOnSelectedRow();
@@ -397,6 +397,10 @@ class App extends React.Component {
   componentWillUnmount() {
     clearInterval(this.timerID);
     document.removeEventListener("keydown", this.handleKeyPress);
+    if (this._outsideClickHandler) {
+      document.removeEventListener("click", this._outsideClickHandler);
+      this._outsideClickHandler = null;
+    }
   }
 
   checkForDemoFile = async () => {
@@ -407,9 +411,7 @@ class App extends React.Component {
       }
       console.log("data.json demo file found on the server root, saving it to Dataset 1");
       const blob = await response.blob();
-      const file = new File([blob], "data.json", {
-        type: "application/json",
-      });
+      const file = new File([blob], "data.json", { type: "application/json" });
       const event = { target: { files: [file] } };
       await this.handleFileUpload(event, 0);
     } catch (error) {
@@ -424,17 +426,12 @@ class App extends React.Component {
       try {
         log(`Uploading file ${file.name} for button ${index}`);
         await uploadFile(file, index);
-
         log(`File ${file.name} uploaded successfully for button ${index}`);
         this.setState((prevState) => {
           const newUploadedDatasets = [...prevState.uploadedDatasets];
           newUploadedDatasets[index] = "Uploaded";
-
           log(`Updated state for button ${index}:`, newUploadedDatasets);
-          return {
-            uploadedDatasets: newUploadedDatasets,
-            activeDatasetIndex: index,
-          };
+          return { uploadedDatasets: newUploadedDatasets, activeDatasetIndex: index };
         });
         this.switchDataset(index);
       } catch (error) {
@@ -454,11 +451,9 @@ class App extends React.Component {
         return { status: null, index };
       })
     );
-
     this.setState({
       uploadedDatasets: newUploadedDatasets.map((d) => d.status),
     });
-
     if (this.state.activeDatasetIndex === null) {
       const firstAvailableIndex = newUploadedDatasets.find((dataset) => dataset.status === "Uploaded")?.index;
       if (firstAvailableIndex !== undefined) {
@@ -488,44 +483,109 @@ class App extends React.Component {
     }
   };
 
-  setCenterOnLocation = (func) => {
-    this.centerOnLocation = func;
-  };
-
   renderUploadButton = (index) => {
     const isUploaded = this.state.uploadedDatasets[index] === "Uploaded";
     const isActive = this.state.activeDatasetIndex === index;
-    let timeoutId;
+    const isMenuOpen = this.state.activeMenuIndex === index;
 
-    const handleMouseDown = () => {
-      timeoutId = setTimeout(() => {
-        log(`Long press triggered for button ${index}`);
-        this.handleLongPress(index);
-      }, 3000);
+    const toggleMenu = (e) => {
+      e.stopPropagation();
+      log(`Toggle menu for dataset ${index}`);
+      this.setState((prevState) => ({
+        activeMenuIndex: prevState.activeMenuIndex === index ? null : index,
+      }));
     };
 
-    const handleMouseUp = () => {
-      clearTimeout(timeoutId);
-    };
+    const handleDeleteClick = async (e) => {
+      e.stopPropagation();
+      log(`Delete initiated for dataset ${index}`);
 
-    const handleClick = () => {
-      if (isUploaded) {
-        this.switchDataset(index);
-      } else {
-        document.getElementById(`fileInput${index}`).click();
+      this.setState({ activeMenuIndex: null }); // Close menu
+
+      try {
+        await deleteUploadedData(index);
+        log(`Data deleted successfully for dataset ${index}`);
+
+        this.setState((prevState) => {
+          const newUploadedDatasets = [...prevState.uploadedDatasets];
+          newUploadedDatasets[index] = null;
+          return {
+            uploadedDatasets: newUploadedDatasets,
+            activeDatasetIndex: prevState.activeDatasetIndex === index ? null : prevState.activeDatasetIndex,
+          };
+        });
+      } catch (error) {
+        console.error("Error deleting local storage data:", error);
+        alert("Error deleting local storage data. Please try again.");
       }
     };
 
+    const handleSaveClick = async (e) => {
+      e.stopPropagation();
+      log(`Save initiated for dataset ${index}`);
+
+      // Close menu
+      this.setState({ activeMenuIndex: null });
+
+      try {
+        await saveDatasetAsJson(index);
+        toast.success(`Dataset ${index + 1} saved successfully`);
+        log(`Dataset ${index} saved successfully`);
+      } catch (error) {
+        console.error("Error saving dataset:", error);
+        toast.error(`Error saving dataset: ${error.message}`);
+      }
+    };
+
+    const handleClick = async () => {
+      if (isUploaded) {
+        this.switchDataset(index);
+      } else {
+        log("Opening Cloud Logging dialog directly for index " + index);
+        const result = await this.showCloudLoggingDialog();
+        if (result) {
+          try {
+            if (result.file) {
+              log("Processing file upload from dialog");
+              const uploadEvent = { target: { files: [result.file] } };
+              await this.handleFileUpload(uploadEvent, index);
+            } else if (result.logs) {
+              log("Processing cloud logs");
+              await uploadCloudLogs(result.logs, index);
+              this.setState((prevState) => ({
+                uploadedDatasets: prevState.uploadedDatasets.map((dataset, i) => (i === index ? "Uploaded" : dataset)),
+                activeDatasetIndex: index,
+              }));
+              this.switchDataset(index);
+            }
+          } catch (error) {
+            console.error("Failed to process data:", error);
+            alert("Failed to process data: " + error.message);
+          }
+        }
+      }
+    };
+
+    // Close menu when clicking outside
+    const handleOutsideClick = () => {
+      if (isMenuOpen) {
+        this.setState({ activeMenuIndex: null });
+      }
+    };
+
+    // Add event listener for outside clicks when a menu is open
+    if (isMenuOpen && !this._outsideClickHandler) {
+      this._outsideClickHandler = () => {
+        handleOutsideClick();
+      };
+      document.addEventListener("click", this._outsideClickHandler);
+    } else if (!isMenuOpen && this._outsideClickHandler) {
+      document.removeEventListener("click", this._outsideClickHandler);
+      this._outsideClickHandler = null;
+    }
+
     return (
-      <div
-        key={index}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
-        style={{ display: "inline-block", marginRight: "10px" }}
-      >
+      <div key={index} style={{ display: "inline-block", marginRight: "10px", position: "relative" }}>
         <input
           type="file"
           accept=".zip,.json"
@@ -535,23 +595,111 @@ class App extends React.Component {
         />
         <button
           onClick={handleClick}
-          style={{
-            backgroundColor: isActive ? "#4CAF50" : isUploaded ? "#008CBA" : "#555555",
-            color: "white",
-            padding: "10px 20px",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className={`dataset-button ${
+            isActive ? "dataset-button-active" : isUploaded ? "dataset-button-uploaded" : "dataset-button-empty"
+          }`}
         >
-          {isUploaded ? `Dataset ${index + 1}` : `Select File ${index + 1}`}
+          {isUploaded ? `Dataset ${index + 1}` : `Select Dataset ${index + 1}`}
+
+          {isUploaded && (
+            <span className="dataset-button-actions" onClick={toggleMenu}>
+              ▼
+              {isMenuOpen && (
+                <div className="dataset-button-menu">
+                  <div className="dataset-button-menu-item save" onClick={handleSaveClick}>
+                    Save
+                  </div>
+                  <div className="dataset-button-menu-item delete" onClick={handleDeleteClick}>
+                    Delete
+                  </div>
+                </div>
+              )}
+            </span>
+          )}
         </button>
       </div>
     );
   };
 
+  async showDataSourceDialog(index) {
+    log("showDataSourceDialog");
+    const dialog = document.createElement("dialog");
+    dialog.innerHTML = `
+        <div>
+            <h3>Choose Data Source for Dataset ${index + 1}</h3>
+            <button id="fileUpload">Load JSON/ZIP File</button>
+            <button id="cloudLogging">Connect to Cloud Logging</button>
+            <button id="cancel">Cancel</button>
+        </div>
+        `;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    return new Promise((resolve) => {
+      dialog.querySelector("#fileUpload").onclick = () => {
+        dialog.remove();
+        resolve("file");
+      };
+      dialog.querySelector("#cloudLogging").onclick = () => {
+        dialog.remove();
+        resolve("cloud");
+      };
+      dialog.querySelector("#cancel").onclick = () => {
+        dialog.remove();
+        resolve(null);
+      };
+    });
+  }
+  async showCloudLoggingDialog() {
+    const dialog = document.createElement("dialog");
+    dialog.className = "cloud-logging-dialog";
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    return new Promise((resolve) => {
+      const handleError = (error) => {
+        console.error("Cloud Logging Error:", error);
+        toast.error(error.message || "Failed to fetch logs. Please try again.");
+        dialog.remove();
+        resolve(null);
+      };
+
+      const handleFileUpload = (event) => {
+        log("File upload selected from Cloud Logging dialog");
+        const file = event?.target?.files?.[0];
+        if (file) {
+          dialog.remove();
+          resolve({ file });
+        }
+      };
+
+      // Using direct DOM manipulation instead of ReactDOM.render to avoid React 17 issues
+      const root = document.createElement("div");
+      dialog.appendChild(root);
+
+      const cloudLogging = React.createElement(CloudLogging, {
+        onLogsReceived: (logs) => {
+          log(`Received ${logs.length} logs from Cloud Logging`);
+          dialog.remove();
+          if (logs.length === 0) {
+            toast.warning("No logs found matching your criteria.");
+            resolve(null);
+          } else {
+            resolve({ logs });
+          }
+        },
+        onFileUpload: handleFileUpload,
+        setError: handleError,
+      });
+      ReactDOM.render(cloudLogging, root);
+    });
+  }
+
+  setCenterOnLocation = (func) => {
+    this.centerOnLocation = func;
+  };
+
   switchDataset = async (index) => {
     log(`Attempting to switch to dataset ${index}`);
-
     if (this.state.uploadedDatasets[index] !== "Uploaded") {
       console.error(`Attempted to switch to dataset ${index}, but it's not uploaded or is empty`);
       return;
@@ -561,24 +709,64 @@ class App extends React.Component {
       const data = await getUploadedData(index);
       if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
-
         this.setState(
           {
             activeDatasetIndex: index,
-            timeRange: {
-              minTime: tripLogs.minDate.getTime(),
-              maxTime: tripLogs.maxDate.getTime(),
-            },
+            timeRange: { minTime: tripLogs.minDate.getTime(), maxTime: tripLogs.maxDate.getTime() },
           },
           () => {
             // Update the logData prop with the new TripLogs instance
             this.props.logData.tripLogs = tripLogs;
+            this.props.logData.solutionType = data.solutionType;
 
             // Force an update of child components
             this.forceUpdate();
-
             log(`Switched to dataset ${index}`);
             log(`New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`);
+
+            // After dataset is loaded, try to restore the previously selected row index
+            const savedRowIndex = this.state.selectedRowIndexPerDataset[index];
+            log(`Attempting to restore row at index ${savedRowIndex} for dataset ${index}`);
+
+            // Wait for map and components to fully initialize
+            setTimeout(() => {
+              if (savedRowIndex >= 0) {
+                // Get current log data with the new time range
+                const minDate = new Date(this.state.timeRange.minTime);
+                const maxDate = new Date(this.state.timeRange.maxTime);
+                const logs = tripLogs.getLogs_(minDate, maxDate).value();
+
+                // Check if the saved index is valid for the current dataset
+                if (savedRowIndex < logs.length) {
+                  log(`Restoring row at index ${savedRowIndex}`);
+                  const rowToSelect = logs[savedRowIndex];
+
+                  // First update the featured object
+                  this.setState({ featuredObject: rowToSelect }, () => {
+                    // Then focus on the row in the table
+                    this.focusOnSelectedRow();
+
+                    // And finally center the map on the location (simulating a long press)
+                    const lat = _.get(rowToSelect, "lastlocation.rawlocation.latitude");
+                    const lng = _.get(rowToSelect, "lastlocation.rawlocation.longitude");
+
+                    if (lat && lng && this.centerOnLocation) {
+                      log(`Centering map on restored row location: ${lat}, ${lng}`);
+                      this.centerOnLocation(lat, lng);
+                    } else {
+                      log("Unable to center map: coordinates not found or centerOnLocation not available");
+                    }
+                  });
+                } else {
+                  log(`Index ${savedRowIndex} out of bounds (max: ${logs.length - 1}), selecting first row`);
+                  this.selectFirstRow();
+                }
+              } else {
+                // If no saved selection or invalid index, select first row
+                log(`No previously saved row index for dataset ${index}, selecting first row`);
+                this.selectFirstRow();
+              }
+            }, 300); // Increased delay to ensure map is fully initialized
           }
         );
 
@@ -602,11 +790,13 @@ class App extends React.Component {
     const selectedEventTime = this.state.featuredObject?.timestamp
       ? new Date(this.state.featuredObject.timestamp).getTime()
       : null;
+
     return (
-      <div style={{ display: "flex", height: "100vh" }}>
-        <div style={{ width: "70%", display: "flex", flexDirection: "column" }}>
-          <div style={{ height: "33vh", display: "flex", flexDirection: "column" }}>
-            <div className="map-container" style={{ flex: 1 }}>
+      <div className="app-container">
+        <ToastContainer position="top-right" autoClose={5000} />
+        <div className="main-content">
+          <div className="map-and-control-section">
+            <div className="map-container">
               <Map
                 key={`map-${this.state.activeDatasetIndex}`}
                 logData={this.props.logData}
@@ -632,51 +822,35 @@ class App extends React.Component {
               toggleState={this.state.toggleOptions}
               clickHandler={(id) => this.toggleClickHandler(id)}
             />
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "flex-start",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "10px",
-                }}
-              >
-                <div>
+            <div className="nav-controls">
+              <div className="button-row">
+                <div className="playback-controls">
                   <div>
                     <button onClick={this.selectFirstRow}>First</button>
                     <button onClick={this.selectLastRow}>Last</button>
-                    <button onClick={this.handlePreviousEvent}>&lt; Previous</button>
-                    <button onClick={this.handleNextEvent}>Next &gt;</button>
                   </div>
-                  <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
-                  <select
-                    value={this.state.playSpeed}
-                    onChange={this.handleSpeedChange}
-                    disabled={this.state.isPlaying}
-                  >
-                    <option value="250">0.25 sec</option>
-                    <option value="500">0.5 sec</option>
-                    <option value="1000">1 sec</option>
-                    <option value="2500">2.5 sec</option>
-                    <option value="5000">5 sec</option>
-                  </select>
+                  <div>
+                    <button onClick={this.handlePreviousEvent}>&lt;&nbsp;Previous</button>
+                    <button onClick={this.handleNextEvent}>Next&nbsp;&gt;</button>
+                  </div>
+                  <div>
+                    <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
+                    <select
+                      value={this.state.playSpeed}
+                      onChange={this.handleSpeedChange}
+                      disabled={this.state.isPlaying}
+                    >
+                      <option value="250">0.25s</option>
+                      <option value="500">0.5s</option>
+                      <option value="1000">1s</option>
+                      <option value="2500">2.5s</option>
+                      <option value="5000">5s</option>
+                    </select>
+                  </div>
                 </div>
-                <div style={{ display: "flex", marginLeft: "20px" }}>
-                  {[0, 1, 2].map((index) => this.renderUploadButton(index))}
-                </div>
-                <div
-                  style={{
-                    marginLeft: "20px",
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <div>Data remains client side, click and hold dataset to replace it</div>
+                <div className="dataset-controls">{[0, 1, 2].map((index) => this.renderUploadButton(index))}</div>
+                <div className="help-text">
+                  <div>All Data remains client side</div>
                   <div>
                     <strong>&lt;</strong> and <strong>&gt;</strong> to quickly navigate selected events
                   </div>
@@ -690,13 +864,13 @@ class App extends React.Component {
               style={{ width: "100%" }}
               timeRange={this.state.timeRange}
               extraColumns={this.state.extraColumns}
-              onSelectionChange={(featuredObject) => this.onSelectionChange(featuredObject)}
+              onSelectionChange={(rowData, rowIndex) => this.onSelectionChange(rowData, rowIndex)}
               setFocusOnRowFunction={this.setFocusOnRowFunction}
               centerOnLocation={this.centerOnLocation}
             />
           </div>
         </div>
-        <div style={{ width: "30%", height: "100%", overflow: "auto" }}>
+        <div className="dataframe-section">
           <Dataframe
             featuredObject={this.state.featuredObject}
             onClick={(select) => this.onDataframePropClick(select)}
@@ -706,5 +880,4 @@ class App extends React.Component {
     );
   }
 }
-
 export { App as default };

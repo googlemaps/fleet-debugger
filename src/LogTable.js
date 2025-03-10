@@ -308,7 +308,7 @@ function LogTable(props) {
   const handleRowSelection = React.useCallback(
     (rowIndex, rowData) => {
       setSelectedRowIndex(rowIndex);
-      props.onSelectionChange(rowData);
+      props.onSelectionChange(rowData, rowIndex);
     },
     [props.onSelectionChange]
   );
