@@ -239,12 +239,9 @@ class App extends React.Component {
    * Callback to updated selected log row
    */
   onSelectionChange(selectedRow, rowIndex) {
-    log("App - onSelectionChange called with index:", rowIndex); // Debug
-
     // Save both the selected row and its index for the current dataset
     if (this.state.activeDatasetIndex !== null && rowIndex !== undefined) {
       this.setState((prevState) => {
-        log(`Saving index ${rowIndex} for dataset ${prevState.activeDatasetIndex}`); // Debug
         const newSelectedIndexes = [...prevState.selectedRowIndexPerDataset];
         newSelectedIndexes[prevState.activeDatasetIndex] = rowIndex;
         return {
@@ -253,7 +250,7 @@ class App extends React.Component {
         };
       });
     } else {
-      log("Unable to save index:", rowIndex, "for dataset:", this.state.activeDatasetIndex); // Debug
+      log("Unable to save index:", rowIndex, "for dataset:", this.state.activeDatasetIndex);
       this.setFeaturedObject(selectedRow);
     }
   }
@@ -816,6 +813,8 @@ class App extends React.Component {
               curMax={this.state.timeRange.maxTime}
               onSliderChange={this.onSliderChangeDebounced}
               selectedEventTime={selectedEventTime}
+              onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
+              centerOnLocation={this.centerOnLocation}
             />
             <ToggleBar
               toggles={this.toggles}

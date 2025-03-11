@@ -148,6 +148,7 @@ export class TrafficPolyline {
         strokeWeight: 4,
         map: this.map,
         isRouteSegment: true,
+        clickable: false,
       });
       this.polylines.push(polyline);
     });

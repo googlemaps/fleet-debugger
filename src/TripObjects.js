@@ -107,6 +107,7 @@ export class TripObjects {
           offset: "100%",
         },
       ],
+      clickable: false,
       map: this.map,
     });
   }
@@ -131,6 +132,7 @@ export class TripObjects {
         strokeColor: getColor(trip.tripIdx),
         strokeOpacity: 0.5,
         strokeWeight: 6,
+        clickable: false,
         map: this.map,
       });
 
@@ -143,14 +145,6 @@ export class TripObjects {
         path.setOptions({ strokeOpacity: 0.5, strokeWeight: 6 });
       });
 
-      google.maps.event.addListener(path, "click", () => {
-        log("Trip polyline clicked");
-        const fd = trip.getFeaturedData();
-        this.setFeaturedObject(fd);
-        // TODO: https://github.com/googlemaps/fleet-debugger/issues/79
-        // this time range won't capture the createTrip logs
-        this.setTimeRange(fd.firstUpdate.getTime(), fd.lastUpdate.getTime());
-      });
 
       this.paths.set(tripId, path);
     }
