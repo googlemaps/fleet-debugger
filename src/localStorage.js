@@ -126,12 +126,28 @@ async function processJsonFile(file) {
 
 export function parseJsonContent(content) {
   log("Parsing JSON content");
+
+  const sortObjectKeys = (obj) => {
+    if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
+      return obj;
+    }
+
+    return Object.keys(obj)
+      .sort()
+      .reduce((sorted, key) => {
+        sorted[key] = sortObjectKeys(obj[key]);
+        return sorted;
+      }, {});
+  };
+
   try {
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    return sortObjectKeys(parsed);
   } catch (error) {
     log("Initial JSON parsing failed, attempting to wrap in array");
     try {
-      return JSON.parse(`[${content}]`);
+      const parsed = JSON.parse(`[${content}]`);
+      return sortObjectKeys(parsed);
     } catch (innerError) {
       console.error("JSON parsing error:", innerError);
       throw new Error(`Invalid JSON content: ${innerError.message}`);
