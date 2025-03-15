@@ -6,16 +6,28 @@ A visualization and debugging tool for Google Maps Platform's Mobility Solutions
 
 ## Using the Demo Site(s)
 
-The fastest way to get started is using our GitHub hosted site \
+The fastest way to get started is using our GitHub hosted site: \
 https://googlemaps.github.io/fleet-debugger/demos/multiple-trips
 
 We also have demo data for:
-- [GPS accuracy issues](https://googlemaps.github.io/fleet-debugger/demos/jump/)
 - [Scheduled task](https://googlemaps.github.io/fleet-debugger/demos/lmfs/)
 
 ### Loading Your Data
 
-1. Export your Fleet Engine logs from Cloud Logging using this filter (customize as needed): \
+Click on any empy Dataset buttons `Load Dataset` to get the `Fleet Engine Logs Loading` UI.
+
+![Fleet Engine Logs Loading](docs/screenshots/Fleet_Engine_Logs_Loading.png)
+
+#### Direct Cloud Logging Connection (Recommended)
+
+1.  **Configure Parameters:**  Configure the Cloud Logging query parameters directly within UI.
+
+2.  **Connect to Cloud Logging:**  The Fleet Debugger can connect directly to your Google Cloud project's Cloud Logging.  Click the `Sign in and Fetch Logs` button and follow the prompts to authenticate and grant access.  You'll need appropriate IAM permissions (`roles/logging.viewer` which is also granted via `roles/viewer`) for the Fleet Debugger to read logs.
+
+#### Log Files in JSON Format
+
+1. Export your Fleet Engine logs from Cloud Logging using one of the following filters (customize as needed):
+
 ```sql
 -- On-demand trips
 resource.type="fleetengine.googleapis.com/Fleet"
@@ -47,29 +59,41 @@ AND (
 ```
 
 2. Download the logs in JSON format and optionally zip them
-3. Import the JSON/ZIP file to Fleet Debugger
+3. Import the JSON/ZIP file to Fleet Debugger, using the `Load JSON or ZIP file instead` button.
 
 > **Note**: All data processing happens client-side. Your logs remain in your browser's Local Storage and are not uploaded to Google/GitHub.
 
 ### Key Features
 
-- Filter & inspect log messages with customizable table views
-- View planned navigation routes with traffic conditions as experienced by drivers
-- Replay vehicle movement (real time or time lapse)
-- See requested vs. actual pickup and dropoff points
-- View status changes (vehicle, trip, navigation)
-- Analyze GPS data (location, accuracy, heading)
-- Visualize multiple trips for one vehicle
-- View [GPS accuracy](docs/GPSAccuracy.md), [speed](docs/Speed.md), and [heading](docs/Heading.md)
-- Analyze [dwell times](docs/DwellTimes.md)
+-   **Filter & inspect log messages:**  Use customizable table views to easily find and analyze specific log entries.
+-   **View planned navigation routes:**  See the routes with traffic conditions as experienced by drivers (requires [Restricted Use Logs](#restricted-use-logs)).
+-   **Replay vehicle movement:**  Observe vehicle movement in real time or at an accelerated time-lapse.
+-   **See requested vs. actual pickup and dropoff points:** (requires [Restricted Use Logs](#restricted-use-logs)).
+-   **View status changes:**  Track changes in vehicle, trip, and navigation status.
+-   **Analyze GPS data:**  Examine location, accuracy, and heading information.
+-   **Visualize multiple trips:**  View all trips for a single vehicle.
+-   **Analyze GPS accuracy, speed, and heading:**  Detailed analysis tools for these metrics ([GPS accuracy](docs/GPSAccuracy.md), [speed](docs/Speed.md), [heading](docs/Heading.md)).
+-   **Analyze dwell times:**  Measure time spent at specific locations ([dwell times](docs/DwellTimes.md)).
+-   **Map and Timeslider Interaction:** Click directly on the map or the timeslider to select the nearest log event.
+-   **Tracking (Chevron):**  Use the tracking button to keep the map centered on the current event during replay.
+-   **Exporting Logs:** Export loaded dataset to a local file for easy collaboration.
 
-> **Note**: Planned navigation routes and Pickup/DropOff points requires enablement of [Restricted Use Logs](https://developers.google.com/maps/documentation/mobility/operations/cloud-logging/setup#enable_restricted_use_logs)
+### Restricted Use Logs
+
+Planned navigation routes and requested Pickup/Dropoff points require enablement of [Restricted Use Logs](https://developers.google.com/maps/documentation/mobility/operations/cloud-logging/setup#enable_restricted_use_logs).
+
+### Managing Datasets
+
+Each dataset (loaded from a file or Cloud Logging) has a dropdown menu:
+
+-   **Save (Export):**  Save the current dataset as a JSON file.
+-   **Delete:** Remove the dataset from the Fleet Debugger.  This clears the data from your browser's local storage.
 
 ### Restoring Demo Data
-To restore the original demo data after overwriting it:
-1. Long press the "Dataset 1" button
-2. When prompted, do NOT upload a file
-3. Refresh the page
+
+To reload the original demo data:
+1.  Select "Delete" from `Dataset 1` dropdown menu.
+2.  Refresh the page. The demo data will be automatically reloaded into Dataset 1.
 
 ## Running Your Own Server
 
@@ -84,6 +108,7 @@ npm install
 ```
 
 ### Start development server
+
 ```bash
 npm start
 ```
