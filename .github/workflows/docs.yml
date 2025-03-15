@@ -34,7 +34,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          publish_dir: ./
           user_name: "googlemaps-bot"
           user_email: "googlemaps-bot@users.noreply.github.com"
           commit_message: ${{ github.event.head_commit.message }}
