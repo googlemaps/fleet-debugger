@@ -1,0 +1,445 @@
+/* global.css */
+/* Tooltip styles */
+[class^="rc-slider-tooltip"] {
+  min-height: 30px;
+  max-width: 160px;
+  position: fixed;
+}
+
+/* Slider mark text container */
+.rc-slider-mark-text {
+  height: 30px;
+  overflow: visible;
+}
+
+.timeslider-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  cursor: pointer;
+}
+
+/* Ensure slider handles appear above the overlay */
+.rc-slider-handle {
+  z-index: 20 !important;
+}
+
+/* Log table styles */
+.logtable-header-row,
+.logtable-row {
+  display: flex;
+  width: 100%;
+}
+
+.logtable-header-cell,
+.logtable-cell {
+  flex: 0 0 auto;
+  padding: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.logtable-header-row {
+  border-bottom: 1px solid black;
+}
+
+.logtable-row {
+  border-bottom: 1px solid #eee;
+}
+
+.logtable-row.selected {
+  background-color: #d0d0ff;
+}
+
+.logtable-header-cell.short-column,
+.logtable-cell.short-column {
+  width: 50px;
+}
+
+.logtable-header-cell>*,
+.logtable-cell>* {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Event indicator styles */
+.selected-event-indicator-container {
+  position: relative;
+  width: 0;
+  height: 0;
+}
+
+.selected-event-indicator {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+
+
+/* Map and button styles */
+.map-button {
+  padding: 8px 12px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin: 10px 10px 10px -5px;
+  font-family: Roboto, Arial, sans-serif;
+  font-size: 18px;
+  color: #666;
+}
+
+.inner-button {
+  margin: 5px;
+}
+
+.map-button:hover {
+  background: #f1f1f1;
+}
+
+.map-container {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.follow-vehicle-button {
+  position: absolute;
+  z-index: 1000;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.follow-vehicle-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: white;
+  opacity: 0.5;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.follow-vehicle-chevron {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.follow-vehicle-button.active .follow-vehicle-background {
+  border: 2px solid #4285F4;
+  background-color: #d1dff7;
+  box-shadow: 0 0 8px rgba(66, 133, 244, 0.6), inset 0 0 6px rgba(66, 133, 244, 0.6);
+}
+
+/* Cloud logging styles */
+.cloud-logging-dialog {
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  width: 100%;
+}
+
+.cloud-logging-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  align-items: stretch;
+}
+
+.primary-button {
+  background-color: #4285f4;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  flex: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primary-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background-color: #34A853;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.cloud-logging-fetch-button {
+  background-color: #4285f4;
+  flex: 3;
+}
+
+.cloud-logging-fetch-button:disabled {
+  background-color: #ccc;
+}
+
+.cloud-logging-file-button {
+  background-color: #34A853;
+  flex: 1;
+}
+
+.file-input {
+  display: none;
+}
+
+/* App layout styles */
+.app-container {
+  display: flex;
+  height: 100vh;
+}
+
+.main-content {
+  width: 70%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-and-control-section {
+  flex: 0 0 36vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dataframe-section {
+  width: 30%;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Navigation controls */
+.nav-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.button-row {
+  display: flex;
+  align-items: left;
+  margin-bottom: 5px;
+}
+
+.playback-controls {
+  display: flex;
+  align-items: left;
+}
+
+.dataset-controls {
+  display: flex;
+  margin-left: 20px;
+}
+
+.help-text {
+  margin-left: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+@media screen and (max-width: 1200px) {
+  .help-text {
+    display: none;
+  }
+}
+
+/* Dataset button styles */
+.dataset-button {
+  padding: 10px 10px;
+  border: none;
+  cursor: pointer;
+  color: white;
+  position: relative;
+}
+.dataset-button-active {
+  background-color: #4CAF50;
+  padding: 10px 25px 10px 10px;
+}
+
+.dataset-button-uploaded {
+  background-color: #008CBA;
+  padding: 10px 25px 10px 10px;
+  
+}
+
+.dataset-button-empty {
+  background-color: #555555;
+}
+
+.dataset-button-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  z-index: 1; /* Ensure it's above the button text */
+}
+
+.dataset-button-actions:hover {
+  background-color: rgba(0,0,0,0.1);
+}
+
+/* Dropdown menu */
+.dataset-button-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 100;
+  min-width: 100px; /* Ensure the menu is wide enough */
+}
+
+.dataset-button-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #333;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dataset-button-menu-item:hover {
+  background-color: #f0f0f0;
+}
+
+.dataset-button-menu-item.delete {
+  color: #d32f2f;
+}
+
+/* CloudLogging dialog styles */
+.cloud-logging-form {
+  padding: 20px;
+  max-width: 500px;
+}
+
+.form-field {
+  margin-bottom: 10px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 5px;
+}
+
+.form-help-text {
+  color: #666;
+  font-size: 0.8em;
+}
+
+.error-message {
+  color: red;
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid red;
+  border-radius: 4px;
+  background-color: #fff0f0;
+}
+
+.progress-indicator {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+}
+
+.auth-status {
+  font-size: 0.8em;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.auth-status-valid {
+  color: green;
+}
+
+.auth-status-invalid {
+  color: orange;
+}
+
+/* Toggle bar styles */
+.togglebar-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  background: transparent;
+  border: none;
+}
+
+.toggle-button {
+  height: 16px;
+  padding: 2px;
+  margin: 0px;
+  font-size: 0.7em;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  opacity: 0.6;
+
+  border: 1px solid #ccc;
+  border-radius: 0px;
+  cursor: pointer;
+}
+
+.toggle-button:hover {
+  background-color: #f9f9f9;
+}
+
+.toggle-button-active {
+  opacity: 1;
+  color: Green;
+  border-color: green;
+}
