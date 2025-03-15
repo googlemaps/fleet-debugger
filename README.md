@@ -124,6 +124,10 @@ npm install -g firebase-tools
 firebase deploy --only hosting
 ```
 
+## Privacy Policy
+
+This project is 100% client-side and does not collect or store any user data on servers.  Please see our [Privacy Policy](docs/PRIVACY.md) for full details.
+
 ## Disclaimer
 
 This is not an officially supported Google product.
