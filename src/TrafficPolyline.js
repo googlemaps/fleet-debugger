@@ -5,9 +5,13 @@ import { log } from "./Utils";
 
 export const TRAFFIC_COLORS = {
   STYLE_NO_DATA: "#808080", // Gray
+  NO_DATA: "#808080",
   STYLE_NORMAL: "#4285F4", // Google Maps Blue
+  NORMAL: "#4285F4",
   STYLE_SLOWER_TRAFFIC: "#FFA500", // Orange
+  SLOWER_TRAFFIC: "#FFA500",
   STYLE_TRAFFIC_JAM: "#FF0000", // Red
+  TRAFFIC_JAM: "#FF0000",
 };
 
 export class TrafficPolyline {

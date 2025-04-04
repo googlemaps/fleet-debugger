@@ -140,14 +140,45 @@ export function parseJsonContent(content) {
       }, {});
   };
 
+  const processJsonObject = (obj) => {
+    if (obj === null || typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(processJsonObject);
+
+    return Object.keys(obj).reduce((result, key) => {
+      const newKey = key.replace(/_/g, "");
+      let value = obj[key];
+
+      // Check if this is a value object with only a 'value' property and flatten
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        !Array.isArray(value) &&
+        Object.keys(value).length === 1 &&
+        "value" in value
+      ) {
+        value = value.value;
+      } else if (typeof value === "object" && value !== null) {
+        // Recursively process nested objects
+        value = processJsonObject(value);
+      }
+
+      result[newKey] = value;
+      return result;
+    }, {});
+  };
+
   try {
     const parsed = JSON.parse(content);
-    return sortObjectKeys(parsed);
+    const processedData = processJsonObject(parsed);
+    log("Processed JSON data: removed underscores and flattened value objects");
+    return sortObjectKeys(processedData);
   } catch (error) {
     log("Initial JSON parsing failed, attempting to wrap in array");
     try {
       const parsed = JSON.parse(`[${content}]`);
-      return sortObjectKeys(parsed);
+      const processedData = processJsonObject(parsed);
+      log("Processed JSON data in array format");
+      return sortObjectKeys(processedData);
     } catch (innerError) {
       console.error("JSON parsing error:", innerError);
       throw new Error(`Invalid JSON content: ${innerError.message}`);
