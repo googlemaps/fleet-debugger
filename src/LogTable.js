@@ -162,7 +162,7 @@ function LogTable(props) {
         {
           Header: "DayTime",
           accessor: "formattedDate",
-          Cell: ({ cell: { value } }) => value.substring(8, 10) + "T" + value.substring(11, 23),
+          Cell: ({ cell: { value } }) => value.substring(5, 10) + " " + value.substring(11, 19),
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],

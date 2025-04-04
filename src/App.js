@@ -89,7 +89,7 @@ class App extends React.Component {
           id: "showSpeed",
           name: "Speed",
           docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
-          columns: ["lastlocation.speed"],
+          columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -131,7 +131,7 @@ class App extends React.Component {
           id: "showHighVelocityJumps",
           name: "Jumps (unrealistic velocity)",
           docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
-          columns: ["lastlocation.speed"],
+          columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
@@ -145,7 +145,7 @@ class App extends React.Component {
           id: "showClientServerTimeDeltas",
           name: "Client/Server Time Deltas",
           docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-          columns: ["response.laslLocation.rawlocationlime", "response.laslLocation.serverlime"],
+          columns: [],
           solutionTypes: ["ODRD", "LMFS"],
         },
         {

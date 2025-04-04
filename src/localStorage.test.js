@@ -35,6 +35,95 @@ test("parseJsonContent throws error for invalid JSON", () => {
   expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
 });
 
+test("parseJsonContent removes underscores from keys", () => {
+  const snakeCaseJson = JSON.stringify({
+    snake_case_key: "value",
+    normal_key: "value2",
+  });
+
+  const result = parseJsonContent(snakeCaseJson);
+
+  expect(result).toHaveProperty("snakecasekey", "value");
+  expect(result).toHaveProperty("normalkey", "value2");
+  expect(result).not.toHaveProperty("snake_case_key");
+  expect(result).not.toHaveProperty("normal_key");
+});
+
+test("parseJsonContent removes underscores from deeply nested object keys", () => {
+  const nestedJson = JSON.stringify({
+    top_level: {
+      nested_key: {
+        deeply_nested_key: "value",
+      },
+    },
+  });
+
+  const result = parseJsonContent(nestedJson);
+
+  expect(result).toHaveProperty("toplevel.nestedkey.deeplynestedkey", "value");
+  expect(result).not.toHaveProperty("top_level");
+});
+
+// New tests for value object flattening
+test("parseJsonContent flattens objects with a single 'value' property", () => {
+  const valueObjectJson = JSON.stringify({
+    normalKey: "normal",
+    valueObject: { value: "flattened" },
+  });
+
+  const result = parseJsonContent(valueObjectJson);
+
+  expect(result.normalKey).toBe("normal");
+  expect(result.valueObject).toBe("flattened");
+  expect(typeof result.valueObject).toBe("string");
+});
+
+test("parseJsonContent flattens nested objects with a single 'value' property", () => {
+  const nestedValueObjectJson = JSON.stringify({
+    level1: {
+      level2: {
+        normalObj: { key: "value" },
+        valueObj: { value: "flattened" },
+      },
+    },
+  });
+
+  const result = parseJsonContent(nestedValueObjectJson);
+
+  expect(result.level1.level2.normalObj.key).toBe("value");
+  expect(result.level1.level2.valueObj).toBe("flattened");
+  expect(typeof result.level1.level2.valueObj).toBe("string");
+});
+
+test("parseJsonContent handles both underscore removal and value flattening together", () => {
+  const complexJson = JSON.stringify({
+    snake_case: {
+      nested_value_obj: { value: 123 },
+      other_key: { some_nested: { value: "test" } },
+    },
+  });
+
+  const result = parseJsonContent(complexJson);
+
+  expect(result.snakecase.nestedvalueobj).toBe(123);
+  expect(result.snakecase.otherkey.somenested).toBe("test");
+});
+
+test("parseJsonContent properly handles arrays containing value objects", () => {
+  const arrayWithValueObjects = JSON.stringify({
+    items: [
+      { name: "item1", property: { value: 100 } },
+      { name: "item2", property: { value: 200 } },
+    ],
+  });
+
+  const result = parseJsonContent(arrayWithValueObjects);
+
+  expect(result.items[0].name).toBe("item1");
+  expect(result.items[0].property).toBe(100);
+  expect(result.items[1].property).toBe(200);
+});
+
 test("removeEmptyObjects removes empty nested objects", () => {
   const input = {
     a: {},
