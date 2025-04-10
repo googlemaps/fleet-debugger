@@ -48,9 +48,9 @@ function processApiCall(origLog) {
       if (apiType && apiType.match(regex)) {
         return {
           api: api,
-          request: origLog.jsonpayload.request,
-          response: origLog.jsonpayload.response,
-          error: origLog.jsonpayload.errorresponse,
+          request: _.cloneDeep(origLog.jsonpayload.request),
+          response: _.cloneDeep(origLog.jsonpayload.response),
+          error: _.cloneDeep(origLog.jsonpayload.errorresponse),
         };
       }
     }
@@ -61,9 +61,9 @@ function processApiCall(origLog) {
         if (key.match(regex)) {
           return {
             api: api,
-            request: origLog[key].request,
-            response: origLog[key].response,
-            error: origLog[key].errorresponse,
+            request: _.cloneDeep(origLog[key].request),
+            response: _.cloneDeep(origLog[key].response),
+            error: _.cloneDeep(origLog[key].errorresponse),
           };
         }
       }
@@ -120,6 +120,7 @@ function adjustFieldFormat(log, origPath, newPath, stringToTrim) {
 
 function processRawLogs(rawLogs, solutionType) {
   log(`Processing ${rawLogs.length} raw logs for ${solutionType}`);
+  const vehiclePath = solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
   const origLogs = rawLogs.map(toLowerKeys);
   const isReversed =
     origLogs.length > 1 && new Date(origLogs[0].timestamp) > new Date(origLogs[origLogs.length - 1].timestamp);
@@ -134,8 +135,6 @@ function processRawLogs(rawLogs, solutionType) {
     routeSegment: null,
     routeSegmentTraffic: null,
   };
-
-  const vehiclePath = solutionType === "LMFS" ? "request.deliveryvehicle" : "request.vehicle";
 
   for (let idx = 0; idx < sortedLogs.length; idx++) {
     const origLog = sortedLogs[idx];
@@ -155,35 +154,64 @@ function processRawLogs(rawLogs, solutionType) {
 
       adjustFieldFormats(solutionType, newLog);
 
-      // Update last known location, heading, traffic
+      // Get current data from the API call
       const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
       const currentRouteSegment = _.get(newLog, `${vehiclePath}.currentroutesegment`);
       const currentRouteSegmentTraffic = _.get(newLog, `${vehiclePath}.currentroutesegmenttraffic`);
+      const navigationStatus = _.get(newLog, `${vehiclePath}.navstatus`);
 
-      if (currentLocation?.rawlocation) {
-        lastKnownState.location = currentLocation.rawlocation;
-        lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
+      // Create lastlocation object using deep cloned data where available
+      newLog.lastlocation = currentLocation ? _.cloneDeep(currentLocation) : {};
+
+      // Apply last known location if needed
+      if (!newLog.lastlocation.location && lastKnownState.location) {
+        newLog.lastlocation.location = _.cloneDeep(lastKnownState.location);
+        newLog.lastlocation.heading = lastKnownState.heading;
       }
 
-      // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic.
-      if (_.get(newLog, `${vehiclePath}.navstatus`) == "NAVIGATION_STATUS_NO_GUIDANCE") {
+      // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic
+      if (navigationStatus === "NAVIGATION_STATUS_NO_GUIDANCE") {
         lastKnownState.routeSegment = null;
         lastKnownState.routeSegmentTraffic = null;
-      } else if (currentRouteSegment) {
-        lastKnownState.routeSegment = currentRouteSegment;
-        lastKnownState.routeSegmentTraffic = currentRouteSegmentTraffic;
+      }
+      // Update lastKnownState with current route if available
+      else if (currentRouteSegment) {
+        lastKnownState.routeSegment = _.cloneDeep(currentRouteSegment);
+        lastKnownState.routeSegmentTraffic = _.cloneDeep(currentRouteSegmentTraffic);
+
+        // Add current route segment to lastlocation
+        newLog.lastlocation.currentroutesegment = _.cloneDeep(currentRouteSegment);
+        if (currentRouteSegmentTraffic) {
+          newLog.lastlocation.currentroutesegmenttraffic = _.cloneDeep(currentRouteSegmentTraffic);
+        }
+      }
+      // Apply last known route segment if no current route segment and we have stored one
+      else if (lastKnownState.routeSegment) {
+        newLog.lastlocation.currentroutesegment = _.cloneDeep(lastKnownState.routeSegment);
+        if (lastKnownState.routeSegmentTraffic) {
+          newLog.lastlocation.currentroutesegmenttraffic = _.cloneDeep(lastKnownState.routeSegmentTraffic);
+        }
       }
 
-      // Apply last known state to a log entry
-      const basePath = `${vehiclePath}.lastlocation`;
-      if (!_.get(newLog, `${basePath}.rawlocation`) && lastKnownState.location) {
-        _.set(newLog, `${basePath}.rawlocation`, lastKnownState.location);
-        _.set(newLog, `${basePath}.heading`, lastKnownState.heading);
+      // Create other synthetic fields needed for the app
+      // For calculations of server/client time deltas
+      newLog.lastlocationResponse = _.get(newLog, "response.lastlocation")
+        ? _.cloneDeep(_.get(newLog, "response.lastlocation"))
+        : null;
+
+      // Navigation status (use response because it's typically only in the request when it changes)
+      newLog.navStatus = _.get(newLog, "response.navigationstatus");
+      newLog.error = _.get(newLog, "error.message");
+
+      // Sort currentTrips array since sometimes it could contain multiple trip ids in random order
+      if (_.get(newLog, "response.currenttrips")) {
+        newLog.response.currenttrips.sort();
       }
 
-      if (!_.get(newLog, `${vehiclePath}.currentroutesegment`) && lastKnownState.routeSegment) {
-        _.set(newLog, `${basePath}.currentroutesegment`, lastKnownState.routeSegment);
-        _.set(newLog, `${basePath}.currentroutesegmenttraffic`, lastKnownState.routeSegmentTraffic);
+      // Update lastKnownState for next iterations
+      if (currentLocation?.location) {
+        lastKnownState.location = _.cloneDeep(currentLocation.location);
+        lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
       }
 
       newLogs.push(newLog);
@@ -211,29 +239,6 @@ class TripLogs {
     this.missingUpdates = [];
     this.dwellLocations = [];
     this.etaDeltas = [];
-
-    const lastLocationPath = this.vehiclePath + ".lastlocation";
-    _.map(this.rawLogs, (le) => {
-      // "synthetic" entries that hides some of the differences
-      // between lmfs & odrd log entries
-      le.lastlocation = _.get(le, lastLocationPath);
-
-      // utilized for calculations of serve/client time deltas (where the
-      // server time isn't populated in the request).
-      le.lastlocationResponse = _.get(le, "response.lastlocation");
-
-      // use the response because nav status is typically only
-      // in the request when it changes ... and visualizations
-      // make more sense when the nav status can be shown along the route
-      le.navStatus = _.get(le, "response.navigationstatus");
-      le.error = _.get(le, "error.message");
-
-      // Sort currentTrips array since sometimes it could contain multiple trip ids
-      // but in a random order
-      if (_.get(le, "response.currenttrips")) {
-        le.response.currenttrips.sort();
-      }
-    });
 
     if (this.rawLogs.length > 0) {
       this.minDate = this.rawLogs[0].date;
@@ -495,7 +500,7 @@ class TripLogs {
           curTripData.updateRequests++;
         }
         const lastLocation = le.lastlocation;
-        if (lastLocation && lastLocation.rawlocation) {
+        if (lastLocation && lastLocation.location) {
           curTripData.appendCoords(lastLocation, le.timestamp);
         }
       }

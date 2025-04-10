@@ -15,10 +15,11 @@ export const TRAFFIC_COLORS = {
 };
 
 export class TrafficPolyline {
-  constructor({ path, zIndex, trafficRendering, currentLatLng, map }) {
+  constructor({ path, zIndex, isTripEvent, trafficRendering, currentLatLng, map }) {
     this.polylines = [];
     this.path = path;
     this.zIndex = zIndex;
+    this.isTripEvent = isTripEvent;
     this.currentLatLng = currentLatLng;
     this.map = map;
     this.segments = this.calculateSegments(trafficRendering);
@@ -142,6 +143,33 @@ export class TrafficPolyline {
   }
 
   createPolylines() {
+    if (this.isTripEvent) {
+      const polyline = new google.maps.Polyline({
+        path: this.path,
+        geodesic: true,
+        strokeColor: "#000000",
+        strokeOpacity: 1,
+        strokeWeight: 1.5,
+        zIndex: this.zIndex || 3,
+        isRouteSegment: true,
+        icons: [
+          {
+            icon: {
+              path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+              scale: 1.5,
+              strokeWeight: 1,
+            },
+            offset: "50%",
+            repeat: "100px",
+          },
+        ],
+        map: this.map,
+        clickable: false,
+      });
+      this.polylines.push(polyline);
+      return;
+    }
+
     this.segments.forEach((segment) => {
       const polyline = new google.maps.Polyline({
         path: segment.path,

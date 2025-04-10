@@ -145,7 +145,6 @@ export class TripObjects {
         path.setOptions({ strokeOpacity: 0.5, strokeWeight: 6 });
       });
 
-
       this.paths.set(tripId, path);
     }
 
