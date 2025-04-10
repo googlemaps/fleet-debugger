@@ -285,7 +285,6 @@ function LogTable(props) {
         return column.solutionTypes.indexOf(props.logData.solutionType) !== -1;
       }
     );
-
     // Add dynamic columns
     _.map(props.extraColumns, (dotPath) => {
       const elems = dotPath.split(".");
@@ -294,6 +293,11 @@ function LogTable(props) {
         accessor: dotPath === ".error" ? "error" : dotPath,
         width: columnRegularWidth,
         className: "logtable-cell",
+        Cell: ({ cell }) => {
+          const value = cell.value;
+          if (value === undefined || value === null) return null;
+          return typeof value === "boolean" ? String(value) : value;
+        },
       });
     });
     const headers = [

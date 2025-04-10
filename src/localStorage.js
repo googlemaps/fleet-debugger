@@ -145,8 +145,13 @@ export function parseJsonContent(content) {
     if (Array.isArray(obj)) return obj.map(processJsonObject);
 
     return Object.keys(obj).reduce((result, key) => {
-      const newKey = key.replace(/_/g, "");
       let value = obj[key];
+
+      if (value === null || value === undefined) {
+        return result;
+      }
+
+      const newKey = key.replace(/_/g, "");
 
       // Check if this is a value object with only a 'value' property and flatten
       if (
@@ -157,9 +162,18 @@ export function parseJsonContent(content) {
         "value" in value
       ) {
         value = value.value;
+
+        if (value === null || value === undefined) {
+          return result;
+        }
       } else if (typeof value === "object" && value !== null) {
         // Recursively process nested objects
         value = processJsonObject(value);
+
+        // Skip empty objects (those with no properties after processing)
+        if (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0) {
+          return result;
+        }
       }
 
       result[newKey] = value;
@@ -170,7 +184,7 @@ export function parseJsonContent(content) {
   try {
     const parsed = JSON.parse(content);
     const processedData = processJsonObject(parsed);
-    log("Processed JSON data: removed underscores and flattened value objects");
+    log("Processed JSON data: removed underscores, flattened value objects, and pruned null/undefined fields");
     return sortObjectKeys(processedData);
   } catch (error) {
     log("Initial JSON parsing failed, attempting to wrap in array");
