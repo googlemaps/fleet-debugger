@@ -1,6 +1,7 @@
 // src/CloudLogging.js
 import { useState, useEffect } from "react";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import ExtraDataSource from "./ExtraDataSource";
 import { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -375,6 +376,8 @@ const CloudLoggingForm = ({ onLogsReceived, onFileUpload }) => {
           </div>
         )}
         <div className="cloud-logging-buttons">
+          {ExtraDataSource.isAvailable() && ExtraDataSource.renderButton(onLogsReceived)}
+
           <button
             type="button"
             onClick={handleFetch}
