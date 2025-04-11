@@ -27,6 +27,7 @@ let locationProvider;
 let tripLogs;
 let taskLogs;
 let setFeaturedObject;
+let focusSelectedRow;
 let setTimeRange;
 
 const render = (status) => {
@@ -54,6 +55,8 @@ function addTripPolys(map) {
     if (closestEvent) {
       log("Found closest event:", closestEvent.timestamp);
       setFeaturedObject(closestEvent);
+
+      setTimeout(() => focusSelectedRow(), 0);
     }
   });
 
@@ -489,6 +492,7 @@ function Map(props) {
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
   setFeaturedObject = props.setFeaturedObject;
+  focusSelectedRow = props.focusSelectedRow;
   setTimeRange = props.setTimeRange;
 
   function centerOnLocation(lat, lng) {
