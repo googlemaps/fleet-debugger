@@ -158,7 +158,9 @@ function processRawLogs(rawLogs, solutionType) {
       const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
       const currentRouteSegment = _.get(newLog, `${vehiclePath}.currentroutesegment`);
       const currentRouteSegmentTraffic = _.get(newLog, `${vehiclePath}.currentroutesegmenttraffic`);
-      const navigationStatus = _.get(newLog, `${vehiclePath}.navstatus`);
+
+      // Navigation status (fallback to response because it's typically only in the request when it changes)
+      newLog.navStatus = _.get(newLog, `${vehiclePath}.navstatus`) || _.get(newLog, "response.navigationstatus");
 
       // Create lastlocation object using deep cloned data where available
       newLog.lastlocation = currentLocation ? _.cloneDeep(currentLocation) : {};
@@ -170,7 +172,7 @@ function processRawLogs(rawLogs, solutionType) {
       }
 
       // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic
-      if (navigationStatus === "NAVIGATION_STATUS_NO_GUIDANCE") {
+      if (typeof newLog.navStatus === "string" && newLog.navStatus.endsWith("NO_GUIDANCE")) {
         lastKnownState.routeSegment = null;
         lastKnownState.routeSegmentTraffic = null;
       }
@@ -199,8 +201,6 @@ function processRawLogs(rawLogs, solutionType) {
         ? _.cloneDeep(_.get(newLog, "response.lastlocation"))
         : null;
 
-      // Navigation status (use response because it's typically only in the request when it changes)
-      newLog.navStatus = _.get(newLog, "response.navigationstatus");
       newLog.error = _.get(newLog, "error.message");
 
       // Sort currentTrips array since sometimes it could contain multiple trip ids in random order

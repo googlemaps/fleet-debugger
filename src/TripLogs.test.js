@@ -52,27 +52,27 @@ test("lastKnownState location is correctly applied to subsequent logs", () => {
           vehicle: {
             lastlocation: {
               location: { latitude: 37.7749, longitude: -122.4194 },
-              heading: 90
-            }
-          }
+              heading: 90,
+            },
+          },
         },
-        response: {}
-      }
+        response: {},
+      },
     },
     {
       timestamp: "2023-01-01T10:01:00Z",
       jsonpayload: {
         "@type": "updateVehicle",
         request: {
-          vehicle: {}
+          vehicle: {},
         },
-        response: {}
-      }
-    }
+        response: {},
+      },
+    },
   ];
 
   const tripLogs = new TripLogs(mockLogs, "ODRD");
-  
+
   // Check that the second log entry received the lastKnownState from the first
   expect(tripLogs.rawLogs[1].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[1].lastlocation.heading).toBe(90);
@@ -89,25 +89,25 @@ test("request and response objects are not mutated", () => {
         vehicle: {
           lastlocation: {
             location: originalLocation,
-            heading: 90
-          }
-        }
+            heading: 90,
+          },
+        },
       },
-      response: {}
-    }
+      response: {},
+    },
   };
 
   const tripLogs = new TripLogs([mockLog], "ODRD");
-  
+
   // Verify the original request object was not modified
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).not.toBe(originalLocation);
-  
+
   // But the data is still equal
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).toEqual(originalLocation);
-  
+
   // Modify the synthetic field
   tripLogs.rawLogs[0].lastlocation.location.latitude = 38.0;
-  
+
   // Verify the original was not affected
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).toEqual(originalLocation);
 });
@@ -122,11 +122,11 @@ test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
         request: {
           vehicle: {
             currentroutesegment: { id: "segment1", path: [{ latitude: 37.7, longitude: -122.4 }] },
-            currentroutesegmenttraffic: { speed: 30 }
-          }
+            currentroutesegmenttraffic: { speed: 30 },
+          },
         },
-        response: {}
-      }
+        response: {},
+      },
     },
     {
       timestamp: "2023-01-01T10:01:00Z",
@@ -134,32 +134,32 @@ test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
         "@type": "updateVehicle",
         request: {
           vehicle: {
-            navstatus: "NAVIGATION_STATUS_NO_GUIDANCE"
-          }
+            navstatus: "NAVIGATION_STATUS_NO_GUIDANCE",
+          },
         },
-        response: {}
-      }
+        response: {},
+      },
     },
     {
       timestamp: "2023-01-01T10:02:00Z",
       jsonpayload: {
         "@type": "updateVehicle",
         request: {
-          vehicle: {}
+          vehicle: {},
         },
-        response: {}
-      }
-    }
+        response: {},
+      },
+    },
   ];
 
   const tripLogs = new TripLogs(mockLogs, "ODRD");
-  
+
   // First log should have the route segment
   expect(tripLogs.rawLogs[0].lastlocation.currentroutesegment).toBeDefined();
-  
+
   // Second log sets navstatus to NO_GUIDANCE, so lastKnownState should be reset
   expect(tripLogs.rawLogs[1].lastlocation.currentroutesegment).not.toBeDefined();
-  
+
   // Third log should not have route segment since it was reset
   expect(tripLogs.rawLogs[2].lastlocation.currentroutesegment).not.toBeDefined();
 });
@@ -176,12 +176,12 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
           vehicle: {
             lastlocation: {
               location: { latitude: 37.7749, longitude: -122.4194 },
-              heading: 90
-            }
-          }
+              heading: 90,
+            },
+          },
         },
-        response: {}
-      }
+        response: {},
+      },
     },
     {
       // Log 2: Has route but no location
@@ -190,11 +190,11 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
         "@type": "updateVehicle",
         request: {
           vehicle: {
-            currentroutesegment: { id: "segment1", path: [{ latitude: 37.7, longitude: -122.4 }] }
-          }
+            currentroutesegment: { id: "segment1", path: [{ latitude: 37.7, longitude: -122.4 }] },
+          },
         },
-        response: {}
-      }
+        response: {},
+      },
     },
     {
       // Log 3: Has neither location nor route
@@ -202,23 +202,23 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
       jsonpayload: {
         "@type": "updateVehicle",
         request: {
-          vehicle: {}
+          vehicle: {},
         },
-        response: {}
-      }
-    }
+        response: {},
+      },
+    },
   ];
 
   const tripLogs = new TripLogs(mockLogs, "ODRD");
-  
+
   // Log 1: Should have location but no route
   expect(tripLogs.rawLogs[0].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[0].lastlocation.currentroutesegment).not.toBeDefined();
-  
+
   // Log 2: Should have location from Log 1 and its own route
   expect(tripLogs.rawLogs[1].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[1].lastlocation.currentroutesegment).toBeDefined();
-  
+
   // Log 3: Should have both location from Log 1 and route from Log 2
   expect(tripLogs.rawLogs[2].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[2].lastlocation.currentroutesegment).toBeDefined();
