@@ -805,6 +805,7 @@ class App extends React.Component {
                 setFeaturedObject={this.setFeaturedObject}
                 setTimeRange={this.setTimeRange}
                 setCenterOnLocation={this.setCenterOnLocation}
+                focusSelectedRow={this.focusOnSelectedRow}
               />
             </div>
             <TimeSlider
@@ -815,6 +816,7 @@ class App extends React.Component {
               selectedEventTime={selectedEventTime}
               onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
               centerOnLocation={this.centerOnLocation}
+              focusSelectedRow={this.focusOnSelectedRow}
             />
             <ToggleBar
               toggles={this.toggles}
