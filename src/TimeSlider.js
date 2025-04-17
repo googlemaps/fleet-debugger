@@ -108,6 +108,8 @@ function TimeSlider(props) {
         if (props.centerOnLocation && lat && lng) {
           props.centerOnLocation(lat, lng);
         }
+
+        setTimeout(() => props.focusSelectedRow(), 0);
       }
     } else {
       log("TimeSlider - No logs found in current time range");

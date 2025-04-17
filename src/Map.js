@@ -27,6 +27,7 @@ let locationProvider;
 let tripLogs;
 let taskLogs;
 let setFeaturedObject;
+let focusSelectedRow;
 let setTimeRange;
 
 const render = (status) => {
@@ -54,6 +55,8 @@ function addTripPolys(map) {
     if (closestEvent) {
       log("Found closest event:", closestEvent.timestamp);
       setFeaturedObject(closestEvent);
+
+      setTimeout(() => focusSelectedRow(), 0);
     }
   });
 
@@ -133,11 +136,6 @@ function MyMapComponent(props) {
       map.setHeading(parseInt(urlHeading));
     }
     map.setOptions({ maxZoom: 100 });
-    map.addListener("zoom_changed", () => {
-      setQueryStringValue("zoom", map.getZoom());
-      setIsFollowingVehicle(false); // zoom disables following
-      log("Follow mode disabled due to zoom change");
-    });
 
     map.addListener("heading_changed", () => {
       setQueryStringValue("heading", map.getHeading());
@@ -318,7 +316,35 @@ function MyMapComponent(props) {
     // Update the polylines state to remove all route segments
     setPolylines(polylines.filter((p) => !p.isRouteSegment));
 
-    // Get the current route segment from the selected row
+    const eventType = props.selectedRow["@type"];
+    const isTripEvent = ["getTrip", "updateTrip", "createTrip"].includes(eventType);
+
+    if (isTripEvent) {
+      // Create a thin red polyline with arrows for trip events
+      const routeSegment = _.get(props.selectedRow, "response.currentroutesegment");
+      if (routeSegment) {
+        try {
+          const decodedPoints = decode(routeSegment);
+          if (decodedPoints && decodedPoints.length > 0) {
+            const validWaypoints = decodedPoints.map((point) => ({
+              lat: point.latDegrees(),
+              lng: point.lngDegrees(),
+            }));
+
+            const trafficPolyline = new TrafficPolyline({
+              path: validWaypoints,
+              zIndex: 3,
+              isTripEvent: true,
+              map: map,
+            });
+            setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
+          }
+        } catch (error) {
+          console.error("Error processing trip event polyline:", error);
+        }
+      }
+    }
+
     const routeSegment =
       _.get(props.selectedRow, "request.vehicle.currentroutesegment") ||
       _.get(props.selectedRow, "lastlocation.currentroutesegment");
@@ -337,23 +363,19 @@ function MyMapComponent(props) {
             _.get(props.selectedRow, "request.vehicle.currentroutesegmenttraffic.trafficrendering") ||
             _.get(props.selectedRow, "lastlocation.currentroutesegmenttraffic.trafficrendering");
 
-          const rawLocation = _.get(props.selectedRow.lastlocation, "rawlocation");
+          const location = _.get(props.selectedRow.lastlocation, "location");
 
           const trafficPolyline = new TrafficPolyline({
             path: validWaypoints,
             zIndex: 2,
             trafficRendering: structuredClone(trafficRendering),
-            currentLatLng: rawLocation,
+            currentLatLng: location,
             map: map,
           });
           setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
         }
       } catch (error) {
-        console.error("Error processing route segment polyline:", {
-          error,
-          routeSegment,
-          rowData: props.selectedRow,
-        });
+        console.error("Error processing route segment polyline:", error);
       }
     }
   }, [props.selectedRow]);
@@ -384,17 +406,25 @@ function MyMapComponent(props) {
         strokeWeight: 1,
         rotation: 0,
       },
+      rawLocation: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: "#FF0000",
+        fillOpacity: 1,
+        scale: 2,
+        strokeColor: "#FF0000",
+        strokeWeight: 1,
+      },
     };
 
-    const rawLocation = _.get(data.lastlocation, "rawlocation");
-    if (rawLocation) {
-      lastValidPositionRef.current = { lat: rawLocation.latitude, lng: rawLocation.longitude };
+    const location = _.get(data.lastlocation, "location") || _.get(data.lastlocationResponse, "location");
+    if (location) {
+      lastValidPositionRef.current = { lat: location.latitude, lng: location.longitude };
 
-      const heading = _.get(data.lastlocation, "heading") || 0;
+      const heading = _.get(data.lastlocation, "heading") || _.get(data.lastlocationResponse, "heading") || 0;
       markerSymbols.chevron.rotation = heading;
 
       const backgroundMarker = new window.google.maps.Marker({
-        position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
+        position: { lat: location.latitude, lng: location.longitude },
         map: map,
         icon: markerSymbols.background,
         clickable: false,
@@ -402,7 +432,7 @@ function MyMapComponent(props) {
       });
 
       const chevronMarker = new window.google.maps.Marker({
-        position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
+        position: { lat: location.latitude, lng: location.longitude },
         map: map,
         icon: markerSymbols.chevron,
         zIndex: 10,
@@ -410,8 +440,21 @@ function MyMapComponent(props) {
 
       dataMakers.push(backgroundMarker, chevronMarker);
 
+      const rawLocation = _.get(data.lastlocation, "rawlocation");
+      if (rawLocation) {
+        const rawLocationMarker = new window.google.maps.Marker({
+          position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
+          map: map,
+          icon: markerSymbols.rawLocation,
+          zIndex: 8,
+          clickable: false,
+        });
+
+        dataMakers.push(rawLocationMarker);
+      }
+
       if (isFollowingVehicle) {
-        map.setCenter({ lat: rawLocation.latitude, lng: rawLocation.longitude });
+        map.setCenter({ lat: location.latitude, lng: location.longitude });
       }
     }
   }, [props.selectedRow, isFollowingVehicle]);
@@ -449,6 +492,7 @@ function Map(props) {
   jwt = props.logData.jwt;
   projectId = props.logData.projectId;
   setFeaturedObject = props.setFeaturedObject;
+  focusSelectedRow = props.focusSelectedRow;
   setTimeRange = props.setTimeRange;
 
   function centerOnLocation(lat, lng) {
