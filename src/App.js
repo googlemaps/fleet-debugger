@@ -66,10 +66,10 @@ class App extends React.Component {
         showLiveJS: getToggleDefault("showLiveJS", false),
         showClientServerTimeDeltas: getToggleDefault("showClientServerTimeDeltas", false),
       },
-      uploadedDatasets: [null, null, null],
+      uploadedDatasets: [null, null, null, null, null],
       activeDatasetIndex: null,
       activeMenuIndex: null,
-      selectedRowIndexPerDataset: [-1, -1, -1],
+      selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
     };
     // Realtime updates are too heavy. There must be a better/ react way
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
@@ -446,7 +446,7 @@ class App extends React.Component {
 
   checkUploadedDatasets = async () => {
     const newUploadedDatasets = await Promise.all(
-      [0, 1, 2].map(async (index) => {
+      [0, 1, 2, 3, 4].map(async (index) => {
         const data = await getUploadedData(index);
         log(`Dataset ${index}:`, data);
         if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
@@ -921,7 +921,7 @@ class App extends React.Component {
                     </select>
                   </div>
                 </div>
-                <div className="dataset-controls">{[0, 1, 2].map((index) => this.renderUploadButton(index))}</div>
+                <div className="dataset-controls">{[0, 1, 2, 3, 4].map((index) => this.renderUploadButton(index))}</div>
                 <div className="help-text">
                   <div>All Data remains client side</div>
                   <div>
