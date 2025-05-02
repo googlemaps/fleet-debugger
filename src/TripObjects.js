@@ -132,13 +132,13 @@ export class TripObjects {
     // Add path polyline
     const tripCoords = trip.getPathCoords(minDate, maxDate);
     if (tripCoords.length > 0) {
-      const strokeColor = isNonTripSegment ? "#888888" : getColor(trip.tripIdx);
+      const strokeColor = isNonTripSegment ? "#474647" : getColor(trip.tripIdx);
 
       const path = new google.maps.Polyline({
         path: tripCoords,
         geodesic: true,
         strokeColor: strokeColor,
-        strokeOpacity: 0.5,
+        strokeOpacity: 0.3,
         strokeWeight: 6,
         clickable: false,
         map: this.map,
