@@ -114,7 +114,13 @@ export class TripObjects {
 
   addTripVisuals(trip, minDate, maxDate) {
     const tripId = trip.tripName;
+    const isNonTripSegment = tripId.startsWith("non-trip-segment-");
+
     log(`Processing trip visuals for ${tripId}`, {
+      isNonTripSegment,
+      coordsCount: trip.pathCoords.length,
+      firstUpdate: trip.firstUpdate,
+      lastUpdate: trip.lastUpdate,
       pickupPoint: trip.getPickupPoint(),
       actualPickupPoint: trip.getActualPickupPoint(),
       dropoffPoint: trip.getDropoffPoint(),
@@ -126,10 +132,12 @@ export class TripObjects {
     // Add path polyline
     const tripCoords = trip.getPathCoords(minDate, maxDate);
     if (tripCoords.length > 0) {
+      const strokeColor = isNonTripSegment ? "#888888" : getColor(trip.tripIdx);
+
       const path = new google.maps.Polyline({
         path: tripCoords,
         geodesic: true,
-        strokeColor: getColor(trip.tripIdx),
+        strokeColor: strokeColor,
         strokeOpacity: 0.5,
         strokeWeight: 6,
         clickable: false,
@@ -146,6 +154,11 @@ export class TripObjects {
       });
 
       this.paths.set(tripId, path);
+    }
+
+    // Skip creating markers for non-trip segments
+    if (isNonTripSegment) {
+      return;
     }
 
     const markers = [];

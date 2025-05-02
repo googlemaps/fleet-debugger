@@ -134,6 +134,7 @@ function processRawLogs(rawLogs, solutionType) {
     heading: 0,
     routeSegment: null,
     routeSegmentTraffic: null,
+    currentTrips: [],
   };
 
   for (let idx = 0; idx < sortedLogs.length; idx++) {
@@ -151,6 +152,7 @@ function processRawLogs(rawLogs, solutionType) {
       newLog.request = apiCall.request;
       newLog.response = apiCall.response;
       newLog.error = apiCall.error;
+      const hasApiError = !!newLog.error || (origLog.jsonpayload && origLog.jsonpayload.errorresponse);
 
       adjustFieldFormats(solutionType, newLog);
 
@@ -169,6 +171,17 @@ function processRawLogs(rawLogs, solutionType) {
       if (!newLog.lastlocation.location && lastKnownState.location) {
         newLog.lastlocation.location = _.cloneDeep(lastKnownState.location);
         newLog.lastlocation.heading = lastKnownState.heading;
+      }
+
+      // Keep the same current trips if we had an API error
+      if (hasApiError && lastKnownState.currentTrips.length > 0) {
+        log(`Preserving current trips due to API error for log at ${newLog.timestamp}`);
+        if (!newLog.response) {
+          newLog.response = {};
+        }
+        newLog.response.currenttrips = [...lastKnownState.currentTrips];
+      } else if (_.get(newLog, "response.currenttrips")) {
+        lastKnownState.currentTrips = [...newLog.response.currenttrips];
       }
 
       // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic
