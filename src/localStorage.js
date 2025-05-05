@@ -285,7 +285,7 @@ export function ensureCorrectFormat(data) {
   };
 }
 
-async function saveToIndexedDB(data, index) {
+export async function saveToIndexedDB(data, index) {
   const db = await openDB();
   const transaction = db.transaction(STORE_NAME, "readwrite");
   const store = transaction.objectStore(STORE_NAME);
