@@ -62,10 +62,10 @@ function addTripPolys(map) {
 
   _.forEach(trips, (trip) => {
     tripObjects.addTripVisuals(trip, minDate, maxDate);
-
     // Update bounds
     const tripCoords = trip.getPathCoords(minDate, maxDate);
     if (tripCoords.length > 0) {
+      tripObjects.addTripVisuals(trip, minDate, maxDate);
       tripCoords.forEach((coord) => vehicleBounds.extend(coord));
     }
   });
