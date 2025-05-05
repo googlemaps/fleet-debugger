@@ -451,7 +451,7 @@ class TripLogs {
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
       const currentTrips = _.get(logEntry, "response.currenttrips");
-      if (currentTrips) {
+      if (currentTrips && Array.isArray(currentTrips) && currentTrips.length > 0) {
         return currentTrips.join();
       }
     }
