@@ -7,7 +7,7 @@ A visualization and debugging tool for Google Maps Platform's Mobility Solutions
 ## Using the Demo Site(s)
 
 The fastest way to get started is using our GitHub hosted site: \
-https://googlemaps.github.io/fleet-debugger/demos/multiple-trips
+[googlemaps.github.io/fleet-debugger/demos/multiple-trips](https://googlemaps.github.io/fleet-debugger/demos/multiple-trips)
 
 We also have demo data for:
 - [Scheduled task](https://googlemaps.github.io/fleet-debugger/demos/lmfs/)
