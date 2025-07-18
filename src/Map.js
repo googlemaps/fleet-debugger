@@ -1,7 +1,6 @@
 // src/Map.js
-
 import { useEffect, useRef, useState } from "react";
-import { Wrapper, Status } from "@googlemaps/react-wrapper";
+import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import Utils, { log } from "./Utils";
@@ -29,12 +28,6 @@ let taskLogs;
 let setFeaturedObject;
 let focusSelectedRow;
 let setTimeRange;
-
-const render = (status) => {
-  if (status === Status.LOADING) return <h3>{status} ..</h3>;
-  if (status === Status.FAILURE) return <h3>{status} ...</h3>;
-  return null;
-};
 
 function addTripPolys(map) {
   const tripObjects = new TripObjects({
@@ -92,11 +85,11 @@ function initializeMapObject(element) {
     return authToken;
   }
 
-  locationProvider = new google.maps.journeySharing.FleetEngineTripLocationProvider({
+  locationProvider = new window.google.maps.journeySharing.FleetEngineTripLocationProvider({
     projectId,
     authTokenFetcher,
   });
-  const jsMapView = new google.maps.journeySharing.JourneySharingMapView({
+  const jsMapView = new window.google.maps.journeySharing.JourneySharingMapView({
     element: element,
     locationProvider,
     mapOptions: {
@@ -164,7 +157,7 @@ function MyMapComponent(props) {
       log("Polyline button clicked");
     };
 
-    map.controls[google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
+    map.controls[window.google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
 
     // Create follow vehicle button with chevron icon
     const followButton = document.createElement("div");
@@ -182,7 +175,7 @@ function MyMapComponent(props) {
     };
 
     // Add button to map
-    map.controls[google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
+    map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
 
     updateFollowButtonAppearance();
   }, []);
@@ -205,15 +198,15 @@ function MyMapComponent(props) {
   };
 
   const handlePolylineSubmit = (waypoints, properties) => {
-    const path = waypoints.map((wp) => new google.maps.LatLng(wp.latitude, wp.longitude));
+    const path = waypoints.map((wp) => new window.google.maps.LatLng(wp.latitude, wp.longitude));
 
     const arrowIcon = {
-      path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
+      path: window.google.maps.SymbolPath.FORWARD_OPEN_ARROW,
       scale: properties.strokeWeight / 2,
       strokeColor: properties.color,
     };
 
-    const polyline = new google.maps.Polyline({
+    const polyline = new window.google.maps.Polyline({
       path: path,
       geodesic: true,
       strokeColor: properties.color,
@@ -389,7 +382,7 @@ function MyMapComponent(props) {
 
     const markerSymbols = {
       background: {
-        path: google.maps.SymbolPath.CIRCLE,
+        path: window.google.maps.SymbolPath.CIRCLE,
         fillColor: "#FFFFFF",
         fillOpacity: 0.7,
         scale: 18,
@@ -407,7 +400,7 @@ function MyMapComponent(props) {
         rotation: 0,
       },
       rawLocation: {
-        path: google.maps.SymbolPath.CIRCLE,
+        path: window.google.maps.SymbolPath.CIRCLE,
         fillColor: "#FF0000",
         fillOpacity: 1,
         scale: 2,
@@ -481,6 +474,19 @@ function MyMapComponent(props) {
   );
 }
 
+function MapContent(props) {
+  const journeySharingLib = useMapsLibrary("journeySharing");
+  const geometryLib = useMapsLibrary("geometry");
+
+  if (!journeySharingLib || !geometryLib) {
+    log("MapContent: Waiting for Google Maps libraries to load...");
+    return <h3>Loading Maps...</h3>;
+  }
+
+  log("MapContent: Google Maps libraries loaded, rendering MyMapComponent.");
+  return <MyMapComponent {...props} />;
+}
+
 function Map(props) {
   tripLogs = props.logData.tripLogs;
   taskLogs = props.logData.taskLogs;
@@ -497,7 +503,7 @@ function Map(props) {
 
   function centerOnLocation(lat, lng) {
     if (map) {
-      const newCenter = new google.maps.LatLng(lat, lng);
+      const newCenter = new window.google.maps.LatLng(lat, lng);
       map.setCenter(newCenter);
       map.setZoom(13);
       console.log(`Map centered on: ${lat}, ${lng}`);
@@ -509,15 +515,15 @@ function Map(props) {
   props.setCenterOnLocation(centerOnLocation);
 
   return (
-    <Wrapper apiKey={apikey} render={render} version="beta" libraries={["geometry", "journeySharing"]}>
-      <MyMapComponent
+    <APIProvider apiKey={apikey} solutionChannel="GMP_visgl_reactgooglemaps_v1_GMP_FLEET_DEBUGGER">
+      <MapContent
         rangeStart={props.rangeStart}
         rangeEnd={props.rangeEnd}
         selectedRow={props.selectedRow}
         toggles={props.toggles}
         toggleOptions={props.toggleOptions}
       />
-    </Wrapper>
+    </APIProvider>
   );
 }
 
@@ -530,8 +536,8 @@ function findClosestEvent(clickLocation, maxDistance) {
   logs.forEach((event) => {
     const rawLocation = _.get(event, "lastlocation.rawlocation");
     if (rawLocation && rawLocation.latitude && rawLocation.longitude) {
-      const eventLocation = new google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
-      const distance = google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
+      const eventLocation = new window.google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
+      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
 
       if (distance < closestDistance) {
         closestEvent = event;
@@ -568,7 +574,7 @@ function GenerateBubbles(bubbleName, cb) {
           let bubble = undefined;
           if (lastLocation && (rawlocation = lastLocation.rawlocation)) {
             bubble = cb(
-              new google.maps.LatLng({
+              new window.google.maps.LatLng({
                 lat: rawlocation.latitude,
                 lng: rawlocation.longitude,
               }),
@@ -612,7 +618,7 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles("showGPSBubbles", (rawLocatio
   }
   const accuracy = lastLocation.rawlocationaccuracy;
   if (accuracy) {
-    let circ = new google.maps.Circle({
+    let circ = new window.google.maps.Circle({
       strokeColor: color,
       strokeOpacity: 0.6,
       strokeWeight: 2,
@@ -622,7 +628,7 @@ toggleHandlers["showGPSBubbles"] = GenerateBubbles("showGPSBubbles", (rawLocatio
       center: rawLocationLatLng,
       radius: accuracy, // units is this actually meters?
     });
-    google.maps.event.addListener(circ, "mouseover", () => {
+    window.google.maps.event.addListener(circ, "mouseover", () => {
       setFeaturedObject({
         rawlocationaccuracy: lastLocation.rawlocationaccuracy,
         locationsensor: lastLocation.locationsensor,
@@ -652,7 +658,7 @@ toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
         color = "#0F0000";
       }
 
-      let circ = new google.maps.Circle({
+      let circ = new window.google.maps.Circle({
         strokeColor: color,
         strokeOpacity: 0.6,
         strokeWeight: 2,
@@ -662,7 +668,7 @@ toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
         center: rawLocationLatLng,
         radius: timeDeltaSeconds,
       });
-      google.maps.event.addListener(circ, "mouseover", () => {
+      window.google.maps.event.addListener(circ, "mouseover", () => {
         setFeaturedObject({
           timeDeltaSeconds: timeDeltaSeconds,
           serverDate: serverDate,
@@ -689,14 +695,14 @@ toggleHandlers["showHeading"] = GenerateBubbles("showHeading", (rawLocationLatLn
   if (!(heading && accuracy)) {
     return;
   }
-  const headingLine = new google.maps.Polyline({
+  const headingLine = new window.google.maps.Polyline({
     strokeColor: "#0000F0",
     strokeOpacity: 0.6,
     strokeWeight: 2,
     icons: [
       {
         icon: {
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
           strokeColor: "#0000FF",
           strokeWeight: 4,
         },
@@ -704,16 +710,19 @@ toggleHandlers["showHeading"] = GenerateBubbles("showHeading", (rawLocationLatLn
       },
     ],
     map,
-    path: [rawLocationLatLng, google.maps.geometry.spherical.computeOffset(rawLocationLatLng, arrowLength, heading)],
+    path: [
+      rawLocationLatLng,
+      window.google.maps.geometry.spherical.computeOffset(rawLocationLatLng, arrowLength, heading),
+    ],
   });
-  google.maps.event.addListener(headingLine, "click", () => {
+  window.google.maps.event.addListener(headingLine, "click", () => {
     // TODO: allow updating panorama based on forward/back
     // stepper buttons (ie at each updatevehicle log we have a heading)
-    panorama = new google.maps.StreetViewPanorama(document.getElementById("map"), {
+    panorama = new window.google.maps.StreetViewPanorama(document.getElementById("map"), {
       position: rawLocationLatLng,
       pov: { heading: heading, pitch: 10 },
       addressControlOptions: {
-        position: google.maps.ControlPosition.BOTTOM_CENTER,
+        position: window.google.maps.ControlPosition.BOTTOM_CENTER,
       },
       linksControl: false,
       panControl: false,
@@ -734,7 +743,7 @@ toggleHandlers["showSpeed"] = GenerateBubbles("showSpeed", (rawLocationLatLng, l
     return;
   }
   const color = speed < 0 ? "#FF0000" : "#00FF00";
-  return new google.maps.Circle({
+  return new window.google.maps.Circle({
     strokeColor: color,
     strokeOpacity: 0.5,
     fillColor: color,
@@ -788,7 +797,7 @@ toggleHandlers["showTripStatus"] = GenerateBubbles("showTripStatus", (rawLocatio
       color = "#000000";
   }
 
-  const statusCirc = new google.maps.Circle({
+  const statusCirc = new window.google.maps.Circle({
     strokeColor: color,
     strokeOpacity: 0.5,
     fillColor: color,
@@ -797,7 +806,7 @@ toggleHandlers["showTripStatus"] = GenerateBubbles("showTripStatus", (rawLocatio
     center: rawLocationLatLng,
     radius: radius, // set based on trip status?
   });
-  google.maps.event.addListener(statusCirc, "mouseover", () => {
+  window.google.maps.event.addListener(statusCirc, "mouseover", () => {
     setFeaturedObject({
       tripStatus: tripStatus,
     });
@@ -810,7 +819,7 @@ toggleHandlers["showTripStatus"] = GenerateBubbles("showTripStatus", (rawLocatio
  */
 toggleHandlers["showTraffic"] = function (enabled) {
   if (!trafficLayer) {
-    trafficLayer = new google.maps.TrafficLayer();
+    trafficLayer = new window.google.maps.TrafficLayer();
   }
   if (enabled) {
     trafficLayer.setMap(map);
@@ -830,7 +839,7 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
   delete bubbleMap[bubbleName];
   if (enabled) {
     bubbleMap[bubbleName] = _.map(dwellLocations, (dl) => {
-      const circ = new google.maps.Circle({
+      const circ = new window.google.maps.Circle({
         strokeColor: "#000000",
         strokeOpacity: 0.25,
         fillColor: "#FFFF00",
@@ -839,7 +848,7 @@ toggleHandlers["showDwellLocations"] = function (enabled) {
         center: dl.leaderCoords,
         radius: dl.updates * 3, // make dwell times more obvious
       });
-      google.maps.event.addListener(circ, "mouseover", () => {
+      window.google.maps.event.addListener(circ, "mouseover", () => {
         setFeaturedObject({
           startDate: dl.startDate,
           duration: Utils.formatDuration(dl.endDate - dl.startDate),
@@ -864,7 +873,7 @@ toggleHandlers["showTasksAsCreated"] = function (enabled) {
     const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
     const icon = {
       url: urlBase,
-      scaledSize: new google.maps.Size(35, 35),
+      scaledSize: new window.google.maps.Size(35, 35),
     };
     if (outcome.match("SUCCEEDED")) {
       icon.url += "flag.png";
@@ -887,7 +896,7 @@ toggleHandlers["showTasksAsCreated"] = function (enabled) {
           icon: getIcon(task),
           title: `${task.state}: ${task.taskid} - ${task.trackingid}`,
         });
-        google.maps.event.addListener(marker, "click", () => {
+        window.google.maps.event.addListener(marker, "click", () => {
           setFeaturedObject(task);
         });
         const ret = [marker];
@@ -912,7 +921,7 @@ toggleHandlers["showTasksAsCreated"] = function (enabled) {
             icons: [
               {
                 icon: {
-                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                   strokeColor: arrowColor,
                   strokeWeight: 4,
                 },
@@ -990,7 +999,7 @@ toggleHandlers["showNavStatus"] = GenerateBubbles("showNavStatus", (rawLocationL
     default:
       color = "#000000";
   }
-  const statusCirc = new google.maps.Circle({
+  const statusCirc = new window.google.maps.Circle({
     strokeColor: color,
     strokeOpacity: 0.5,
     fillColor: color,
@@ -999,7 +1008,7 @@ toggleHandlers["showNavStatus"] = GenerateBubbles("showNavStatus", (rawLocationL
     center: rawLocationLatLng,
     radius: radius, // set based on trip status?
   });
-  google.maps.event.addListener(statusCirc, "mouseover", () => {
+  window.google.maps.event.addListener(statusCirc, "mouseover", () => {
     setFeaturedObject({
       navStatus: navStatus,
       vehicleState: _.get(le, "response.vehiclestate"),
@@ -1020,7 +1029,7 @@ toggleHandlers["showETADeltas"] = function (enabled) {
   const etaDeltas = tripLogs.getETADeltas(minDate, maxDate);
   if (enabled) {
     bubbleMap[bubbleName] = _.map(etaDeltas, (etaDelta) => {
-      const circ = new google.maps.Circle({
+      const circ = new window.google.maps.Circle({
         strokeColor: "#000000",
         strokeOpacity: 0.25,
         fillColor: "FF0000",
@@ -1033,7 +1042,7 @@ toggleHandlers["showETADeltas"] = function (enabled) {
         // color as well.
         radius: _.min([etaDelta.deltaInSeconds, 300]),
       });
-      google.maps.event.addListener(circ, "mouseover", () => {
+      window.google.maps.event.addListener(circ, "mouseover", () => {
         setFeaturedObject({
           etaDeltaInSeconds: etaDelta.deltaInSeconds,
         });
@@ -1078,7 +1087,7 @@ toggleHandlers["showHighVelocityJumps"] = function (enabled) {
             icons: [
               {
                 icon: {
-                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                   strokeColor: getColor(jump.jumpIdx),
                   strokeWeight: getStrokeWeight(jump.velocity),
                 },
@@ -1086,10 +1095,10 @@ toggleHandlers["showHighVelocityJumps"] = function (enabled) {
               },
             ],
           });
-          google.maps.event.addListener(path, "mouseover", () => {
+          window.google.maps.event.addListener(path, "mouseover", () => {
             setFeaturedObject(jump.getFeaturedData());
           });
-          google.maps.event.addListener(path, "click", () => {
+          window.google.maps.event.addListener(path, "click", () => {
             setFeaturedObject(jump.getFeaturedData());
             // show a minute +/- on each side of a jump
             setTimeRange(jump.startDate.getTime() - 60 * 1000, jump.endDate.getTime() + 60 * 1000);
@@ -1128,26 +1137,26 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
             return 14;
           }
         }
-        const heading = google.maps.geometry.spherical.computeHeading(update.startLoc, update.endLoc);
+        const heading = window.google.maps.geometry.spherical.computeHeading(update.startLoc, update.endLoc);
         const offsetHeading = ((heading + 360 + 90) % 360) - 180;
         const points = [
           update.startLoc,
-          google.maps.geometry.spherical.computeOffset(
+          window.google.maps.geometry.spherical.computeOffset(
             update.startLoc,
             1000, //TODO compute based on viewport?
             offsetHeading
           ),
-          google.maps.geometry.spherical.computeOffset(
+          window.google.maps.geometry.spherical.computeOffset(
             update.startLoc,
             900, //TODO compute based on viewport?
             offsetHeading
           ),
-          google.maps.geometry.spherical.computeOffset(
+          window.google.maps.geometry.spherical.computeOffset(
             update.endLoc,
             900, //TODO compute based on viewport?
             offsetHeading
           ),
-          google.maps.geometry.spherical.computeOffset(
+          window.google.maps.geometry.spherical.computeOffset(
             update.endLoc,
             1000, //TODO compute based on viewport?
             offsetHeading
@@ -1164,7 +1173,7 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
           icons: [
             {
               icon: {
-                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                 strokeColor: "#008B8B",
                 strokeWeight: getStrokeWeight(update.interval),
                 scale: 6,
@@ -1173,7 +1182,7 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
             },
             {
               icon: {
-                path: google.maps.SymbolPath.CIRCLE,
+                path: window.google.maps.SymbolPath.CIRCLE,
                 scale: 6,
                 strokeColor: "#000000",
                 strokeWeight: 1,
@@ -1183,7 +1192,7 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
             },
             {
               icon: {
-                path: google.maps.SymbolPath.CIRCLE,
+                path: window.google.maps.SymbolPath.CIRCLE,
                 scale: 6,
                 strokeColor: "#000000",
                 strokeWeight: 1,
@@ -1193,20 +1202,20 @@ toggleHandlers["showMissingUpdates"] = function (enabled) {
             },
           ],
         });
-        google.maps.event.addListener(path, "mouseover", () => {
+        window.google.maps.event.addListener(path, "mouseover", () => {
           setFeaturedObject(update.getFeaturedData());
           path.setOptions({
             strokeOpacity: 1,
             strokeWeight: 1.5 * getStrokeWeight(update.interval),
           });
         });
-        google.maps.event.addListener(path, "mouseout", () => {
+        window.google.maps.event.addListener(path, "mouseout", () => {
           path.setOptions({
             strokeOpacity: 0.5,
             strokeWeight: getStrokeWeight(update.interval),
           });
         });
-        google.maps.event.addListener(path, "click", () => {
+        window.google.maps.event.addListener(path, "click", () => {
           setFeaturedObject(update.getFeaturedData());
           // show a minute +/- on each side of a update
           setTimeRange(update.startDate.getTime() - 60 * 1000, update.endDate.getTime() + 60 * 1000);
