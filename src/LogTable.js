@@ -1,5 +1,4 @@
 // src/LogTable.js
-
 import React, { useState } from "react";
 import { useSortBy, useTable } from "react-table";
 import { FixedSizeList as List } from "react-window";
@@ -59,15 +58,18 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
         }
       };
 
+      const { key, ...restRowProps } = row.getRowProps({
+        style: {
+          ...style,
+          pointerEvents: "auto",
+          color: hasError ? "darkred" : "inherit",
+        },
+      });
+
       return (
         <div
-          {...row.getRowProps({
-            style: {
-              ...style,
-              pointerEvents: "auto",
-              color: hasError ? "darkred" : "inherit",
-            },
-          })}
+          key={key}
+          {...restRowProps}
           className={`logtable-row ${selectedRow === index ? "selected" : ""}`}
           onMouseDown={startPressTimer}
           onMouseUp={() => {
@@ -85,15 +87,19 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
             }
           }}
         >
-          {row.cells.map((cell) => (
-            <div
-              {...cell.getCellProps()}
-              className={`logtable-cell ${cell.column.className || ""}`}
-              style={{ width: cell.column.width }}
-            >
-              {cell.render("Cell")}
-            </div>
-          ))}
+          {row.cells.map((cell) => {
+            const { key, ...restCellProps } = cell.getCellProps();
+            return (
+              <div
+                key={key}
+                {...restCellProps}
+                className={`logtable-cell ${cell.column.className || ""}`}
+                style={{ width: cell.column.width }}
+              >
+                {cell.render("Cell")}
+              </div>
+            );
+          })}
         </div>
       );
     },
@@ -113,19 +119,26 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
           <div>
             <div {...getTableProps()}>
               <div>
-                {headerGroups.map((headerGroup) => (
-                  <div {...headerGroup.getHeaderGroupProps()} className="logtable-header-row">
-                    {headerGroup.headers.map((column) => (
-                      <div
-                        {...column.getHeaderProps()}
-                        className={`logtable-header-cell ${column.className || ""}`}
-                        style={{ width: column.width }}
-                      >
-                        {column.render("Header")}
-                      </div>
-                    ))}
-                  </div>
-                ))}
+                {headerGroups.map((headerGroup) => {
+                  const { key, ...restHeaderGroupProps } = headerGroup.getHeaderGroupProps();
+                  return (
+                    <div key={key} {...restHeaderGroupProps} className="logtable-header-row">
+                      {headerGroup.headers.map((column) => {
+                        const { key, ...restColumnProps } = column.getHeaderProps();
+                        return (
+                          <div
+                            key={key}
+                            {...restColumnProps}
+                            className={`logtable-header-cell ${column.className || ""}`}
+                            style={{ width: column.width }}
+                          >
+                            {column.render("Header")}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
               <div {...getTableBodyProps()}>
                 <List

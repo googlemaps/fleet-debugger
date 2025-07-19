@@ -91,7 +91,7 @@ function initializeMapObject(element) {
   });
   const jsMapView = new window.google.maps.journeySharing.JourneySharingMapView({
     element: element,
-    locationProvider,
+    locationProviders: [locationProvider],
     mapOptions: {
       mapId: mapId,
       mapTypeControl: true,
@@ -142,7 +142,11 @@ function MyMapComponent(props) {
     map.addListener(
       "center_changed",
       _.debounce(() => {
-        setQueryStringValue("center", JSON.stringify(map.getCenter().toJSON()));
+        const center = map.getCenter();
+        if (center) {
+          console.log("center_changed event fired, updating query string.");
+          setQueryStringValue("center", JSON.stringify(center.toJSON()));
+        }
       }, 100)
     );
 

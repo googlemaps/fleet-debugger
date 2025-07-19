@@ -173,9 +173,12 @@ const CloudLoggingForm = ({ onLogsReceived, onFileUpload }) => {
       if (error.message.includes("Failed to fetch") && retryCount < 2) {
         log(`Network error, retrying (attempt ${retryCount + 1})...`);
         return new Promise((resolve) => {
-          setTimeout(() => {
-            resolve(fetchLogBatch(token, filter, pageToken, retryCount + 1));
-          }, 1000 * (retryCount + 1)); // Exponential backoff
+          setTimeout(
+            () => {
+              resolve(fetchLogBatch(token, filter, pageToken, retryCount + 1));
+            },
+            1000 * (retryCount + 1) // Exponential backoff
+          );
         });
       }
       throw error;

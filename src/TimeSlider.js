@@ -4,14 +4,11 @@
  * Provides a time-based visualization of key events (vehicle status changes) as well
  * as filtering control for the log viewer & map view.
  */
-import Slider from "rc-slider";
+const Slider = require("rc-slider").default;
 import { useMemo, useRef, useEffect, useState } from "react";
 import "rc-slider/assets/index.css";
 import _ from "lodash";
 import { log } from "./Utils";
-
-const { createSliderWithTooltip } = Slider;
-const Range = createSliderWithTooltip(Slider.Range);
 
 const style = { width: "100%" };
 
@@ -127,6 +124,7 @@ function TimeSlider(props) {
     container.appendChild(overlay);
 
     const handleOverlayClick = (e) => {
+      if (isDragging) return;
       const rect = container.getBoundingClientRect();
       const totalWidth = rect.width;
       const clickPosition = e.clientX - rect.left;
@@ -188,7 +186,8 @@ function TimeSlider(props) {
 
   return (
     <div style={style} ref={sliderContainerRef}>
-      <Range
+      <Slider
+        range
         min={minVal}
         max={maxVal}
         marks={marks}
