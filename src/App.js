@@ -1,6 +1,6 @@
 // src/App.js
-import ReactDOM from "react-dom";
 import React from "react";
+import { createRoot } from "react-dom/client";
 import Map from "./Map";
 import Dataframe from "./Dataframe";
 import TimeSlider from "./TimeSlider";
@@ -410,7 +410,9 @@ class App extends React.Component {
   checkForDemoFile = async () => {
     try {
       const response = await fetch("./data.json");
-      if (!response.ok) {
+      const contentType = response.headers.get("content-type");
+
+      if (!response.ok || !contentType || !contentType.includes("application/json")) {
         return;
       }
       console.log("data.json demo file found on the server root, saving it to Dataset 1");
@@ -455,15 +457,19 @@ class App extends React.Component {
         return { status: null, index };
       })
     );
-    this.setState({
-      uploadedDatasets: newUploadedDatasets.map((d) => d.status),
-    });
-    if (this.state.activeDatasetIndex === null) {
-      const firstAvailableIndex = newUploadedDatasets.find((dataset) => dataset.status === "Uploaded")?.index;
-      if (firstAvailableIndex !== undefined) {
-        this.switchDataset(firstAvailableIndex);
+    this.setState(
+      {
+        uploadedDatasets: newUploadedDatasets.map((d) => d.status),
+      },
+      () => {
+        if (this.state.activeDatasetIndex === null) {
+          const firstAvailableIndex = newUploadedDatasets.find((dataset) => dataset.status === "Uploaded")?.index;
+          if (firstAvailableIndex !== undefined) {
+            this.switchDataset(firstAvailableIndex);
+          }
+        }
       }
-    }
+    );
   };
 
   handleLongPress = async (index) => {
@@ -723,43 +729,45 @@ class App extends React.Component {
     dialog.className = "cloud-logging-dialog";
 
     document.body.appendChild(dialog);
+    const dialogRootElement = document.createElement("div");
+    dialog.appendChild(dialogRootElement);
+    const dialogRoot = createRoot(dialogRootElement);
     dialog.showModal();
     return new Promise((resolve) => {
+      const cleanupAndResolve = (result) => {
+        dialogRoot.unmount();
+        dialog.remove();
+        resolve(result);
+      };
       const handleError = (error) => {
         console.error("Cloud Logging Error:", error);
         toast.error(error.message || "Failed to fetch logs. Please try again.");
-        dialog.remove();
-        resolve(null);
+        cleanupAndResolve(null);
       };
 
       const handleFileUpload = (event) => {
-        log("File upload selected from Cloud Logging dialog");
+        console.log("File upload selected from Cloud Logging dialog");
         const file = event?.target?.files?.[0];
         if (file) {
-          dialog.remove();
-          resolve({ file });
+          cleanupAndResolve({ file });
         }
       };
 
-      // Using direct DOM manipulation instead of ReactDOM.render to avoid React 17 issues
-      const root = document.createElement("div");
-      dialog.appendChild(root);
-
-      const cloudLogging = React.createElement(CloudLogging, {
+      const cloudLoggingComponent = React.createElement(CloudLogging, {
         onLogsReceived: (logs) => {
           log(`Received ${logs.length} logs from Cloud Logging`);
-          dialog.remove();
           if (logs.length === 0) {
             toast.warning("No logs found matching your criteria.");
-            resolve(null);
+            cleanupAndResolve(null);
           } else {
             resolve({ logs });
+            cleanupAndResolve({ logs });
           }
         },
         onFileUpload: handleFileUpload,
         setError: handleError,
       });
-      ReactDOM.render(cloudLogging, root);
+      dialogRoot.render(cloudLoggingComponent);
     });
   }
 

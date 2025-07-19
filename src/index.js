@@ -1,6 +1,5 @@
 // src/index.js
-
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import App from "./App";
 import ServeHome from "./ServeHome";
 import { getQueryStringValue } from "./queryString";
@@ -19,13 +18,11 @@ const params = {
   serveMode: getQueryStringValue("serve"),
 };
 
+const container = document.getElementById("root");
+const root = createRoot(container);
+
 if (params.serveMode) {
-  ReactDOM.render(
-    <div>
-      <ServeHome />
-    </div>,
-    document.getElementById("root")
-  );
+  root.render(<ServeHome />);
 } else {
   loadData(params)
     .then(() => {
@@ -38,18 +35,11 @@ if (params.serveMode) {
         projectId,
         solutionType,
       };
-      ReactDOM.render(
-        <div>
-          <App logData={logData} />
-        </div>,
-        document.getElementById("root")
-      );
+      console.log("Data loaded, rendering main App.");
+      root.render(<App logData={logData} />);
     })
     .catch((error) => {
       console.error("Failed to load data:", error);
-      ReactDOM.render(
-        <div>Error loading data. Please check the console for details.</div>,
-        document.getElementById("root")
-      );
+      root.render("Error loading data. Please check the console for details.");
     });
 }
