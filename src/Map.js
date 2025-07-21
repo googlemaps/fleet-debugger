@@ -116,13 +116,24 @@ function MyMapComponent(props) {
     const urlCenter = getQueryStringValue("center");
     const urlHeading = getQueryStringValue("heading");
     map = initializeMapObject(ref.current);
-    const vehicleBounds = addTripPolys(map);
+    addTripPolys(map);
+
     if (urlZoom && urlCenter) {
       log("setting zoom & center from url", urlZoom, urlCenter);
       map.setZoom(parseInt(urlZoom));
       map.setCenter(JSON.parse(urlCenter));
+    } else if (props.initialMapBounds) {
+      log("Fitting map to pre-calculated dataset bounds.");
+      const { north, south, east, west } = props.initialMapBounds;
+      const bounds = new window.google.maps.LatLngBounds(
+        new window.google.maps.LatLng(south, west),
+        new window.google.maps.LatLng(north, east)
+      );
+      map.fitBounds(bounds);
     } else {
-      map.fitBounds(vehicleBounds);
+      log("No bounds provided, defaulting to a world view.");
+      map.setCenter({ lat: 20, lng: 0 });
+      map.setZoom(2);
     }
 
     if (urlHeading) {
@@ -521,11 +532,13 @@ function Map(props) {
   return (
     <APIProvider apiKey={apikey} solutionChannel="GMP_visgl_reactgooglemaps_v1_GMP_FLEET_DEBUGGER">
       <MapContent
+        logData={props.logData}
         rangeStart={props.rangeStart}
         rangeEnd={props.rangeEnd}
         selectedRow={props.selectedRow}
         toggles={props.toggles}
         toggleOptions={props.toggleOptions}
+        initialMapBounds={props.initialMapBounds}
       />
     </APIProvider>
   );
