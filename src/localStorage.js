@@ -1,6 +1,7 @@
 // src/localStorage.js
 import JSZip from "jszip";
 import { DEFAULT_API_KEY } from "./constants";
+import _ from "lodash";
 import { log } from "./Utils";
 
 const DB_NAME = "FleetDebuggerDB";
@@ -275,6 +276,40 @@ export function ensureCorrectFormat(data) {
   const solutionType = isLMFS ? "LMFS" : "ODRD";
   console.log(`Determined solution type: ${solutionType}`);
 
+  const bounds = {
+    north: -90,
+    south: 90,
+    east: -180,
+    west: 180,
+  };
+  let hasPoints = false;
+
+  mergedLogs.forEach((row) => {
+    const lat =
+      _.get(row, "jsonPayload.response.lastLocation.rawLocation.latitude") ||
+      _.get(row, "jsonPayload.response.lastlocation.rawlocation.latitude");
+    const lng =
+      _.get(row, "jsonPayload.response.lastLocation.rawLocation.longitude") ||
+      _.get(row, "jsonPayload.response.lastlocation.rawlocation.longitude");
+
+    if (lat != null && lng != null) {
+      if (!hasPoints) {
+        bounds.north = lat;
+        bounds.south = lat;
+        bounds.east = lng;
+        bounds.west = lng;
+        hasPoints = true;
+      } else {
+        bounds.north = Math.max(bounds.north, lat);
+        bounds.south = Math.min(bounds.south, lat);
+        bounds.east = Math.max(bounds.east, lng);
+        bounds.west = Math.min(bounds.west, lng);
+      }
+    }
+  });
+
+  if (!hasPoints) log("Bounds Calculation Failed: Could not find vehicle location data in any row.");
+
   return {
     APIKEY: DEFAULT_API_KEY,
     vehicle: "",
@@ -282,6 +317,7 @@ export function ensureCorrectFormat(data) {
     logSource: "Direct Cloud Logging",
     solutionType: solutionType,
     rawLogs: mergedLogs,
+    bounds: hasPoints ? bounds : null,
   };
 }
 
