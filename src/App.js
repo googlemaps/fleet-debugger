@@ -69,7 +69,9 @@ class App extends React.Component {
       uploadedDatasets: [null, null, null, null, null],
       activeDatasetIndex: null,
       activeMenuIndex: null,
+      initialMapBounds: null,
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
+      currentLogData: this.props.logData,
     };
     // Realtime updates are too heavy. There must be a better/ react way
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
@@ -178,7 +180,7 @@ class App extends React.Component {
         },
       ],
       (toggle) => {
-        return toggle.solutionTypes.indexOf(this.props.logData.solutionType) !== -1;
+        return toggle.solutionTypes.indexOf(this.state.currentLogData.solutionType) !== -1;
       }
     );
     this.setFeaturedObject = this.setFeaturedObject.bind(this);
@@ -316,7 +318,7 @@ class App extends React.Component {
       this.setState((prevState) => {
         const minDate = new Date(prevState.timeRange.minTime);
         const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.props.logData.tripLogs.getLogs_(minDate, maxDate).value();
+        const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate).value();
         if (logs.length > 0) {
           const firstRow = logs[0];
           setTimeout(() => this.focusOnSelectedRow(), 0);
@@ -334,7 +336,7 @@ class App extends React.Component {
   selectLastRow = () => {
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logsWrapper = this.props.logData.tripLogs.getLogs_(minDate, maxDate);
+    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate);
     const logs = logsWrapper.value();
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
@@ -349,7 +351,7 @@ class App extends React.Component {
     const { featuredObject } = this.state;
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logs = this.props.logData.tripLogs.getLogs_(minDate, maxDate).value();
+    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate).value();
     let newFeaturedObject = featuredObject;
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
     if (direction === "next" && currentIndex < logs.length - 1) {
@@ -433,13 +435,18 @@ class App extends React.Component {
         log(`Uploading file ${file.name} for button ${index}`);
         await uploadFile(file, index);
         log(`File ${file.name} uploaded successfully for button ${index}`);
-        this.setState((prevState) => {
-          const newUploadedDatasets = [...prevState.uploadedDatasets];
-          newUploadedDatasets[index] = "Uploaded";
-          log(`Updated state for button ${index}:`, newUploadedDatasets);
-          return { uploadedDatasets: newUploadedDatasets, activeDatasetIndex: index };
-        });
-        this.switchDataset(index);
+        this.setState(
+          (prevState) => {
+            const newUploadedDatasets = [...prevState.uploadedDatasets];
+            newUploadedDatasets[index] = "Uploaded";
+            log(`Updated dataset button state for index ${index}:`, newUploadedDatasets);
+            return { uploadedDatasets: newUploadedDatasets };
+          },
+          () => {
+            console.log(`handleFileUpload: setState callback executed for index ${index}, now switching dataset.`);
+            this.switchDataset(index);
+          }
+        );
       } catch (error) {
         console.error("Error uploading file:", error);
       }
@@ -591,15 +598,23 @@ class App extends React.Component {
 
         // Update the current dataset if this is the active one
         if (this.state.activeDatasetIndex === index) {
+          log(`handlePruneClick: Pruning active dataset ${index}, updating state.`);
           const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
-          this.props.logData.tripLogs = tripLogs;
-          this.props.logData.solutionType = data.solutionType;
 
-          // Force update of components
-          this.forceUpdate();
-
-          // Select first row after pruning
-          this.selectFirstRow();
+          this.setState(
+            (prevState) => ({
+              currentLogData: {
+                ...prevState.currentLogData,
+                tripLogs: tripLogs,
+                solutionType: data.solutionType,
+              },
+            }),
+            () => {
+              log("handlePruneClick: setState callback executed, selecting first row.");
+              // Select first row after pruning
+              this.selectFirstRow();
+            }
+          );
         }
 
         toast.success(`Dataset pruned: removed ${removeCount} logs outside the selected time range.`);
@@ -787,17 +802,19 @@ class App extends React.Component {
       if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
         this.setState(
-          {
-            activeDatasetIndex: index,
-            timeRange: { minTime: tripLogs.minDate.getTime(), maxTime: tripLogs.maxDate.getTime() },
+          (prevState) => {
+            return {
+              activeDatasetIndex: index,
+              timeRange: { minTime: tripLogs.minDate.getTime(), maxTime: tripLogs.maxDate.getTime() },
+              initialMapBounds: data.bounds,
+              currentLogData: {
+                ...prevState.currentLogData,
+                tripLogs: tripLogs,
+                solutionType: data.solutionType,
+              },
+            };
           },
           () => {
-            // Update the logData prop with the new TripLogs instance
-            this.props.logData.tripLogs = tripLogs;
-            this.props.logData.solutionType = data.solutionType;
-
-            // Force an update of child components
-            this.forceUpdate();
             log(`Switched to dataset ${index}`);
             log(`New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`);
 
@@ -844,11 +861,11 @@ class App extends React.Component {
                 this.selectFirstRow();
               }
             }, 300); // Increased delay to ensure map is fully initialized
+
+            // Update map and associated data
+            this.updateMapAndAssociatedData();
           }
         );
-
-        // Update map and associated data
-        this.updateMapAndAssociatedData();
       } else {
         console.error(`Invalid or empty data structure for dataset ${index}`);
       }
@@ -876,7 +893,7 @@ class App extends React.Component {
             <div className="map-container">
               <Map
                 key={`map-${this.state.activeDatasetIndex}`}
-                logData={this.props.logData}
+                logData={this.state.currentLogData}
                 rangeStart={this.state.timeRange.minTime}
                 rangeEnd={this.state.timeRange.maxTime}
                 selectedRow={this.state.featuredObject}
@@ -886,10 +903,11 @@ class App extends React.Component {
                 setTimeRange={this.setTimeRange}
                 setCenterOnLocation={this.setCenterOnLocation}
                 focusSelectedRow={this.focusOnSelectedRow}
+                initialMapBounds={this.state.initialMapBounds}
               />
             </div>
             <TimeSlider
-              logData={this.props.logData}
+              logData={this.state.currentLogData}
               curMin={this.state.timeRange.minTime}
               curMax={this.state.timeRange.maxTime}
               onSliderChange={this.onSliderChangeDebounced}
@@ -941,7 +959,7 @@ class App extends React.Component {
           </div>
           <div style={{ flex: 1, overflow: "auto" }}>
             <LogTable
-              logData={this.props.logData}
+              logData={this.state.currentLogData}
               style={{ width: "100%" }}
               timeRange={this.state.timeRange}
               extraColumns={this.state.extraColumns}
