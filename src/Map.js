@@ -1,483 +1,369 @@
 // src/Map.js
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
-import Utils, { log } from "./Utils";
+import { log } from "./Utils";
 import PolylineCreation from "./PolylineCreation";
 import { decode } from "s2polyline-ts";
 import TrafficPolyline from "./TrafficPolyline";
 import { TripObjects } from "./TripObjects";
-import { getColor } from "./Trip";
+import { getToggleHandlers } from "./MapToggles.js";
 
-let minDate;
-let maxDate;
-let map;
-let apikey;
-let mapId;
-let dataMakers = [];
-let trafficLayer;
-const bubbleMap = {};
-const toggleHandlers = {};
-let panorama;
-let jwt;
-let projectId;
-let locationProvider;
-let tripLogs;
-let taskLogs;
-let setFeaturedObject;
-let focusSelectedRow;
-let setTimeRange;
+function MapComponent({
+  logData,
+  rangeStart,
+  rangeEnd,
+  selectedRow,
+  toggles,
+  toggleOptions,
+  setFeaturedObject,
+  setTimeRange,
+  focusSelectedRow,
+  initialMapBounds,
+  setCenterOnLocation,
+}) {
+  const { tripLogs, taskLogs, jwt, projectId, mapId } = logData;
 
-function addTripPolys(map) {
-  const tripObjects = new TripObjects({
-    map,
-    setFeaturedObject,
-    setTimeRange,
-  });
-  const trips = tripLogs.getTrips();
-  const vehicleBounds = new window.google.maps.LatLngBounds();
+  const mapDivRef = useRef(null);
+  const mapRef = useRef(null);
+  const locationProviderRef = useRef(null);
+  const bubbleMapRef = useRef({});
+  const trafficLayerRef = useRef(null);
+  const dataMakersRef = useRef([]);
+  const trafficPolylinesRef = useRef([]);
+  const panoramaRef = useRef(null);
 
-  // Add click handler to map for finding nearby events
-  map.addListener("click", (event) => {
-    const clickLocation = event.latLng;
-    log("Map click detected at location:", clickLocation.lat(), clickLocation.lng());
-
-    // Find the closest event within 250 meters
-    const closestEvent = findClosestEvent(clickLocation, 250);
-    if (closestEvent) {
-      log("Found closest event:", closestEvent.timestamp);
-      setFeaturedObject(closestEvent);
-
-      setTimeout(() => focusSelectedRow(), 0);
-    }
-  });
-
-  _.forEach(trips, (trip) => {
-    tripObjects.addTripVisuals(trip, minDate, maxDate);
-    // Update bounds
-    const tripCoords = trip.getPathCoords(minDate, maxDate);
-    if (tripCoords.length > 0) {
-      tripObjects.addTripVisuals(trip, minDate, maxDate);
-      tripCoords.forEach((coord) => vehicleBounds.extend(coord));
-    }
-  });
-
-  return vehicleBounds;
-}
-
-/*
- * Creates the map object using a journeySharing location
- * provider.
- */
-function initializeMapObject(element) {
-  // In a more normal implementation authTokenFetcher
-  // would actually be making a RPC to a backend to generate
-  // the jwt.  For debugging use cases the jwt gets bundled into
-  // the extracted log data.
-  function authTokenFetcher(options) {
-    // TODO #25 - bake in actual expiration time -- and give a
-    // better error message for expired jwts
-    console.log("Ignoring options using prebuilt jwt", options);
-    const authToken = {
-      token: jwt,
-    };
-    return authToken;
-  }
-
-  locationProvider = new window.google.maps.journeySharing.FleetEngineTripLocationProvider({
-    projectId,
-    authTokenFetcher,
-  });
-  const jsMapView = new window.google.maps.journeySharing.JourneySharingMapView({
-    element: element,
-    locationProviders: [locationProvider],
-    mapOptions: {
-      mapId: mapId,
-      mapTypeControl: true,
-      streetViewControl: true,
-    },
-  });
-  const map = jsMapView.map;
-
-  return map;
-}
-
-function MyMapComponent(props) {
-  const ref = useRef();
   const [showPolylineUI, setShowPolylineUI] = useState(false);
-  const [polylines, setPolylines] = useState([]);
+  const [_polylines, setPolylines] = useState([]);
   const [buttonPosition, setButtonPosition] = useState({ top: 0, left: 0 });
   const [isFollowingVehicle, setIsFollowingVehicle] = useState(false);
   const lastValidPositionRef = useRef(null);
 
+  const minDate = useMemo(() => new Date(rangeStart), [rangeStart]);
+  const maxDate = useMemo(() => new Date(rangeEnd), [rangeEnd]);
+
+  // Effect for map initialization (runs once on mount)
   useEffect(() => {
+    if (!mapDivRef.current) return;
+    log("Map.js: Initialization useEffect triggered.");
+
+    const authTokenFetcher = (options) => {
+      log("Ignoring options; using pre-built JWT.", options);
+      return { token: jwt };
+    };
+
+    locationProviderRef.current = new window.google.maps.journeySharing.FleetEngineTripLocationProvider({
+      projectId,
+      authTokenFetcher,
+    });
+
+    const jsMapView = new window.google.maps.journeySharing.JourneySharingMapView({
+      element: mapDivRef.current,
+      locationProviders: [locationProviderRef.current],
+      mapOptions: { mapId, mapTypeControl: true, streetViewControl: true },
+    });
+    const map = jsMapView.map;
+    mapRef.current = map;
+
+    const tripObjects = new TripObjects({ map, setFeaturedObject, setTimeRange });
+
+    const addTripPolys = () => {
+      const trips = tripLogs.getTrips();
+      const vehicleBounds = new window.google.maps.LatLngBounds();
+      _.forEach(trips, (trip) => {
+        tripObjects.addTripVisuals(trip, minDate, maxDate);
+        const tripCoords = trip.getPathCoords(minDate, maxDate);
+        if (tripCoords.length > 0) {
+          tripCoords.forEach((coord) => vehicleBounds.extend(coord));
+        }
+      });
+      return vehicleBounds;
+    };
+
+    // Set initial view
     const urlZoom = getQueryStringValue("zoom");
     const urlCenter = getQueryStringValue("center");
-    const urlHeading = getQueryStringValue("heading");
-    map = initializeMapObject(ref.current);
-    addTripPolys(map);
-
     if (urlZoom && urlCenter) {
-      log("setting zoom & center from url", urlZoom, urlCenter);
       map.setZoom(parseInt(urlZoom));
       map.setCenter(JSON.parse(urlCenter));
-    } else if (props.initialMapBounds) {
-      log("Fitting map to pre-calculated dataset bounds.");
-      const { north, south, east, west } = props.initialMapBounds;
+      addTripPolys();
+    } else if (initialMapBounds) {
+      const { north, south, east, west } = initialMapBounds;
       const bounds = new window.google.maps.LatLngBounds(
         new window.google.maps.LatLng(south, west),
         new window.google.maps.LatLng(north, east)
       );
       map.fitBounds(bounds);
+      addTripPolys();
     } else {
-      log("No bounds provided, defaulting to a world view.");
-      map.setCenter({ lat: 20, lng: 0 });
-      map.setZoom(2);
+      const vehicleBounds = addTripPolys();
+      if (!vehicleBounds.isEmpty()) {
+        map.fitBounds(vehicleBounds);
+      } else {
+        map.setCenter({ lat: 20, lng: 0 });
+        map.setZoom(2);
+      }
     }
 
-    if (urlHeading) {
-      map.setHeading(parseInt(urlHeading));
-    }
-    map.setOptions({ maxZoom: 100 });
-
-    map.addListener("heading_changed", () => {
-      setQueryStringValue("heading", map.getHeading());
-    });
-
-    map.addListener("dragstart", () => {
-      setIsFollowingVehicle(false);
-      log("Follow mode disabled due to map drag");
-    });
-
-    map.addListener(
-      "center_changed",
-      _.debounce(() => {
-        const center = map.getCenter();
-        if (center) {
-          console.log("center_changed event fired, updating query string.");
-          setQueryStringValue("center", JSON.stringify(center.toJSON()));
-        }
-      }, 100)
-    );
-
+    // Add UI Controls
     const polylineButton = document.createElement("button");
     polylineButton.textContent = "Add Polyline";
     polylineButton.className = "map-button";
-
     polylineButton.onclick = (event) => {
+      log("Add Polyline button clicked.");
       const rect = event.target.getBoundingClientRect();
       setButtonPosition({ top: rect.bottom, left: rect.left });
       setShowPolylineUI((prev) => !prev);
-      log("Polyline button clicked");
     };
-
     map.controls[window.google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
 
-    // Create follow vehicle button with chevron icon
     const followButton = document.createElement("div");
     followButton.className = "follow-vehicle-button";
-    followButton.innerHTML = `
-      <div class="follow-vehicle-background"></div>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20" width="24" height="24" class="follow-vehicle-chevron">
-        <path d="M -10,10 L 0,-10 L 10,10 L 0,5 z" fill="#4285F4" stroke="#4285F4" stroke-width="1"/>
-      </svg>
-    `;
-
+    followButton.innerHTML = `<div class="follow-vehicle-background"></div><svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20" width="24" height="24" class="follow-vehicle-chevron"><path d="M -10,10 L 0,-10 L 10,10 L 0,5 z" fill="#4285F4" stroke="#4285F4" stroke-width="1"/></svg>`;
     followButton.onclick = () => {
-      log("Follow vehicle button clicked");
-      recenterOnVehicle();
+      log("Follow vehicle button clicked.");
+      recenterOnVehicleWrapper();
+      map.setZoom(17);
     };
-
-    // Add button to map
     map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
 
-    updateFollowButtonAppearance();
-  }, []);
+    const clickListener = map.addListener("click", (event) => {
+      log("Map click listener triggered.");
+      const clickLocation = event.latLng;
+      const logs = tripLogs.getLogs_(new Date(rangeStart), new Date(rangeEnd)).value();
+      let closestEvent = null;
+      let closestDistance = 250;
 
-  useEffect(() => {
-    updateFollowButtonAppearance();
-  }, [isFollowingVehicle]);
-
-  const updateFollowButtonAppearance = () => {
-    const followButton = document.querySelector(".follow-vehicle-button");
-    if (followButton) {
-      if (isFollowingVehicle) {
-        followButton.classList.add("active");
-        log("Follow vehicle button updated to active state");
-      } else {
-        followButton.classList.remove("active");
-        log("Follow vehicle button updated to inactive state");
-      }
-    }
-  };
-
-  const handlePolylineSubmit = (waypoints, properties) => {
-    const path = waypoints.map((wp) => new window.google.maps.LatLng(wp.latitude, wp.longitude));
-
-    const arrowIcon = {
-      path: window.google.maps.SymbolPath.FORWARD_OPEN_ARROW,
-      scale: properties.strokeWeight / 2,
-      strokeColor: properties.color,
-    };
-
-    const polyline = new window.google.maps.Polyline({
-      path: path,
-      geodesic: true,
-      strokeColor: properties.color,
-      strokeOpacity: properties.opacity,
-      strokeWeight: properties.strokeWeight,
-      icons: [
-        {
-          icon: arrowIcon,
-          offset: "0%",
-        },
-        {
-          icon: arrowIcon,
-          offset: "100%",
-        },
-      ],
-    });
-
-    polyline.setMap(map);
-    setPolylines([...polylines, polyline]);
-    log(
-      `Polyline ${polylines.length + 1} created with color: ${properties.color}, opacity: ${
-        properties.opacity
-      }, stroke weight: ${properties.strokeWeight}`
-    );
-  };
-
-  const recenterOnVehicle = () => {
-    log("Executing recenterOnVehicle function");
-
-    let position = null;
-
-    // Try to get position from current row
-    if (props.selectedRow && props.selectedRow.lastlocation && props.selectedRow.lastlocation.rawlocation) {
-      position = props.selectedRow.lastlocation.rawlocation;
-      log(`Found position in selected row: ${position.latitude}, ${position.longitude}`);
-    }
-    // Try to use our last cached valid position
-    else if (lastValidPositionRef.current) {
-      position = lastValidPositionRef.current;
-      log(`Using last cached valid position: ${position.lat}, ${position.lng}`);
-    }
-    if (!position) {
-      log("No vehicle position found");
-    }
-
-    // Center the map
-    if (position && typeof position.latitude !== "undefined") {
-      map.setCenter({ lat: position.latitude, lng: position.longitude });
-      map.setZoom(17);
-    }
-
-    setIsFollowingVehicle((prev) => {
-      const newState = !prev;
-      log(`Map follow mode ${newState ? "enabled" : "disabled"}`);
-      return newState;
-    });
-
-    log(`Map centered on vehicle, follow mode ${!isFollowingVehicle ? "enabled" : "disabled"}`);
-  };
-
-  /*
-   * Handler for timewindow change.  Updates global min/max date globals
-   * and recomputes the paths as well as all the bubble markers to respect the
-   * new date values.
-   *
-   * Debounced to every 100ms as a blance between performance and reactivity when
-   * the slider is dragged.
-   */
-  useEffect(() => {
-    const updateMap = () => {
-      minDate = new Date(props.rangeStart);
-      maxDate = new Date(props.rangeEnd);
-      addTripPolys(map);
-      _.forEach(toggleHandlers, (handler, name) => {
-        if (bubbleMap[name]) {
-          handler(true);
+      logs.forEach((logEntry) => {
+        const rawLocation = _.get(logEntry, "lastlocation.rawlocation");
+        if (rawLocation?.latitude && rawLocation?.longitude) {
+          const eventLocation = new window.google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
+          const distance = window.google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
+          if (distance < closestDistance) {
+            closestEvent = logEntry;
+            closestDistance = distance;
+          }
         }
       });
-    };
-
-    // Create a debounced version of updateMap
-    const debouncedUpdateMap = _.debounce(updateMap, 200);
-    debouncedUpdateMap();
-
-    // Cleanup function to cancel any pending debounced calls when the effect re-runs or unmounts
-    return () => {
-      debouncedUpdateMap.cancel();
-    };
-  }, [props.rangeStart, props.rangeEnd]);
-
-  useEffect(() => {
-    if (!props.selectedRow) return;
-
-    // Clear ALL route segment polylines
-    polylines.forEach((polyline) => {
-      if (polyline.isRouteSegment) {
-        polyline.setMap(null);
+      if (closestEvent) {
+        setFeaturedObject(closestEvent);
+        setTimeout(() => focusSelectedRow(), 0);
       }
     });
-    // Update the polylines state to remove all route segments
-    setPolylines(polylines.filter((p) => !p.isRouteSegment));
 
-    const eventType = props.selectedRow["@type"];
-    const isTripEvent = ["getTrip", "updateTrip", "createTrip"].includes(eventType);
+    const centerListener = map.addListener(
+      "center_changed",
+      _.debounce(() => {
+        if (mapRef.current) setQueryStringValue("center", JSON.stringify(mapRef.current.getCenter().toJSON()));
+      }, 100)
+    );
+    const headingListener = map.addListener("heading_changed", () => {
+      if (mapRef.current) setQueryStringValue("heading", mapRef.current.getHeading());
+    });
 
-    if (isTripEvent) {
-      // Create a thin red polyline with arrows for trip events
-      const routeSegment = _.get(props.selectedRow, "response.currentroutesegment");
-      if (routeSegment) {
-        try {
-          const decodedPoints = decode(routeSegment);
-          if (decodedPoints && decodedPoints.length > 0) {
-            const validWaypoints = decodedPoints.map((point) => ({
-              lat: point.latDegrees(),
-              lng: point.lngDegrees(),
-            }));
+    return () => {
+      log("Map.js: Cleanup from initialization useEffect.");
+      window.google.maps.event.removeListener(clickListener);
+      window.google.maps.event.removeListener(centerListener);
+      window.google.maps.event.removeListener(headingListener);
+      mapRef.current = null;
+    };
+  }, []);
 
-            const trafficPolyline = new TrafficPolyline({
-              path: validWaypoints,
-              zIndex: 3,
-              isTripEvent: true,
-              map: map,
-            });
-            setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
-          }
-        } catch (error) {
-          console.error("Error processing trip event polyline:", error);
-        }
-      }
+  const handlePolylineSubmit = useCallback((waypoints, properties) => {
+    const map = mapRef.current;
+    if (!map) return;
+    log("handlePolylineSubmit called.");
+
+    const path = waypoints.map((wp) => new window.google.maps.LatLng(wp.latitude, wp.longitude));
+    const newPolyline = new window.google.maps.Polyline({ path, geodesic: true, ...properties });
+    newPolyline.setMap(map);
+    setPolylines((prev) => [...prev, newPolyline]);
+  }, []);
+
+  const recenterOnVehicleWrapper = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    log("recenterOnVehicleWrapper called for follow mode.");
+
+    let position = null;
+    if (selectedRow?.lastlocation?.rawlocation) {
+      position = selectedRow.lastlocation.rawlocation;
+    } else if (lastValidPositionRef.current) {
+      position = lastValidPositionRef.current;
     }
 
-    const routeSegment =
-      _.get(props.selectedRow, "request.vehicle.currentroutesegment") ||
-      _.get(props.selectedRow, "lastlocation.currentroutesegment");
+    if (position) map.setCenter({ lat: position.latitude, lng: position.longitude });
+    setIsFollowingVehicle((prev) => !prev);
+  }, [selectedRow]);
 
+  useEffect(() => {
+    const followButton = document.querySelector(".follow-vehicle-button");
+    if (followButton) {
+      isFollowingVehicle ? followButton.classList.add("active") : followButton.classList.remove("active");
+    }
+  }, [isFollowingVehicle]);
+
+  // Effect to draw traffic polyline for selected row
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    trafficPolylinesRef.current.forEach((p) => p.setMap(null));
+    trafficPolylinesRef.current = [];
+
+    if (!selectedRow) return;
+
+    const routeSegment =
+      _.get(selectedRow, "request.vehicle.currentroutesegment") ||
+      _.get(selectedRow, "lastlocation.currentroutesegment");
     if (routeSegment) {
       try {
         const decodedPoints = decode(routeSegment);
-
-        if (decodedPoints && decodedPoints.length > 0) {
-          const validWaypoints = decodedPoints.map((point) => ({
-            lat: point.latDegrees(),
-            lng: point.lngDegrees(),
-          }));
-
+        if (decodedPoints?.length > 0) {
+          const validWaypoints = decodedPoints.map((p) => ({ lat: p.latDegrees(), lng: p.lngDegrees() }));
           const trafficRendering =
-            _.get(props.selectedRow, "request.vehicle.currentroutesegmenttraffic.trafficrendering") ||
-            _.get(props.selectedRow, "lastlocation.currentroutesegmenttraffic.trafficrendering");
-
-          const location = _.get(props.selectedRow.lastlocation, "location");
+            _.get(selectedRow, "request.vehicle.currentroutesegmenttraffic.trafficrendering") ||
+            _.get(selectedRow, "lastlocation.currentroutesegmenttraffic.trafficrendering");
+          const location = _.get(selectedRow.lastlocation, "location");
 
           const trafficPolyline = new TrafficPolyline({
             path: validWaypoints,
+            map,
             zIndex: 2,
             trafficRendering: structuredClone(trafficRendering),
             currentLatLng: location,
-            map: map,
           });
-          setPolylines((prev) => [...prev, ...trafficPolyline.polylines]);
+
+          trafficPolylinesRef.current = trafficPolyline.polylines;
         }
       } catch (error) {
         console.error("Error processing route segment polyline:", error);
       }
     }
-  }, [props.selectedRow]);
+  }, [selectedRow]);
 
+  // Effect for updating selected row vehicle marker
   useEffect(() => {
-    // Vehicle chevron location maker
-    const data = props.selectedRow;
-    if (!data) return;
-    _.forEach(dataMakers, (m) => m.setMap(null));
-    dataMakers = [];
+    const map = mapRef.current;
+    dataMakersRef.current.forEach((m) => m.setMap(null));
+    dataMakersRef.current = [];
 
-    const markerSymbols = {
-      background: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: "#FFFFFF",
-        fillOpacity: 0.7,
-        scale: 18,
-        strokeColor: "#FFFFFF",
-        strokeWeight: 2,
-        strokeOpacity: 0.3,
-      },
-      chevron: {
-        path: "M -1,1 L 0,-1 L 1,1 L 0,0.5 z",
-        fillColor: "#4285F4",
-        fillOpacity: 1,
-        scale: 10,
-        strokeColor: "#4285F4",
-        strokeWeight: 1,
-        rotation: 0,
-      },
-      rawLocation: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: "#FF0000",
-        fillOpacity: 1,
-        scale: 2,
-        strokeColor: "#FF0000",
-        strokeWeight: 1,
-      },
-    };
+    if (!map || !selectedRow) return;
 
-    const location = _.get(data.lastlocation, "location") || _.get(data.lastlocationResponse, "location");
-    if (location) {
-      lastValidPositionRef.current = { lat: location.latitude, lng: location.longitude };
+    const location = _.get(selectedRow.lastlocation, "location") || _.get(selectedRow.lastlocationResponse, "location");
 
-      const heading = _.get(data.lastlocation, "heading") || _.get(data.lastlocationResponse, "heading") || 0;
-      markerSymbols.chevron.rotation = heading;
+    if (location?.latitude && location?.longitude) {
+      const pos = { lat: location.latitude, lng: location.longitude };
+      lastValidPositionRef.current = pos;
+      const heading =
+        _.get(selectedRow.lastlocation, "heading") || _.get(selectedRow.lastlocationResponse, "heading") || 0;
 
       const backgroundMarker = new window.google.maps.Marker({
-        position: { lat: location.latitude, lng: location.longitude },
-        map: map,
-        icon: markerSymbols.background,
-        clickable: false,
+        position: pos,
+        map,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          fillColor: "#FFFFFF",
+          fillOpacity: 0.7,
+          scale: 18,
+          strokeColor: "#FFFFFF",
+          strokeWeight: 2,
+          strokeOpacity: 0.3,
+        },
         zIndex: 9,
       });
-
       const chevronMarker = new window.google.maps.Marker({
-        position: { lat: location.latitude, lng: location.longitude },
-        map: map,
-        icon: markerSymbols.chevron,
+        position: pos,
+        map,
+        icon: {
+          path: "M -1,1 L 0,-1 L 1,1 L 0,0.5 z",
+          fillColor: "#4285F4",
+          fillOpacity: 1,
+          scale: 10,
+          strokeColor: "#4285F4",
+          strokeWeight: 1,
+          rotation: heading,
+        },
         zIndex: 10,
       });
+      dataMakersRef.current.push(backgroundMarker, chevronMarker);
 
-      dataMakers.push(backgroundMarker, chevronMarker);
-
-      const rawLocation = _.get(data.lastlocation, "rawlocation");
-      if (rawLocation) {
+      const rawLocation = _.get(selectedRow.lastlocation, "rawlocation");
+      if (rawLocation?.latitude && rawLocation?.longitude) {
+        const rawPos = { lat: rawLocation.latitude, lng: rawLocation.longitude };
         const rawLocationMarker = new window.google.maps.Marker({
-          position: { lat: rawLocation.latitude, lng: rawLocation.longitude },
-          map: map,
-          icon: markerSymbols.rawLocation,
+          position: rawPos,
+          map,
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            fillColor: "#FF0000",
+            fillOpacity: 1,
+            scale: 2,
+            strokeColor: "#FF0000",
+            strokeWeight: 1,
+          },
           zIndex: 8,
-          clickable: false,
         });
-
-        dataMakers.push(rawLocationMarker);
+        dataMakersRef.current.push(rawLocationMarker);
       }
 
       if (isFollowingVehicle) {
-        map.setCenter({ lat: location.latitude, lng: location.longitude });
+        map.setCenter(pos);
       }
     }
-  }, [props.selectedRow, isFollowingVehicle]);
+  }, [selectedRow, isFollowingVehicle]);
 
-  for (const toggle of props.toggles) {
-    const id = toggle.id;
-    const enabled = props.toggleOptions[id];
-    useEffect(() => {
-      toggleHandlers[id](enabled);
-    }, [props.toggleOptions[id]]);
-  }
+  const toggleHandlers = useMemo(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return {};
+    }
+    return getToggleHandlers({
+      map,
+      tripLogs,
+      taskLogs,
+      minDate,
+      maxDate,
+      setFeaturedObject,
+      setTimeRange,
+      bubbleMapRef,
+      panoramaRef,
+      mapDivRef,
+      trafficLayerRef,
+      locationProviderRef,
+      jwt,
+    });
+  }, [mapRef.current, tripLogs, taskLogs, minDate, maxDate, jwt, setFeaturedObject, setTimeRange]);
+
+  useEffect(() => {
+    if (_.isEmpty(toggleHandlers)) {
+      log("Map.js: Toggles effect skipped because handlers are not ready.");
+      return;
+    }
+    for (const toggle of toggles) {
+      if (toggleHandlers[toggle.id]) {
+        toggleHandlers[toggle.id](toggleOptions[toggle.id]);
+      }
+    }
+  }, [toggleOptions, toggles, toggleHandlers, minDate, maxDate]);
+
+  useEffect(() => {
+    const centerOnLocationImpl = (lat, lng) => {
+      const map = mapRef.current;
+      if (map) {
+        log(`Centering map on ${lat}, ${lng} with zoom 13.`);
+        map.setCenter({ lat, lng });
+        map.setZoom(13);
+      }
+    };
+    setCenterOnLocation(centerOnLocationImpl);
+  }, [setCenterOnLocation]);
 
   return (
     <>
-      <div ref={ref} id="map" style={{ height: "100%", width: "100%" }} />
+      <div ref={mapDivRef} id="map" style={{ height: "100%", width: "100%" }} />
       {showPolylineUI && (
         <PolylineCreation
           onSubmit={handlePolylineSubmit}
@@ -492,776 +378,16 @@ function MyMapComponent(props) {
 function MapContent(props) {
   const journeySharingLib = useMapsLibrary("journeySharing");
   const geometryLib = useMapsLibrary("geometry");
-
-  if (!journeySharingLib || !geometryLib) {
-    log("MapContent: Waiting for Google Maps libraries to load...");
-    return <h3>Loading Maps...</h3>;
-  }
-
-  log("MapContent: Google Maps libraries loaded, rendering MyMapComponent.");
-  return <MyMapComponent {...props} />;
+  if (!journeySharingLib || !geometryLib) return <h3>Loading Maps...</h3>;
+  return <MapComponent {...props} />;
 }
 
-function Map(props) {
-  tripLogs = props.logData.tripLogs;
-  taskLogs = props.logData.taskLogs;
-  minDate = props.rangeStart;
-  maxDate = props.rangeEnd;
-  const urlParams = new URLSearchParams(window.location.search);
-  apikey = urlParams.get("apikey") || props.logData.apikey;
-  mapId = urlParams.get("mapId") || props.logData.mapId;
-  jwt = props.logData.jwt;
-  projectId = props.logData.projectId;
-  setFeaturedObject = props.setFeaturedObject;
-  focusSelectedRow = props.focusSelectedRow;
-  setTimeRange = props.setTimeRange;
-
-  function centerOnLocation(lat, lng) {
-    if (map) {
-      const newCenter = new window.google.maps.LatLng(lat, lng);
-      map.setCenter(newCenter);
-      map.setZoom(13);
-      console.log(`Map centered on: ${lat}, ${lng}`);
-    } else {
-      console.error("Map not initialized");
-    }
-  }
-
-  props.setCenterOnLocation(centerOnLocation);
-
+export default function Map(props) {
+  const { apikey } = props.logData;
+  const stableSetCenterOnLocation = useCallback(props.setCenterOnLocation, []);
   return (
     <APIProvider apiKey={apikey} solutionChannel="GMP_visgl_reactgooglemaps_v1_GMP_FLEET_DEBUGGER">
-      <MapContent
-        logData={props.logData}
-        rangeStart={props.rangeStart}
-        rangeEnd={props.rangeEnd}
-        selectedRow={props.selectedRow}
-        toggles={props.toggles}
-        toggleOptions={props.toggleOptions}
-        initialMapBounds={props.initialMapBounds}
-      />
+      <MapContent {...props} setCenterOnLocation={stableSetCenterOnLocation} />
     </APIProvider>
   );
 }
-
-// Add a new function to find the closest event to a clicked location
-function findClosestEvent(clickLocation, maxDistance) {
-  const logs = tripLogs.getLogs_(minDate, maxDate).value();
-  let closestEvent = null;
-  let closestDistance = maxDistance;
-
-  logs.forEach((event) => {
-    const rawLocation = _.get(event, "lastlocation.rawlocation");
-    if (rawLocation && rawLocation.latitude && rawLocation.longitude) {
-      const eventLocation = new window.google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
-      const distance = window.google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
-
-      if (distance < closestDistance) {
-        closestEvent = event;
-        closestDistance = distance;
-      }
-    }
-  });
-
-  if (closestEvent) {
-    log("Found closest event at distance:", closestDistance, "meters");
-  } else {
-    log("No events found within", maxDistance, "meters");
-  }
-
-  return closestEvent;
-}
-
-/*
- * GenerateBubbles() -- helper function for generating map features based
- * on per-log entry data.
- *
- * Handles the gunk of iterating over log entries and clearing/setting the map
- */
-function GenerateBubbles(bubbleName, cb) {
-  return (showBubble) => {
-    _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-    delete bubbleMap[bubbleName];
-    if (showBubble) {
-      bubbleMap[bubbleName] = tripLogs
-        .getLogs_(minDate, maxDate)
-        .map((le) => {
-          const lastLocation = le.lastlocation;
-          let rawlocation;
-          let bubble = undefined;
-          if (lastLocation && (rawlocation = lastLocation.rawlocation)) {
-            bubble = cb(
-              new window.google.maps.LatLng({
-                lat: rawlocation.latitude,
-                lng: rawlocation.longitude,
-              }),
-              lastLocation,
-              le
-            );
-          }
-          return bubble;
-        })
-        .compact()
-        .value();
-    }
-  };
-}
-
-/*
- * Draws circles on map with a radius equal to the
- * GPS accuracy.
- */
-toggleHandlers["showGPSBubbles"] = GenerateBubbles("showGPSBubbles", (rawLocationLatLng, lastLocation) => {
-  let color;
-  switch (lastLocation.locationsensor) {
-    case "GPS":
-      color = "#11FF11";
-      break;
-    case "NETWORK":
-      color = "#FF1111";
-      break;
-    case "PASSIVE":
-      color = "#FF0000";
-      break;
-    case "ROAD_SNAPPED_LOCATION_PROVIDER":
-      color = "#00FF00";
-      break;
-    case "FUSED_LOCATION_PROVIDER":
-      color = "#11FF11";
-      break;
-    case "LOG_UNSPECIFIED":
-    default:
-      color = "#000000";
-  }
-  const accuracy = lastLocation.rawlocationaccuracy;
-  if (accuracy) {
-    let circ = new window.google.maps.Circle({
-      strokeColor: color,
-      strokeOpacity: 0.6,
-      strokeWeight: 2,
-      fillColor: color,
-      fillOpacity: 0.2,
-      map,
-      center: rawLocationLatLng,
-      radius: accuracy, // units is this actually meters?
-    });
-    window.google.maps.event.addListener(circ, "mouseover", () => {
-      setFeaturedObject({
-        rawlocationaccuracy: lastLocation.rawlocationaccuracy,
-        locationsensor: lastLocation.locationsensor,
-      });
-    });
-    return circ;
-  }
-});
-
-/*
- * Draws circles on map with a radius equal to the
- * time delta (1 meter radius = 1 second of delta)
- */
-toggleHandlers["showClientServerTimeDeltas"] = GenerateBubbles(
-  "showClientServerTimeDeltas",
-  (rawLocationLatLng, lastLocation, logEntry) => {
-    const clientTimeStr = _.get(logEntry.lastlocationResponse, "rawlocationtime");
-    const serverTimeStr = _.get(logEntry.lastlocationResponse, "servertime");
-    if (clientTimeStr && serverTimeStr) {
-      const clientDate = new Date(clientTimeStr);
-      const serverDate = new Date(serverTimeStr);
-      const timeDeltaSeconds = Math.abs(clientDate.getTime() - serverDate.getTime()) / 1000;
-      let color;
-      if (clientDate > serverDate) {
-        color = "#0000F0";
-      } else {
-        color = "#0F0000";
-      }
-
-      let circ = new window.google.maps.Circle({
-        strokeColor: color,
-        strokeOpacity: 0.6,
-        strokeWeight: 2,
-        fillColor: color,
-        fillOpacity: 0.2,
-        map,
-        center: rawLocationLatLng,
-        radius: timeDeltaSeconds,
-      });
-      window.google.maps.event.addListener(circ, "mouseover", () => {
-        setFeaturedObject({
-          timeDeltaSeconds: timeDeltaSeconds,
-          serverDate: serverDate,
-          clientDate: clientDate,
-        });
-      });
-      return circ;
-    }
-  }
-);
-
-/*
- * Draws arrows on map showing the measured heading
- * of the vehicle (ie which direction vehicle was traveling
- */
-toggleHandlers["showHeading"] = GenerateBubbles("showHeading", (rawLocationLatLng, lastLocation, logEntry) => {
-  // Note: Heading & accuracy are only on the _request_ not the
-  // response.
-  const heading = _.get(logEntry.lastlocation, "heading");
-  const accuracy = _.get(logEntry.lastlocation, "headingaccuracy");
-
-  // Not currently using accuracy. How to show it?  Maybe opacity of the arrorw?
-  const arrowLength = 20; // meters??
-  if (!(heading && accuracy)) {
-    return;
-  }
-  const headingLine = new window.google.maps.Polyline({
-    strokeColor: "#0000F0",
-    strokeOpacity: 0.6,
-    strokeWeight: 2,
-    icons: [
-      {
-        icon: {
-          path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          strokeColor: "#0000FF",
-          strokeWeight: 4,
-        },
-        offset: "100%",
-      },
-    ],
-    map,
-    path: [
-      rawLocationLatLng,
-      window.google.maps.geometry.spherical.computeOffset(rawLocationLatLng, arrowLength, heading),
-    ],
-  });
-  window.google.maps.event.addListener(headingLine, "click", () => {
-    // TODO: allow updating panorama based on forward/back
-    // stepper buttons (ie at each updatevehicle log we have a heading)
-    panorama = new window.google.maps.StreetViewPanorama(document.getElementById("map"), {
-      position: rawLocationLatLng,
-      pov: { heading: heading, pitch: 10 },
-      addressControlOptions: {
-        position: window.google.maps.ControlPosition.BOTTOM_CENTER,
-      },
-      linksControl: false,
-      panControl: false,
-      enableCloseButton: true,
-    });
-    console.log("loaded panorama", panorama);
-  });
-  return headingLine;
-});
-
-/*
- * Draws circles on the map. Color indicates vehicle speed at that
- * location.
- */
-toggleHandlers["showSpeed"] = GenerateBubbles("showSpeed", (rawLocationLatLng, lastLocation) => {
-  const speed = lastLocation.speed;
-  if (lastLocation.speed === undefined) {
-    return;
-  }
-  const color = speed < 0 ? "#FF0000" : "#00FF00";
-  return new window.google.maps.Circle({
-    strokeColor: color,
-    strokeOpacity: 0.5,
-    fillColor: color,
-    fillOpacity: 0.5,
-    map,
-    center: rawLocationLatLng,
-    radius: Math.abs(speed),
-  });
-});
-
-/*
- * Draws circles on the map. Color indicates trip status
- * at that location.   Note that trip status isn't actually
- * in the update vehicle logs, so current trip status will actually
- * just be the trip status at the time of the vehicle update  --
- * which is a bit wrong and wonky on the boundaries.
- */
-toggleHandlers["showTripStatus"] = GenerateBubbles("showTripStatus", (rawLocationLatLng, lastLocation, le) => {
-  let color,
-    radius = 5;
-  const tripStatus = tripLogs.getTripStatusAtDate(le.date);
-  switch (tripStatus) {
-    case "NEW":
-      color = "#002200";
-      radius = 30;
-      break;
-    case "ENROUTE_TO_PICKUP":
-      color = "#FFFF00";
-      break;
-    case "ARRIVED_AT_PICKUP":
-      color = "#FFFF10";
-      radius = 10;
-      break;
-    case "ARRIVED_AT_INTERMEDIATE_DESTINATION":
-      color = "#10FFFF";
-      radius = 20;
-      break;
-    case "ENROUTE_TO_DROPOFF":
-      color = "#00FFFF";
-      break;
-    case "COMPLETE":
-      radius = 30;
-      color = "#00FF00";
-      break;
-    case "CANCELED":
-      radius = 30;
-      color = "#FF0000";
-      break;
-    case "UNKNOWN_TRIP_STATUS":
-    default:
-      color = "#000000";
-  }
-
-  const statusCirc = new window.google.maps.Circle({
-    strokeColor: color,
-    strokeOpacity: 0.5,
-    fillColor: color,
-    fillOpacity: 0.5,
-    map,
-    center: rawLocationLatLng,
-    radius: radius, // set based on trip status?
-  });
-  window.google.maps.event.addListener(statusCirc, "mouseover", () => {
-    setFeaturedObject({
-      tripStatus: tripStatus,
-    });
-  });
-  return statusCirc;
-});
-
-/*
- * Enable/disables live traffic layer
- */
-toggleHandlers["showTraffic"] = function (enabled) {
-  if (!trafficLayer) {
-    trafficLayer = new window.google.maps.TrafficLayer();
-  }
-  if (enabled) {
-    trafficLayer.setMap(map);
-  } else {
-    trafficLayer.setMap(null);
-  }
-};
-
-/*
- * Draws circles on the map. Size indicates dwell time at that
- * location.
- */
-toggleHandlers["showDwellLocations"] = function (enabled) {
-  const bubbleName = "showDwellLocations";
-  const dwellLocations = tripLogs.getDwellLocations(minDate, maxDate);
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-  if (enabled) {
-    bubbleMap[bubbleName] = _.map(dwellLocations, (dl) => {
-      const circ = new window.google.maps.Circle({
-        strokeColor: "#000000",
-        strokeOpacity: 0.25,
-        fillColor: "#FFFF00",
-        fillOpacity: 0.25,
-        map,
-        center: dl.leaderCoords,
-        radius: dl.updates * 3, // make dwell times more obvious
-      });
-      window.google.maps.event.addListener(circ, "mouseover", () => {
-        setFeaturedObject({
-          startDate: dl.startDate,
-          duration: Utils.formatDuration(dl.endDate - dl.startDate),
-          endDate: dl.endDate,
-        });
-      });
-      return circ;
-    });
-  }
-};
-
-/*
- * Draws markers on the map for all tasks.
- */
-toggleHandlers["showTasksAsCreated"] = function (enabled) {
-  const bubbleName = "showTasksAsCreated";
-  const tasks = taskLogs.getTasks(maxDate).value();
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-  function getIcon(task) {
-    const outcome = task.taskoutcome || "unknown";
-    const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
-    const icon = {
-      url: urlBase,
-      scaledSize: new window.google.maps.Size(35, 35),
-    };
-    if (outcome.match("SUCCEEDED")) {
-      icon.url += "flag.png";
-    } else if (outcome.match("FAIL")) {
-      icon.url += "caution.png";
-    } else {
-      icon.url += "shaded_dot.png";
-    }
-    return icon;
-  }
-  if (enabled) {
-    bubbleMap[bubbleName] = _(tasks)
-      .map((task) => {
-        const marker = new window.google.maps.Marker({
-          position: {
-            lat: task.plannedlocation.point.latitude,
-            lng: task.plannedlocation.point.longitude,
-          },
-          map: map,
-          icon: getIcon(task),
-          title: `${task.state}: ${task.taskid} - ${task.trackingid}`,
-        });
-        window.google.maps.event.addListener(marker, "click", () => {
-          setFeaturedObject(task);
-        });
-        const ret = [marker];
-        const arrowColor = task.plannedVsActualDeltaMeters > 50 ? "#FF1111" : "#11FF11";
-        if (task.taskoutcomelocation) {
-          const offSetPath = new window.google.maps.Polyline({
-            path: [
-              {
-                lat: task.plannedlocation.point.latitude,
-                lng: task.plannedlocation.point.longitude,
-              },
-              {
-                lat: task.taskoutcomelocation.point.latitude,
-                lng: task.taskoutcomelocation.point.longitude,
-              },
-            ],
-            geodesic: true,
-            strokeColor: arrowColor,
-            strokeOpacity: 0.6,
-            strokeWeight: 4,
-            map: map,
-            icons: [
-              {
-                icon: {
-                  path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                  strokeColor: arrowColor,
-                  strokeWeight: 4,
-                },
-                offset: "100%",
-              },
-            ],
-          });
-          ret.push(offSetPath);
-        }
-        return ret;
-      })
-      .flatten()
-      .value();
-  }
-};
-
-/*
- * Draws planned paths on the map.
- */
-toggleHandlers["showPlannedPaths"] = function (enabled) {
-  const bubbleName = "showPlannedPaths";
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-
-  if (enabled) {
-    const trips = tripLogs.getTrips();
-    bubbleMap[bubbleName] = trips
-      .filter((trip) => {
-        return trip.firstUpdate <= maxDate && trip.lastUpdate >= minDate && trip.getPlannedPath().length > 0;
-      })
-      .map((trip) => {
-        const plannedPath = trip.getPlannedPath();
-        const path = new window.google.maps.Polyline({
-          path: plannedPath,
-          geodesic: true,
-          strokeColor: getColor(trip.tripIdx),
-          strokeOpacity: 0.3,
-          strokeWeight: 6,
-        });
-        path.setMap(map);
-        return path;
-      });
-  }
-};
-
-/*
- * Draws circles on the map. Size indicates dwell time at that
- * location.
- */
-toggleHandlers["showNavStatus"] = GenerateBubbles("showNavStatus", (rawLocationLatLng, lastLocation, le) => {
-  const navStatus = le.navStatus;
-  if (navStatus === undefined) {
-    return;
-  }
-  let color,
-    radius = 5;
-  switch (navStatus) {
-    case "UNKNOWN_NAVIGATION_STATUS":
-      color = "#222222";
-      break;
-    case "NO_GUIDANCE":
-      color = "#090909";
-      break;
-    case "ENROUTE_TO_DESTINATION":
-      color = "#00FF00";
-      break;
-    case "OFF_ROUTE":
-      color = "#FF0000";
-      radius = 30;
-      break;
-    case "ARRIVED_AT_DESTINATION":
-      color = "0000FF";
-      radius = 10;
-      break;
-    default:
-      color = "#000000";
-  }
-  const statusCirc = new window.google.maps.Circle({
-    strokeColor: color,
-    strokeOpacity: 0.5,
-    fillColor: color,
-    fillOpacity: 0.5,
-    map,
-    center: rawLocationLatLng,
-    radius: radius, // set based on trip status?
-  });
-  window.google.maps.event.addListener(statusCirc, "mouseover", () => {
-    setFeaturedObject({
-      navStatus: navStatus,
-      vehicleState: _.get(le, "response.vehiclestate"),
-      tripStatus: "??",
-    });
-  });
-  return statusCirc;
-});
-
-/*
- * Draws circles on the map. Size indicates delta in seconds at that
- * location.
- */
-toggleHandlers["showETADeltas"] = function (enabled) {
-  const bubbleName = "showETADeltas";
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-  const etaDeltas = tripLogs.getETADeltas(minDate, maxDate);
-  if (enabled) {
-    bubbleMap[bubbleName] = _.map(etaDeltas, (etaDelta) => {
-      const circ = new window.google.maps.Circle({
-        strokeColor: "#000000",
-        strokeOpacity: 0.25,
-        fillColor: "FF0000",
-        fillOpacity: 0.25,
-        map,
-        center: etaDelta.coords,
-        // cap radius to 300 meters to avoid coloring the whole
-        // screen when there is a very large delta.  Definitely
-        // needs tuning ... and likely better to consider adjusting
-        // color as well.
-        radius: _.min([etaDelta.deltaInSeconds, 300]),
-      });
-      window.google.maps.event.addListener(circ, "mouseover", () => {
-        setFeaturedObject({
-          etaDeltaInSeconds: etaDelta.deltaInSeconds,
-        });
-      });
-      return circ;
-    });
-  }
-};
-
-/*
- * Draws arrows on the map showing where a vehicle jumped
- * from one location to another at an unrealistic velocity.
- */
-toggleHandlers["showHighVelocityJumps"] = function (enabled) {
-  const bubbleName = "showHighVelocityJumps";
-
-  tripLogs.debouncedGetHighVelocityJumps(minDate, maxDate, (jumps) => {
-    _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-    delete bubbleMap[bubbleName];
-
-    if (enabled) {
-      bubbleMap[bubbleName] = _(jumps)
-        .map((jump) => {
-          function getStrokeWeight(velocity) {
-            if (velocity <= 100) {
-              return 2;
-            } else if (velocity < 1000) {
-              return 6;
-            } else if (velocity < 2000) {
-              return 10;
-            } else {
-              return 14;
-            }
-          }
-          const path = new window.google.maps.Polyline({
-            path: [jump.startLoc, jump.endLoc],
-            geodesic: true,
-            strokeColor: getColor(jump.jumpIdx),
-            strokeOpacity: 0.8,
-            strokeWeight: getStrokeWeight(jump.velocity),
-            map: map,
-            icons: [
-              {
-                icon: {
-                  path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                  strokeColor: getColor(jump.jumpIdx),
-                  strokeWeight: getStrokeWeight(jump.velocity),
-                },
-                offset: "100%",
-              },
-            ],
-          });
-          window.google.maps.event.addListener(path, "mouseover", () => {
-            setFeaturedObject(jump.getFeaturedData());
-          });
-          window.google.maps.event.addListener(path, "click", () => {
-            setFeaturedObject(jump.getFeaturedData());
-            // show a minute +/- on each side of a jump
-            setTimeRange(jump.startDate.getTime() - 60 * 1000, jump.endDate.getTime() + 60 * 1000);
-          });
-          return [path];
-        })
-        .flatten()
-        .value();
-    } else {
-      console.log("Disabling high velocity jumps");
-      setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
-    }
-  });
-};
-
-/*
- * Marks locations on the map where we did not get the expected
- * updateVehicle requests
- */
-toggleHandlers["showMissingUpdates"] = function (enabled) {
-  const bubbleName = "showMissingUpdates";
-  const missingUpdates = tripLogs.getMissingUpdates(minDate, maxDate);
-  _.forEach(bubbleMap[bubbleName], (bubble) => bubble.setMap(null));
-  delete bubbleMap[bubbleName];
-  if (enabled) {
-    bubbleMap[bubbleName] = _(missingUpdates)
-      .map((update) => {
-        function getStrokeWeight(interval) {
-          if (interval <= 60 * 1000) {
-            return 2;
-          } else if (interval < 60 * 10 * 1000) {
-            return 6;
-          } else if (interval < 60 * 60 * 10 * 1000) {
-            return 10;
-          } else {
-            return 14;
-          }
-        }
-        const heading = window.google.maps.geometry.spherical.computeHeading(update.startLoc, update.endLoc);
-        const offsetHeading = ((heading + 360 + 90) % 360) - 180;
-        const points = [
-          update.startLoc,
-          window.google.maps.geometry.spherical.computeOffset(
-            update.startLoc,
-            1000, //TODO compute based on viewport?
-            offsetHeading
-          ),
-          window.google.maps.geometry.spherical.computeOffset(
-            update.startLoc,
-            900, //TODO compute based on viewport?
-            offsetHeading
-          ),
-          window.google.maps.geometry.spherical.computeOffset(
-            update.endLoc,
-            900, //TODO compute based on viewport?
-            offsetHeading
-          ),
-          window.google.maps.geometry.spherical.computeOffset(
-            update.endLoc,
-            1000, //TODO compute based on viewport?
-            offsetHeading
-          ),
-          update.endLoc,
-        ];
-        const path = new window.google.maps.Polyline({
-          path: points,
-          geodesic: true,
-          strokeColor: "#008B8B",
-          strokeOpacity: 0.5,
-          strokeWeight: getStrokeWeight(update.interval),
-          map: map,
-          icons: [
-            {
-              icon: {
-                path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                strokeColor: "#008B8B",
-                strokeWeight: getStrokeWeight(update.interval),
-                scale: 6,
-              },
-              offset: "50%",
-            },
-            {
-              icon: {
-                path: window.google.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                strokeColor: "#000000",
-                strokeWeight: 1,
-                strokeOpacity: 0.5,
-              },
-              offset: "0%",
-            },
-            {
-              icon: {
-                path: window.google.maps.SymbolPath.CIRCLE,
-                scale: 6,
-                strokeColor: "#000000",
-                strokeWeight: 1,
-                strokeOpacity: 0.5,
-              },
-              offset: "100%",
-            },
-          ],
-        });
-        window.google.maps.event.addListener(path, "mouseover", () => {
-          setFeaturedObject(update.getFeaturedData());
-          path.setOptions({
-            strokeOpacity: 1,
-            strokeWeight: 1.5 * getStrokeWeight(update.interval),
-          });
-        });
-        window.google.maps.event.addListener(path, "mouseout", () => {
-          path.setOptions({
-            strokeOpacity: 0.5,
-            strokeWeight: getStrokeWeight(update.interval),
-          });
-        });
-        window.google.maps.event.addListener(path, "click", () => {
-          setFeaturedObject(update.getFeaturedData());
-          // show a minute +/- on each side of a update
-          setTimeRange(update.startDate.getTime() - 60 * 1000, update.endDate.getTime() + 60 * 1000);
-        });
-        return [path];
-      })
-      .flatten()
-      .value();
-  } else {
-    // TODO: ideally reset to timerange that was selected before enabling
-    // jump view
-    setTimeRange(tripLogs.minDate.getTime(), tripLogs.maxDate.getTime());
-  }
-};
-
-/*
- * Enable/disables live journey sharing view
- */
-toggleHandlers["showLiveJS"] = function (enabled) {
-  if (!jwt) {
-    console.log("Issue #25 -- no/invalid jwt");
-    return;
-  }
-  // call into js to set the trip
-  if (enabled) {
-    locationProvider.tripId = _.last(tripLogs.getTripIDs());
-  } else {
-    locationProvider.tripId = "";
-  }
-};
-
-export { Map as default };

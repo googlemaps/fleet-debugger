@@ -138,19 +138,19 @@ export class TripObjects {
         path: tripCoords,
         geodesic: true,
         strokeColor: strokeColor,
-        strokeOpacity: 0.3,
-        strokeWeight: 6,
+        strokeOpacity: 0.6,
+        strokeWeight: 5,
         clickable: true,
         zIndex: 1,
         map: this.map,
       });
 
       google.maps.event.addListener(path, "mouseover", () => {
-        path.setOptions({ strokeOpacity: 0.7, strokeWeight: 8, zIndex: 100 });
+        path.setOptions({ strokeOpacity: 0.8, strokeWeight: 6, zIndex: 100 });
       });
 
       google.maps.event.addListener(path, "mouseout", () => {
-        path.setOptions({ strokeOpacity: 0.3, strokeWeight: 6, zIndex: 1 });
+        path.setOptions({ strokeOpacity: 0.6, strokeWeight: 5, zIndex: 1 });
       });
 
       // Handle click on polyline but pass the event through to the map
