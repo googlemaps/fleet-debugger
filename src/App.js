@@ -22,17 +22,7 @@ import "./global.css";
 import { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-/**
- * returns the default value for the button from the url
- */
-function getToggleDefault(urlKey, defaultVal) {
-  const urlVal = getQueryStringValue(urlKey);
-  if (urlVal === "true") {
-    defaultVal = true;
-  }
-  return defaultVal;
-}
+import { ALL_TOGGLES, getVisibleToggles } from "./MapToggles";
 
 class App extends React.Component {
   constructor(props) {
@@ -41,7 +31,7 @@ class App extends React.Component {
     const nowDate = new Date();
     let urlMinTime = getQueryStringValue("minTime");
     let urlMaxTime = getQueryStringValue("maxTime");
-    this.initialMinTime = urlMinTime ? parseInt(urlMinTime) : 0; // default max time to 1 year in the future
+    this.initialMinTime = urlMinTime ? parseInt(urlMinTime) : 0;
     this.initialMaxTime = urlMaxTime ? parseInt(urlMaxTime) : nowDate.setFullYear(nowDate.getFullYear() + 1);
     this.focusOnRowFunction = null;
     this.state = {
@@ -50,22 +40,7 @@ class App extends React.Component {
       playSpeed: 1000,
       featuredObject: { msg: "Click a table row to select object" },
       extraColumns: [],
-      toggleOptions: {
-        showGPSBubbles: getToggleDefault("showGPSBubbles", false),
-        showHeading: getToggleDefault("showHeading", false),
-        showSpeed: getToggleDefault("showSpeed", false),
-        showTraffic: getToggleDefault("showTraffic", false),
-        showTripStatus: getToggleDefault("showTripStatus", false),
-        showDwellLocations: getToggleDefault("showDwellLocations", false),
-        showNavStatus: getToggleDefault("showNavStatus", false),
-        showETADeltas: getToggleDefault("showETADeltas", false),
-        showHighVelocityJumps: getToggleDefault("showHighVelocityJumps", false),
-        showMissingUpdates: getToggleDefault("showMissingUpdates", false),
-        showTasksAsCreated: getToggleDefault("showTasksAsCreated", false),
-        showPlannedPaths: getToggleDefault("showPlannedPaths", false),
-        showLiveJS: getToggleDefault("showLiveJS", false),
-        showClientServerTimeDeltas: getToggleDefault("showClientServerTimeDeltas", false),
-      },
+      toggleOptions: Object.fromEntries(ALL_TOGGLES.map((t) => [t.id, false])),
       uploadedDatasets: [null, null, null, null, null],
       activeDatasetIndex: null,
       activeMenuIndex: null,
@@ -73,139 +48,17 @@ class App extends React.Component {
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
       currentLogData: this.props.logData,
     };
-    // Realtime updates are too heavy. There must be a better/ react way
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
-
-    // TODO: refactor so that visualizations are registered
-    // rather than enumerated here?
-    this.toggles = _.filter(
-      [
-        {
-          id: "showGPSBubbles",
-          name: "GPS Accuracy",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
-          columns: ["lastlocation.rawlocationaccuracy", "lastlocation.locationsensor"],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showHeading",
-          name: "Heading",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Heading.md",
-          columns: ["lastlocation.heading", "lastlocation.headingaccuracy"],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showSpeed",
-          name: "Speed",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Speed.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showTripStatus",
-          name: "Trip Status",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/TripStatus.md",
-          columns: [],
-          solutionTypes: ["ODRD"],
-        },
-        {
-          id: "showNavStatus",
-          name: "Navigation Status",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/NavStatus.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showTasksAsCreated",
-          name: "Tasks",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/Tasks.md",
-          columns: [],
-          solutionTypes: ["LMFS"],
-        },
-        {
-          id: "showPlannedPaths",
-          name: "Planned Paths",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/PlannedPaths.md",
-          columns: [],
-          solutionTypes: ["LMFS"],
-        },
-        {
-          id: "showDwellLocations",
-          name: "Dwell Locations",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/DwellTimes.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showHighVelocityJumps",
-          name: "Jumps (unrealistic velocity)",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/VelocityJumps.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showMissingUpdates",
-          name: "Jumps (Temporal)",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/MissingUpdates.md",
-          columns: ["temporal_gap"],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showClientServerTimeDeltas",
-          name: "Client/Server Time Deltas",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showETADeltas",
-          name: "ETA Deltas",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/EtaDeltas.md",
-          columns: ["request.vehicle.etatofirstwaypoint"],
-          solutionTypes: ["ODRD"],
-        },
-        {
-          id: "showTraffic",
-          name: "Live Traffic",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-        {
-          id: "showLiveJS",
-          name: "Live Journey Sharing",
-          docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/README.md",
-          columns: [],
-          solutionTypes: ["ODRD", "LMFS"],
-        },
-      ],
-      (toggle) => {
-        return toggle.solutionTypes.indexOf(this.state.currentLogData.solutionType) !== -1;
-      }
-    );
     this.setFeaturedObject = this.setFeaturedObject.bind(this);
     this.setTimeRange = this.setTimeRange.bind(this);
   }
 
-  /*
-   * Update react state from data in the url. This could/should be
-   * cleaned up. The pure react state is actually set properly in the
-   * constructor ... all this does is update the map and associated
-   * data (once it's loaded). Given this split it's definitely possible
-   * that this just overwrites settings a quickfingered user already
-   * changed.
-   */
   updateMapAndAssociatedData = () => {
     this.setTimeRange(this.state.timeRange.minTime, this.state.timeRange.maxTime);
-    _.map(this.toggles, (toggle) => {
-      const urlVal = getQueryStringValue(toggle.id);
-      if (urlVal === "true") {
-        this.updateToggleState(true, toggle.id, toggle.columns);
-      }
-    });
   };
 
   componentDidMount() {
+    log(`Initial device pixel ratio: ${window.devicePixelRatio}`);
     this.initializeData().then(() => {
       this.updateMapAndAssociatedData();
     });
@@ -221,34 +74,27 @@ class App extends React.Component {
 
   updateToggleState(newValue, toggleName, jsonPaths) {
     this.setState((prevState) => {
-      prevState.toggleOptions[toggleName] = newValue;
-      setQueryStringValue(toggleName, newValue);
-      const extraColumns = _.clone(prevState.extraColumns);
-      _.forEach(jsonPaths, (path) => {
-        if (newValue) {
-          extraColumns.push(path);
-        } else {
-          _.pull(extraColumns, path);
-        }
-      });
-      prevState.extraColumns = _.uniq(extraColumns);
-      return prevState;
+      const newToggleOptions = {
+        ...prevState.toggleOptions,
+        [toggleName]: newValue,
+      };
+
+      const newExtraColumns = newValue
+        ? _.union(prevState.extraColumns, jsonPaths)
+        : _.difference(prevState.extraColumns, jsonPaths);
+
+      return {
+        toggleOptions: newToggleOptions,
+        extraColumns: newExtraColumns,
+      };
     });
   }
 
-  /*
-   * Updates react state associated with the slider and calls into
-   * the non-react map code to do the same.
-   */
   onSliderChange(timeRange) {
     this.setTimeRange(timeRange.minTime, timeRange.maxTime);
   }
 
-  /*
-   * Callback to updated selected log row
-   */
   onSelectionChange(selectedRow, rowIndex) {
-    // Save both the selected row and its index for the current dataset
     if (this.state.activeDatasetIndex !== null && rowIndex !== undefined) {
       this.setState((prevState) => {
         const newSelectedIndexes = [...prevState.selectedRowIndexPerDataset];
@@ -264,9 +110,6 @@ class App extends React.Component {
     }
   }
 
-  /*
-   * Set the featured object
-   */
   setFeaturedObject(featuredObject) {
     this.setState({ featuredObject: featuredObject });
   }
@@ -281,9 +124,6 @@ class App extends React.Component {
     }
   };
 
-  /*
-   * exposes editing of the timeRange state
-   */
   setTimeRange(minTime, maxTime, callback) {
     setQueryStringValue("minTime", minTime);
     setQueryStringValue("maxTime", maxTime);
@@ -818,29 +658,22 @@ class App extends React.Component {
             log(`Switched to dataset ${index}`);
             log(`New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`);
 
-            // After dataset is loaded, try to restore the previously selected row index
             const savedRowIndex = this.state.selectedRowIndexPerDataset[index];
             log(`Attempting to restore row at index ${savedRowIndex} for dataset ${index}`);
 
-            // Wait for map and components to fully initialize
             setTimeout(() => {
               if (savedRowIndex >= 0) {
-                // Get current log data with the new time range
                 const minDate = new Date(this.state.timeRange.minTime);
                 const maxDate = new Date(this.state.timeRange.maxTime);
                 const logs = tripLogs.getLogs_(minDate, maxDate).value();
 
-                // Check if the saved index is valid for the current dataset
                 if (savedRowIndex < logs.length) {
                   log(`Restoring row at index ${savedRowIndex}`);
                   const rowToSelect = logs[savedRowIndex];
 
-                  // First update the featured object
                   this.setState({ featuredObject: rowToSelect }, () => {
-                    // Then focus on the row in the table
                     this.focusOnSelectedRow();
 
-                    // And finally center the map on the location (simulating a long press)
                     const lat = _.get(rowToSelect, "lastlocation.rawlocation.latitude");
                     const lng = _.get(rowToSelect, "lastlocation.rawlocation.longitude");
 
@@ -856,13 +689,11 @@ class App extends React.Component {
                   this.selectFirstRow();
                 }
               } else {
-                // If no saved selection or invalid index, select first row
                 log(`No previously saved row index for dataset ${index}, selecting first row`);
                 this.selectFirstRow();
               }
-            }, 300); // Increased delay to ensure map is fully initialized
+            }, 300);
 
-            // Update map and associated data
             this.updateMapAndAssociatedData();
           }
         );
@@ -875,15 +706,15 @@ class App extends React.Component {
   };
 
   toggleClickHandler(id) {
-    const toggle = _.find(this.toggles, { id });
+    const toggle = _.find(ALL_TOGGLES, { id });
     const newValue = !this.state.toggleOptions[id];
     this.updateToggleState(newValue, id, toggle.columns);
   }
 
   render() {
-    const selectedEventTime = this.state.featuredObject?.timestamp
-      ? new Date(this.state.featuredObject.timestamp).getTime()
-      : null;
+    const { featuredObject, timeRange, currentLogData, toggleOptions, extraColumns } = this.state;
+    const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
+    const visibleToggles = getVisibleToggles(currentLogData.solutionType);
 
     return (
       <div className="app-container">
@@ -893,12 +724,12 @@ class App extends React.Component {
             <div className="map-container">
               <Map
                 key={`map-${this.state.activeDatasetIndex}`}
-                logData={this.state.currentLogData}
-                rangeStart={this.state.timeRange.minTime}
-                rangeEnd={this.state.timeRange.maxTime}
-                selectedRow={this.state.featuredObject}
-                toggles={this.toggles}
-                toggleOptions={this.state.toggleOptions}
+                logData={currentLogData}
+                rangeStart={timeRange.minTime}
+                rangeEnd={timeRange.maxTime}
+                selectedRow={featuredObject}
+                toggles={visibleToggles}
+                toggleOptions={toggleOptions}
                 setFeaturedObject={this.setFeaturedObject}
                 setTimeRange={this.setTimeRange}
                 setCenterOnLocation={this.setCenterOnLocation}
@@ -907,9 +738,9 @@ class App extends React.Component {
               />
             </div>
             <TimeSlider
-              logData={this.state.currentLogData}
-              curMin={this.state.timeRange.minTime}
-              curMax={this.state.timeRange.maxTime}
+              logData={currentLogData}
+              curMin={timeRange.minTime}
+              curMax={timeRange.maxTime}
               onSliderChange={this.onSliderChangeDebounced}
               selectedEventTime={selectedEventTime}
               onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
@@ -917,8 +748,8 @@ class App extends React.Component {
               focusSelectedRow={this.focusOnSelectedRow}
             />
             <ToggleBar
-              toggles={this.toggles}
-              toggleState={this.state.toggleOptions}
+              toggles={visibleToggles}
+              toggleState={toggleOptions}
               clickHandler={(id) => this.toggleClickHandler(id)}
             />
             <div className="nav-controls">
@@ -959,10 +790,10 @@ class App extends React.Component {
           </div>
           <div style={{ flex: 1, overflow: "auto" }}>
             <LogTable
-              logData={this.state.currentLogData}
+              logData={currentLogData}
               style={{ width: "100%" }}
-              timeRange={this.state.timeRange}
-              extraColumns={this.state.extraColumns}
+              timeRange={timeRange}
+              extraColumns={extraColumns}
               onSelectionChange={(rowData, rowIndex) => this.onSelectionChange(rowData, rowIndex)}
               setFocusOnRowFunction={this.setFocusOnRowFunction}
               centerOnLocation={this.centerOnLocation}
@@ -970,10 +801,7 @@ class App extends React.Component {
           </div>
         </div>
         <div className="dataframe-section">
-          <Dataframe
-            featuredObject={this.state.featuredObject}
-            onClick={(select) => this.onDataframePropClick(select)}
-          />
+          <Dataframe featuredObject={featuredObject} onClick={(select) => this.onDataframePropClick(select)} />
         </div>
       </div>
     );
