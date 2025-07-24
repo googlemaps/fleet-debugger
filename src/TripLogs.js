@@ -230,7 +230,6 @@ function processRawLogs(rawLogs, solutionType) {
       // Update lastKnownState for next iterations
       const locToStore = currentLocation?.location || currentLocation?.rawlocation;
       if (locToStore) {
-        log(`processRawLogs: Storing last known location for log at ${newLog.timestamp}`);
         lastKnownState.location = _.cloneDeep(locToStore);
         lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
       }
