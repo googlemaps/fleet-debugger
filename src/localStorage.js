@@ -17,6 +17,33 @@ const TOS_RESTRICTED_ATTRIBUTES = [
   "vehicleWaypoints",
 ];
 
+/**
+ * Recursively sorts the keys of an object or objects within an array,
+ * ensuring a consistent order for display and comparison.
+ * @param {*} data The object or array to sort.
+ * @returns {*} The sorted object or array.
+ */
+export function sortObjectKeysRecursively(data) {
+  const _sort = (obj) => {
+    if (obj === null || typeof obj !== "object") {
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(_sort);
+    }
+
+    return Object.keys(obj)
+      .sort()
+      .reduce((sorted, key) => {
+        sorted[key] = _sort(obj[key]);
+        return sorted;
+      }, {});
+  };
+
+  return _sort(data);
+}
+
 async function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
@@ -32,8 +59,10 @@ export async function uploadFile(file, index) {
   console.log(`Importing file: ${file.name}`);
   let parsedData;
   if (file.name.endsWith(".zip")) {
+    log("uploadFile: Processing ZIP file.");
     parsedData = await processZipFile(file);
   } else if (file.name.endsWith(".json")) {
+    log("uploadFile: Processing JSON file.");
     parsedData = await processJsonFile(file);
   } else {
     throw new Error("Unsupported file format. Please upload a ZIP or JSON file.");
@@ -128,19 +157,6 @@ async function processJsonFile(file) {
 export function parseJsonContent(content) {
   log("Parsing JSON content");
 
-  const sortObjectKeys = (obj) => {
-    if (obj === null || typeof obj !== "object" || Array.isArray(obj)) {
-      return obj;
-    }
-
-    return Object.keys(obj)
-      .sort()
-      .reduce((sorted, key) => {
-        sorted[key] = sortObjectKeys(obj[key]);
-        return sorted;
-      }, {});
-  };
-
   const processJsonObject = (obj) => {
     if (obj === null || typeof obj !== "object") return obj;
     if (Array.isArray(obj)) return obj.map(processJsonObject);
@@ -186,14 +202,14 @@ export function parseJsonContent(content) {
     const parsed = JSON.parse(content);
     const processedData = processJsonObject(parsed);
     log("Processed JSON data: removed underscores, flattened value objects, and pruned null/undefined fields");
-    return sortObjectKeys(processedData);
+    return sortObjectKeysRecursively(processedData);
   } catch (error) {
     log("Initial JSON parsing failed, attempting to wrap in array");
     try {
       const parsed = JSON.parse(`[${content}]`);
       const processedData = processJsonObject(parsed);
       log("Processed JSON data in array format");
-      return sortObjectKeys(processedData);
+      return sortObjectKeysRecursively(processedData);
     } catch (innerError) {
       console.error("JSON parsing error:", innerError);
       throw new Error(`Invalid JSON content: ${innerError.message}`);
@@ -269,6 +285,12 @@ export function ensureCorrectFormat(data) {
       });
     }
     return true;
+  });
+
+  mergedLogs.forEach((row) => {
+    if (row.jsonPayload) {
+      row.jsonPayload = sortObjectKeysRecursively(row.jsonPayload);
+    }
   });
 
   // Determine the solution type based on the presence of _delivery_vehicle logs

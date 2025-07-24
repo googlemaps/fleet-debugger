@@ -1,12 +1,31 @@
 // src/localStorage.test.js
-
 import fs from "fs";
-import { parseJsonContent, removeEmptyObjects, ensureCorrectFormat } from "./localStorage";
+import { parseJsonContent, removeEmptyObjects, ensureCorrectFormat, sortObjectKeysRecursively } from "./localStorage";
 
 // Helper function to load test data
 function loadTestData(filename) {
   return JSON.parse(fs.readFileSync(`./datasets/${filename}`));
 }
+
+test("sortObjectKeysRecursively sorts object keys recursively but preserves array order", () => {
+  const unsorted = {
+    c: 3,
+    a: 1,
+    b: [{ z: "last", x: "first" }, { y: "middle" }],
+  };
+
+  const expected = {
+    a: 1,
+    b: [{ x: "first", z: "last" }, { y: "middle" }],
+    c: 3,
+  };
+
+  const sorted = sortObjectKeysRecursively(unsorted);
+
+  // Using JSON.stringify provides a simple and effective way to verify
+  // both the structure and the key order of the entire object.
+  expect(JSON.stringify(sorted)).toBe(JSON.stringify(expected));
+});
 
 test("parseJsonContent handles valid JSON", () => {
   const validJson = JSON.stringify({ test: "data" });
@@ -31,22 +50,28 @@ test("parseJsonContent handles JSON array", () => {
 });
 
 test("parseJsonContent throws error for invalid JSON", () => {
+  // Temporarily spy on console.error and replace it with a function that does nothing.
+  const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
   const invalidJson = "{invalid}";
   expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
+
+  consoleErrorSpy.mockRestore();
 });
 
-test("parseJsonContent removes underscores from keys", () => {
+test("parseJsonContent removes underscores from keys and sorts them", () => {
   const snakeCaseJson = JSON.stringify({
     snake_case_key: "value",
-    normal_key: "value2",
+    another_key: "value2",
   });
 
   const result = parseJsonContent(snakeCaseJson);
 
   expect(result).toHaveProperty("snakecasekey", "value");
-  expect(result).toHaveProperty("normalkey", "value2");
+  expect(result).toHaveProperty("anotherkey", "value2");
   expect(result).not.toHaveProperty("snake_case_key");
-  expect(result).not.toHaveProperty("normal_key");
+  expect(result).not.toHaveProperty("another_key");
+  expect(Object.keys(result)).toEqual(["anotherkey", "snakecasekey"]);
 });
 
 test("parseJsonContent removes underscores from deeply nested object keys", () => {
@@ -65,10 +90,10 @@ test("parseJsonContent removes underscores from deeply nested object keys", () =
 });
 
 // New tests for value object flattening
-test("parseJsonContent flattens objects with a single 'value' property", () => {
+test("parseJsonContent flattens value objects and sorts keys", () => {
   const valueObjectJson = JSON.stringify({
-    normalKey: "normal",
     valueObject: { value: "flattened" },
+    normalKey: "normal",
   });
 
   const result = parseJsonContent(valueObjectJson);
@@ -76,6 +101,7 @@ test("parseJsonContent flattens objects with a single 'value' property", () => {
   expect(result.normalKey).toBe("normal");
   expect(result.valueObject).toBe("flattened");
   expect(typeof result.valueObject).toBe("string");
+  expect(Object.keys(result)).toEqual(["normalKey", "valueObject"]);
 });
 
 test("parseJsonContent flattens nested objects with a single 'value' property", () => {
