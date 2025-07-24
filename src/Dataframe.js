@@ -159,7 +159,7 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
     if (depth === 2 && indexOrName === "request") {
       return false;
     }
-    if (depth === 3 && ["vehicle", "trip"].includes(indexOrName)) {
+    if (depth === 3 && ["vehicle", "trip", "deliveryvehicle", "task"].includes(indexOrName)) {
       return false;
     }
     return true;
