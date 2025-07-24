@@ -699,6 +699,19 @@ class App extends React.Component {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
         const newVisibleToggles = getVisibleToggles(data.solutionType);
 
+        let newToggleOptions = { ...this.state.toggleOptions };
+        let newExtraColumns = [...this.state.extraColumns];
+
+        if (data.solutionType === "LMFS") {
+          const tasksToggleId = "showTasksAsCreated";
+          const tasksToggle = _.find(ALL_TOGGLES, { id: tasksToggleId });
+          if (tasksToggle && !newToggleOptions[tasksToggleId]) {
+            log("Auto-enabling 'showTasksAsCreated' for LMFS dataset.");
+            newToggleOptions[tasksToggleId] = true;
+            newExtraColumns = _.union(newExtraColumns, tasksToggle.columns);
+          }
+        }
+
         this.setState(
           (prevState) => ({
             activeDatasetIndex: index,
@@ -711,6 +724,8 @@ class App extends React.Component {
             },
             visibleToggles: newVisibleToggles,
             dynamicMarkerLocations: {}, // Clear markers when switching datasets
+            toggleOptions: newToggleOptions,
+            extraColumns: newExtraColumns,
           }),
           () => {
             log(`Switched to dataset ${index}`);

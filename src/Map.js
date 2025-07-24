@@ -298,7 +298,10 @@ function MapComponent({
 
     if (!map || !selectedRow) return;
 
-    const location = _.get(selectedRow.lastlocation, "location") || _.get(selectedRow.lastlocationResponse, "location");
+    const location =
+      _.get(selectedRow.lastlocation, "location") ||
+      _.get(selectedRow.lastlocation, "rawlocation") ||
+      _.get(selectedRow.lastlocationResponse, "location");
 
     if (location?.latitude && location?.longitude) {
       const pos = { lat: location.latitude, lng: location.longitude };
@@ -380,8 +383,9 @@ function MapComponent({
       trafficLayerRef,
       locationProviderRef,
       jwt,
+      focusSelectedRow,
     });
-  }, [mapRef.current, tripLogs, taskLogs, minDate, maxDate, jwt, setFeaturedObject, setTimeRange]);
+  }, [mapRef.current, tripLogs, taskLogs, minDate, maxDate, jwt, setFeaturedObject, setTimeRange, focusSelectedRow]);
 
   useEffect(() => {
     if (_.isEmpty(toggleHandlers)) {

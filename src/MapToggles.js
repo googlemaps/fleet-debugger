@@ -124,6 +124,7 @@ export function getToggleHandlers({
   trafficLayerRef,
   locationProviderRef,
   jwt,
+  focusSelectedRow,
 }) {
   const GenerateBubbles = (bubbleName, cb) => (showBubble) => {
     _.forEach(bubbleMapRef.current[bubbleName], (bubble) => bubble.setMap(null));
@@ -422,12 +423,105 @@ export function getToggleHandlers({
       const bubbleName = "showTasksAsCreated";
       _.forEach(bubbleMapRef.current[bubbleName], (b) => b.setMap(null));
       delete bubbleMapRef.current[bubbleName];
+
+      const getIcon = (task) => {
+        const outcome = task.taskoutcome || "unknown";
+        const urlBase = "http://maps.google.com/mapfiles/kml/shapes/";
+        const icon = {
+          url: urlBase,
+          scaledSize: new window.google.maps.Size(30, 30),
+        };
+        if (outcome.includes("SUCCEEDED")) {
+          icon.url += "flag.png";
+        } else if (outcome.includes("FAIL")) {
+          icon.url += "caution.png";
+        } else {
+          icon.url += "shaded_dot.png";
+        }
+        return icon;
+      };
+
       if (enabled) {
         log(`Enabling ${bubbleName}`);
-        bubbleMapRef.current[bubbleName] = _.map(
-          taskLogs.getTasks(maxDate).value(),
-          (t) => new window.google.maps.Marker({ map, position: t.plannedlocation.point })
-        );
+        const tasks = taskLogs.getTasks(maxDate).value();
+
+        bubbleMapRef.current[bubbleName] = _(tasks)
+          .map((task) => {
+            if (!task.plannedlocation?.point) {
+              return null;
+            }
+
+            const marker = new window.google.maps.Marker({
+              position: {
+                lat: task.plannedlocation.point.latitude,
+                lng: task.plannedlocation.point.longitude,
+              },
+              map: map,
+              icon: getIcon(task),
+              title: `${task.state}: ${task.taskid} - ${task.trackingid}`,
+            });
+
+            marker.addListener("click", () => {
+              log(`Task marker clicked: ${task.taskid}`);
+              const latestUpdateLog = _.findLast(tripLogs.rawLogs, (le) => {
+                const type = le["@type"];
+                if (type === "createTask" || type === "updateTask" || type === "getTask") {
+                  const idInResp = _.get(le, "response.name", "").split("/").pop();
+                  if (idInResp === task.taskid) return true;
+
+                  const idInReq = _.get(le, "request.taskid");
+                  if (idInReq === task.taskid) return true;
+                }
+                return false;
+              });
+
+              if (latestUpdateLog) {
+                log(`Found matching log entry for task ${task.taskid}`, latestUpdateLog);
+                setFeaturedObject(latestUpdateLog);
+                setTimeout(() => focusSelectedRow(), 0);
+              } else {
+                setFeaturedObject(task);
+              }
+            });
+
+            const ret = [marker];
+            if (task.taskoutcomelocation?.point && task.plannedlocation?.point) {
+              log(`Task ${task.taskid} has taskoutcomelocation, drawing arrow.`);
+              const arrowColor = task.plannedVsActualDeltaMeters > 50 ? "#FF1111" : "#11FF11";
+              const offSetPath = new window.google.maps.Polyline({
+                path: [
+                  {
+                    lat: task.plannedlocation.point.latitude,
+                    lng: task.plannedlocation.point.longitude,
+                  },
+                  {
+                    lat: task.taskoutcomelocation.point.latitude,
+                    lng: task.taskoutcomelocation.point.longitude,
+                  },
+                ],
+                geodesic: true,
+                strokeColor: arrowColor,
+                strokeOpacity: 0.6,
+                strokeWeight: 4,
+                map: map,
+                icons: [
+                  {
+                    icon: {
+                      path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                      strokeColor: arrowColor,
+                      strokeWeight: 4,
+                    },
+                    offset: "100%",
+                  },
+                ],
+              });
+              ret.push(offSetPath);
+            }
+            return ret;
+          })
+          .flatten()
+          .compact()
+          .value();
       }
     },
     showPlannedPaths: (enabled) => {

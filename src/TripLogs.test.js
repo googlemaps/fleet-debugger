@@ -41,6 +41,91 @@ test("basic lmfs trip log loading", async () => {
   ]);
 });
 
+describe("Location Data Processing", () => {
+  test("LMFS log populates .location from .rawlocation as a fallback", () => {
+    const rawLocation = { latitude: 37.422, longitude: -122.084 };
+    const mockLogs = [
+      {
+        timestamp: "2023-01-01T12:00:00Z",
+        jsonpayload: {
+          "@type": "updateDeliveryVehicle",
+          request: {
+            deliveryvehicle: {
+              lastlocation: {
+                rawlocation: rawLocation,
+              },
+            },
+          },
+          response: {},
+        },
+      },
+    ];
+
+    const tripLogs = new TripLogs(mockLogs, "LMFS");
+    expect(tripLogs.rawLogs[0].lastlocation.location).toEqual(rawLocation);
+  });
+
+  test("ODRD log with both location and rawlocation prefers location", () => {
+    const snappedLocation = { latitude: 37.7749, longitude: -122.4194 };
+    const rawLocation = { latitude: 37.775, longitude: -122.4195 };
+    const mockLogs = [
+      {
+        timestamp: "2023-01-01T10:00:00Z",
+        jsonpayload: {
+          "@type": "updateVehicle",
+          request: {
+            vehicle: {
+              lastlocation: {
+                location: snappedLocation,
+                rawlocation: rawLocation,
+              },
+            },
+          },
+          response: {},
+        },
+      },
+    ];
+
+    const tripLogs = new TripLogs(mockLogs, "ODRD");
+    expect(tripLogs.rawLogs[0].lastlocation.location).toEqual(snappedLocation);
+    expect(tripLogs.rawLogs[0].lastlocation.location).not.toEqual(rawLocation);
+  });
+
+  test("lastKnownState propagates location from an LMFS rawlocation", () => {
+    const rawLocation = { latitude: 37.422, longitude: -122.084 };
+    const mockLogs = [
+      {
+        timestamp: "2023-01-01T12:00:00Z",
+        jsonpayload: {
+          "@type": "updateDeliveryVehicle",
+          request: {
+            deliveryvehicle: {
+              lastlocation: {
+                rawlocation: rawLocation,
+                heading: 180,
+              },
+            },
+          },
+          response: {},
+        },
+      },
+      {
+        timestamp: "2023-01-01T12:01:00Z",
+        jsonpayload: {
+          "@type": "updateDeliveryVehicle",
+          request: {
+            deliveryvehicle: {},
+          },
+          response: {},
+        },
+      },
+    ];
+    const tripLogs = new TripLogs(mockLogs, "LMFS");
+    expect(tripLogs.rawLogs[1].lastlocation.location).toEqual(rawLocation);
+    expect(tripLogs.rawLogs[1].lastlocation.heading).toBe(180);
+  });
+});
+
 test("lastKnownState location is correctly applied to subsequent logs", () => {
   // Create mock data with two log entries
   const mockLogs = [

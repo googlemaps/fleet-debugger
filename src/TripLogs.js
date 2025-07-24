@@ -167,6 +167,12 @@ function processRawLogs(rawLogs, solutionType) {
       // Create lastlocation object using deep cloned data where available
       newLog.lastlocation = currentLocation ? _.cloneDeep(currentLocation) : {};
 
+      // Data Normalization within a single log, create location from rawlocation when absent
+      if (!newLog.lastlocation.location && newLog.lastlocation.rawlocation) {
+        log(`processRawLogs: Falling back to rawlocation for log at ${newLog.timestamp}`);
+        newLog.lastlocation.location = _.cloneDeep(newLog.lastlocation.rawlocation);
+      }
+
       // Apply last known location if needed
       if (!newLog.lastlocation.location && lastKnownState.location) {
         newLog.lastlocation.location = _.cloneDeep(lastKnownState.location);
@@ -222,8 +228,10 @@ function processRawLogs(rawLogs, solutionType) {
       }
 
       // Update lastKnownState for next iterations
-      if (currentLocation?.location) {
-        lastKnownState.location = _.cloneDeep(currentLocation.location);
+      const locToStore = currentLocation?.location || currentLocation?.rawlocation;
+      if (locToStore) {
+        log(`processRawLogs: Storing last known location for log at ${newLog.timestamp}`);
+        lastKnownState.location = _.cloneDeep(locToStore);
         lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
       }
 
