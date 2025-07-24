@@ -61,6 +61,7 @@ class App extends React.Component {
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
       currentLogData: this.props.logData,
       dynamicMarkerLocations: {},
+      visibleToggles: getVisibleToggles(this.props.logData.solutionType),
     };
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
     this.setFeaturedObject = this.setFeaturedObject.bind(this);
@@ -696,20 +697,21 @@ class App extends React.Component {
       const data = await getUploadedData(index);
       if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
+        const newVisibleToggles = getVisibleToggles(data.solutionType);
+
         this.setState(
-          (prevState) => {
-            return {
-              activeDatasetIndex: index,
-              timeRange: { minTime: tripLogs.minDate.getTime(), maxTime: tripLogs.maxDate.getTime() },
-              initialMapBounds: data.bounds,
-              currentLogData: {
-                ...prevState.currentLogData,
-                tripLogs: tripLogs,
-                solutionType: data.solutionType,
-              },
-              dynamicMarkerLocations: {}, // Clear markers when switching datasets
-            };
-          },
+          (prevState) => ({
+            activeDatasetIndex: index,
+            timeRange: { minTime: tripLogs.minDate.getTime(), maxTime: tripLogs.maxDate.getTime() },
+            initialMapBounds: data.bounds,
+            currentLogData: {
+              ...prevState.currentLogData,
+              tripLogs: tripLogs,
+              solutionType: data.solutionType,
+            },
+            visibleToggles: newVisibleToggles,
+            dynamicMarkerLocations: {}, // Clear markers when switching datasets
+          }),
           () => {
             log(`Switched to dataset ${index}`);
             log(`New time range: ${tripLogs.minDate} - ${tripLogs.maxDate}`);
@@ -768,10 +770,16 @@ class App extends React.Component {
   }
 
   render() {
-    const { featuredObject, timeRange, currentLogData, toggleOptions, extraColumns, dynamicMarkerLocations } =
-      this.state;
+    const {
+      featuredObject,
+      timeRange,
+      currentLogData,
+      toggleOptions,
+      extraColumns,
+      dynamicMarkerLocations,
+      visibleToggles,
+    } = this.state;
     const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
-    const visibleToggles = getVisibleToggles(currentLogData.solutionType);
 
     return (
       <div className="app-container">
