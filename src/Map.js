@@ -22,6 +22,7 @@ function MapComponent({
   focusSelectedRow,
   initialMapBounds,
   setCenterOnLocation,
+  setRenderMarkerOnMap,
 }) {
   const { tripLogs, taskLogs, jwt, projectId, mapId } = logData;
 
@@ -33,6 +34,7 @@ function MapComponent({
   const dataMakersRef = useRef([]);
   const trafficPolylinesRef = useRef([]);
   const panoramaRef = useRef(null);
+  const dynamicMarkersRef = useRef([]);
 
   const [showPolylineUI, setShowPolylineUI] = useState(false);
   const [_polylines, setPolylines] = useState([]);
@@ -42,6 +44,48 @@ function MapComponent({
 
   const minDate = useMemo(() => new Date(rangeStart), [rangeStart]);
   const maxDate = useMemo(() => new Date(rangeEnd), [rangeEnd]);
+
+  const updateDynamicMarker = useCallback((location, color, shouldAdd) => {
+    const map = mapRef.current;
+    if (!map) {
+      console.error("Map not available to update dynamic marker.");
+      return;
+    }
+
+    const existingMarkerIndex = dynamicMarkersRef.current.findIndex(
+      (m) => m.locationData && _.isEqual(m.locationData, location)
+    );
+
+    if (shouldAdd && existingMarkerIndex === -1) {
+      log(`Map.js: Adding dynamic marker at ${JSON.stringify(location)} with color ${color}`);
+      const marker = new window.google.maps.Marker({
+        position: location,
+        map,
+        icon: {
+          path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z",
+          fillColor: color,
+          fillOpacity: 1,
+          strokeWeight: 0,
+          anchor: new window.google.maps.Point(12, 22),
+          scale: 0.8,
+        },
+        zIndex: 100,
+      });
+      marker.locationData = location;
+      dynamicMarkersRef.current.push(marker);
+    } else if (!shouldAdd && existingMarkerIndex > -1) {
+      log(`Map.js: Removing dynamic marker at ${JSON.stringify(location)}`);
+      const markerToRemove = dynamicMarkersRef.current[existingMarkerIndex];
+      markerToRemove.setMap(null);
+      dynamicMarkersRef.current.splice(existingMarkerIndex, 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (setRenderMarkerOnMap) {
+      setRenderMarkerOnMap(updateDynamicMarker);
+    }
+  }, [setRenderMarkerOnMap, updateDynamicMarker]);
 
   // Effect for map initialization (runs once on mount)
   useEffect(() => {
@@ -164,6 +208,8 @@ function MapComponent({
 
     return () => {
       log("Map.js: Cleanup from initialization useEffect.");
+      dynamicMarkersRef.current.forEach((m) => m.setMap(null));
+      dynamicMarkersRef.current = [];
       window.google.maps.event.removeListener(clickListener);
       window.google.maps.event.removeListener(centerListener);
       window.google.maps.event.removeListener(headingListener);
@@ -358,7 +404,9 @@ function MapComponent({
         map.setZoom(13);
       }
     };
-    setCenterOnLocation(centerOnLocationImpl);
+    if (setCenterOnLocation) {
+      setCenterOnLocation(() => centerOnLocationImpl);
+    }
   }, [setCenterOnLocation]);
 
   return (
@@ -385,9 +433,14 @@ function MapContent(props) {
 export default function Map(props) {
   const { apikey } = props.logData;
   const stableSetCenterOnLocation = useCallback(props.setCenterOnLocation, []);
+  const stableSetRenderMarkerOnMap = useCallback(props.setRenderMarkerOnMap, []);
   return (
     <APIProvider apiKey={apikey} solutionChannel="GMP_visgl_reactgooglemaps_v1_GMP_FLEET_DEBUGGER">
-      <MapContent {...props} setCenterOnLocation={stableSetCenterOnLocation} />
+      <MapContent
+        {...props}
+        setCenterOnLocation={stableSetCenterOnLocation}
+        setRenderMarkerOnMap={stableSetRenderMarkerOnMap}
+      />
     </APIProvider>
   );
 }
