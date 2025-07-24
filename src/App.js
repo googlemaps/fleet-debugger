@@ -7,6 +7,7 @@ import TimeSlider from "./TimeSlider";
 import LogTable from "./LogTable";
 import ToggleBar from "./ToggleBar";
 import TripLogs from "./TripLogs";
+import TaskLogs from "./TaskLogs";
 import CloudLogging from "./CloudLogging";
 import {
   uploadFile,
@@ -59,7 +60,10 @@ class App extends React.Component {
       activeMenuIndex: null,
       initialMapBounds: null,
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
-      currentLogData: this.props.logData,
+      currentLogData: {
+        ...this.props.logData,
+        taskLogs: new TaskLogs(this.props.logData.tripLogs),
+      },
       dynamicMarkerLocations: {},
       visibleToggles: getVisibleToggles(this.props.logData.solutionType),
     };
@@ -454,12 +458,14 @@ class App extends React.Component {
         if (this.state.activeDatasetIndex === index) {
           log(`handlePruneClick: Pruning active dataset ${index}, updating state.`);
           const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
+          const taskLogs = new TaskLogs(tripLogs);
 
           this.setState(
             (prevState) => ({
               currentLogData: {
                 ...prevState.currentLogData,
                 tripLogs: tripLogs,
+                taskLogs: taskLogs,
                 solutionType: data.solutionType,
               },
             }),
@@ -697,6 +703,7 @@ class App extends React.Component {
       const data = await getUploadedData(index);
       if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
         const tripLogs = new TripLogs(data.rawLogs, data.solutionType);
+        const taskLogs = new TaskLogs(tripLogs);
         const newVisibleToggles = getVisibleToggles(data.solutionType);
 
         let newToggleOptions = { ...this.state.toggleOptions };
@@ -720,6 +727,7 @@ class App extends React.Component {
             currentLogData: {
               ...prevState.currentLogData,
               tripLogs: tripLogs,
+              taskLogs: taskLogs,
               solutionType: data.solutionType,
             },
             visibleToggles: newVisibleToggles,
