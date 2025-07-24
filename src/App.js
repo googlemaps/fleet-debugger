@@ -24,10 +24,23 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ALL_TOGGLES, getVisibleToggles } from "./MapToggles";
 
+const MARKER_COLORS = [
+  "#EA4335", // Red
+  "#E91E63", // Pink
+  "#34A853", // Green
+  "#FBBC05", // Yellow
+  "#9C27B0", // Purple
+  "#FF6D00", // Orange
+  "#00BFA5", // Teal
+  "#26A69A", // Darker Teal
+];
+
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.centerOnLocation = null;
+    this.renderMarkerOnMap = null;
+    this.nextColorIndex = 0;
     const nowDate = new Date();
     let urlMinTime = getQueryStringValue("minTime");
     let urlMaxTime = getQueryStringValue("maxTime");
@@ -47,6 +60,7 @@ class App extends React.Component {
       initialMapBounds: null,
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
       currentLogData: this.props.logData,
+      dynamicMarkerLocations: {},
     };
     this.onSliderChangeDebounced = _.debounce((timeRange) => this.onSliderChange(timeRange), 25);
     this.setFeaturedObject = this.setFeaturedObject.bind(this);
@@ -140,9 +154,8 @@ class App extends React.Component {
    * Adds/removes row from the log viewer based on which property
    * in the json object was clicked on
    */
-  onDataframePropClick(select) {
+  onDataframePropClick(jsonPath) {
     this.setState((prevState) => {
-      const jsonPath = _.join(select.namespace, ".") + "." + select.name;
       let newColumns;
       if (_.find(prevState.extraColumns, (x) => x === jsonPath)) {
         newColumns = _.without(prevState.extraColumns, jsonPath);
@@ -630,6 +643,48 @@ class App extends React.Component {
     this.centerOnLocation = func;
   };
 
+  setRenderMarkerOnMap = (func) => {
+    this.renderMarkerOnMap = func;
+  };
+
+  toggleDynamicMarker = (location) => {
+    log("App.js: toggleDynamicMarker called for location:", location);
+    const locationKey = `${location.lat}_${location.lng}`;
+    const markerState = this.state.dynamicMarkerLocations[locationKey];
+    const shouldAdd = !markerState;
+
+    if (shouldAdd) {
+      const color = MARKER_COLORS[this.nextColorIndex];
+      this.nextColorIndex = (this.nextColorIndex + 1) % MARKER_COLORS.length;
+
+      if (this.renderMarkerOnMap) {
+        this.renderMarkerOnMap(location, color, true);
+      } else {
+        console.error("renderMarkerOnMap function not available on App component");
+        return;
+      }
+
+      this.setState((prevState) => {
+        const newLocations = {
+          ...prevState.dynamicMarkerLocations,
+          [locationKey]: { location, color },
+        };
+        log(`App.js: Adding marker to state for key ${locationKey} with color ${color}`);
+        return { dynamicMarkerLocations: newLocations };
+      });
+    } else {
+      if (this.renderMarkerOnMap) {
+        this.renderMarkerOnMap(location, markerState.color, false);
+      }
+      this.setState((prevState) => {
+        const newLocations = { ...prevState.dynamicMarkerLocations };
+        delete newLocations[locationKey];
+        log(`App.js: Removing marker from state for key ${locationKey}`);
+        return { dynamicMarkerLocations: newLocations };
+      });
+    }
+  };
+
   switchDataset = async (index) => {
     log(`Attempting to switch to dataset ${index}`);
     if (this.state.uploadedDatasets[index] !== "Uploaded") {
@@ -652,6 +707,7 @@ class App extends React.Component {
                 tripLogs: tripLogs,
                 solutionType: data.solutionType,
               },
+              dynamicMarkerLocations: {}, // Clear markers when switching datasets
             };
           },
           () => {
@@ -712,7 +768,8 @@ class App extends React.Component {
   }
 
   render() {
-    const { featuredObject, timeRange, currentLogData, toggleOptions, extraColumns } = this.state;
+    const { featuredObject, timeRange, currentLogData, toggleOptions, extraColumns, dynamicMarkerLocations } =
+      this.state;
     const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
     const visibleToggles = getVisibleToggles(currentLogData.solutionType);
 
@@ -733,6 +790,7 @@ class App extends React.Component {
                 setFeaturedObject={this.setFeaturedObject}
                 setTimeRange={this.setTimeRange}
                 setCenterOnLocation={this.setCenterOnLocation}
+                setRenderMarkerOnMap={this.setRenderMarkerOnMap}
                 focusSelectedRow={this.focusOnSelectedRow}
                 initialMapBounds={this.state.initialMapBounds}
               />
@@ -801,7 +859,13 @@ class App extends React.Component {
           </div>
         </div>
         <div className="dataframe-section">
-          <Dataframe featuredObject={featuredObject} onClick={(select) => this.onDataframePropClick(select)} />
+          <Dataframe
+            featuredObject={featuredObject}
+            extraColumns={extraColumns}
+            onColumnToggle={(path) => this.onDataframePropClick(path)}
+            onToggleMarker={this.toggleDynamicMarker}
+            dynamicMarkerLocations={dynamicMarkerLocations}
+          />
         </div>
       </div>
     );
