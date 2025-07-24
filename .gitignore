@@ -115,3 +115,4 @@ public/data.json
 build/
 cloud-run/fleet-debugger
 appengine/fleet-debugger
+.DS_Store
