@@ -153,7 +153,6 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
   }, []);
 
   const shouldCollapse = useCallback(({ indexOrName, depth }) => {
-    log(`shouldCollapse called for indexOrName: '${indexOrName}', depth: ${depth}`);
     if (depth === 1 && typeof indexOrName === "undefined") {
       return false;
     }
