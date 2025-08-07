@@ -466,7 +466,7 @@ function MapComponent({
       }
     };
     if (setCenterOnLocation) {
-      setCenterOnLocation(() => centerOnLocationImpl);
+      setCenterOnLocation(centerOnLocationImpl);
     }
   }, [setCenterOnLocation]);
 
