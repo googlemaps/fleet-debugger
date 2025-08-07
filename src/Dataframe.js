@@ -1,5 +1,5 @@
 // src/Dataframe.js
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import JsonView from "react18-json-view";
 import "react18-json-view/src/style.css";
 import { log } from "./Utils";
@@ -87,6 +87,53 @@ const AddColumnButton = (props) => {
 };
 
 function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarker, dynamicMarkerLocations }) {
+  // We manage the expansion state ourselves to work around state-loss.
+  // The key is a string `depth-name`, and the value is `true` if expanded.
+  const [expandedPaths, setExpandedPaths] = useState({
+    "2-request": true,
+    "3-vehicle": true,
+    "3-trip": true,
+    "3-deliveryvehicle": true,
+    "3-task": true,
+  });
+
+  const handleCollapse = useCallback(
+    (params) => {
+      const { indexOrName, depth, isCollapsing } = params;
+      const pathKey = `${depth}-${indexOrName}`;
+
+      // The library's `isCollapsing` is true when a node is expanding.
+      const shouldBeExpanded = isCollapsing;
+      const isCurrentlyExpanded = !!expandedPaths[pathKey];
+      if (shouldBeExpanded === isCurrentlyExpanded) {
+        return;
+      }
+
+      setExpandedPaths((prev) => {
+        const newPaths = { ...prev };
+        if (shouldBeExpanded) {
+          newPaths[pathKey] = true;
+        } else {
+          delete newPaths[pathKey];
+        }
+        return newPaths;
+      });
+    },
+    [expandedPaths]
+  );
+
+  const shouldCollapse = useCallback(
+    ({ indexOrName, depth }) => {
+      if (depth === 1 && typeof indexOrName === "undefined") {
+        return false;
+      }
+      const pathKey = `${depth}-${indexOrName}`;
+      // A node is collapsed if its path key is NOT in our expandedPaths state.
+      return !expandedPaths[pathKey];
+    },
+    [expandedPaths]
+  );
+
   const handleCopyRoot = useCallback(() => {
     if (!featuredObject) return;
     const objectToCopy = _.omit(featuredObject, ["lastlocation", "lastlocationResponse"]);
@@ -152,19 +199,6 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
     return { enableClipboard: true };
   }, []);
 
-  const shouldCollapse = useCallback(({ indexOrName, depth }) => {
-    if (depth === 1 && typeof indexOrName === "undefined") {
-      return false;
-    }
-    if (depth === 2 && indexOrName === "request") {
-      return false;
-    }
-    if (depth === 3 && ["vehicle", "trip", "deliveryvehicle", "task"].includes(indexOrName)) {
-      return false;
-    }
-    return true;
-  }, []);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "4px 8px", flexShrink: 0 }}>
@@ -174,6 +208,7 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
         <JsonView
           src={featuredObject}
           collapsed={shouldCollapse}
+          onCollapse={handleCollapse}
           enableClipboard={true}
           customizeNode={customizeNode}
           customizeCopy={customizeCopy}
