@@ -262,6 +262,31 @@ function MapComponent({
     trafficPolylinesRef.current = [];
 
     if (!selectedRow) return;
+    const eventType = selectedRow["@type"];
+    const isTripEvent = ["gettrip", "updatetrip", "createtrip"].includes(eventType?.toLowerCase());
+
+    if (isTripEvent) {
+      const tripRouteSegment = _.get(selectedRow, "response.currentroutesegment");
+      if (tripRouteSegment) {
+        try {
+          const decodedPoints = decode(tripRouteSegment);
+          if (decodedPoints?.length > 0) {
+            const validWaypoints = decodedPoints.map((p) => ({ lat: p.latDegrees(), lng: p.lngDegrees() }));
+            const trafficPolyline = new TrafficPolyline({
+              path: validWaypoints,
+              map,
+              zIndex: 3,
+              isTripEvent: true,
+            });
+            trafficPolylinesRef.current.push(...trafficPolyline.polylines);
+          }
+        } catch (error) {
+          log("Error processing trip event polyline:", error);
+        }
+      } else {
+        log(`Map.js: Trip event detected, but no 'response.currentroutesegment' found.`);
+      }
+    }
 
     const routeSegment =
       _.get(selectedRow, "request.vehicle.currentroutesegment") ||
@@ -283,8 +308,7 @@ function MapComponent({
             trafficRendering: structuredClone(trafficRendering),
             currentLatLng: location,
           });
-
-          trafficPolylinesRef.current = trafficPolyline.polylines;
+          trafficPolylinesRef.current.push(...trafficPolyline.polylines);
         }
       } catch (error) {
         console.error("Error processing route segment polyline:", error);
