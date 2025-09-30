@@ -8,7 +8,7 @@ import LogTable from "./LogTable";
 import ToggleBar from "./ToggleBar";
 import TripLogs from "./TripLogs";
 import TaskLogs from "./TaskLogs";
-import CloudLogging from "./CloudLogging";
+import DatasetLoading from "./DatasetLoading";
 import {
   uploadFile,
   getUploadedData,
@@ -337,27 +337,6 @@ class App extends React.Component {
     );
   };
 
-  handleLongPress = async (index) => {
-    log(`Long press detected for button ${index}`);
-    try {
-      log(`Attempting to delete data for button ${index}`);
-      await deleteUploadedData(index);
-      log(`Data deleted successfully for button ${index}`);
-      this.setState((prevState) => {
-        const newUploadedDatasets = [...prevState.uploadedDatasets];
-        newUploadedDatasets[index] = null;
-        log(`Updated state after deletion for button ${index}:`, newUploadedDatasets);
-        return {
-          uploadedDatasets: newUploadedDatasets,
-          activeDatasetIndex: prevState.activeDatasetIndex === index ? null : prevState.activeDatasetIndex,
-        };
-      });
-    } catch (error) {
-      console.error("Error deleting uploaded data:", error);
-      alert("Error deleting uploaded data. Please try again.");
-    }
-  };
-
   renderUploadButton = (index) => {
     const isUploaded = this.state.uploadedDatasets[index] === "Uploaded";
     const isActive = this.state.activeDatasetIndex === index;
@@ -365,7 +344,6 @@ class App extends React.Component {
 
     const toggleMenu = (e) => {
       e.stopPropagation();
-      log(`Toggle menu for dataset ${index}`);
       this.setState((prevState) => ({
         activeMenuIndex: prevState.activeMenuIndex === index ? null : index,
       }));
@@ -390,34 +368,27 @@ class App extends React.Component {
           };
         });
       } catch (error) {
-        console.error("Error deleting local storage data:", error);
-        alert("Error deleting local storage data. Please try again.");
+        log("Error deleting local storage data. Please try again.", error);
       }
     };
 
     const handleSaveClick = async (e) => {
       e.stopPropagation();
       log(`Export initiated for dataset ${index}`);
-
-      // Close menu
-      this.setState({ activeMenuIndex: null });
+      this.setState({ activeMenuIndex: null }); // Close menu
 
       try {
         await saveDatasetAsJson(index);
-        toast.success(`Dataset ${index + 1} exported successfully`);
-        log(`Dataset ${index} exported successfully`);
+        log(`Dataset ${index + 1} exported successfully`, "success");
       } catch (error) {
-        console.error("Error exporting dataset:", error);
-        toast.error(`Error exporting dataset: ${error.message}`);
+        log(`Error exporting dataset: ${error.message}`, error);
       }
     };
 
     const handlePruneClick = async (e) => {
       e.stopPropagation();
       log(`Prune initiated for dataset ${index}`);
-
-      // Close menu
-      this.setState({ activeMenuIndex: null });
+      this.setState({ activeMenuIndex: null }); // Close menu
 
       try {
         const { minTime, maxTime } = this.state.timeRange;
@@ -451,8 +422,7 @@ class App extends React.Component {
 
         data.rawLogs = remainingLogs;
 
-        // Save the pruned dataset back to storage
-        await saveToIndexedDB(data, index);
+        await saveToIndexedDB(data, index); // Save the pruned dataset back to storage
 
         // Update the current dataset if this is the active one
         if (this.state.activeDatasetIndex === index) {
@@ -471,16 +441,14 @@ class App extends React.Component {
             }),
             () => {
               log("handlePruneClick: setState callback executed, selecting first row.");
-              // Select first row after pruning
-              this.selectFirstRow();
+              this.selectFirstRow(); // Select first row after pruning
             }
           );
         }
 
-        toast.success(`Dataset pruned: removed ${removeCount} logs outside the selected time range.`);
+        log(`Dataset pruned: removed ${removeCount} logs outside the selected time range.`, "info");
       } catch (error) {
-        console.error("Error pruning dataset:", error);
-        toast.error(`Error pruning dataset: ${error.message}`);
+        log(`Error pruning dataset: ${error.message}`, error);
       }
     };
 
@@ -488,27 +456,44 @@ class App extends React.Component {
       if (isUploaded) {
         this.switchDataset(index);
       } else {
-        log("Opening Cloud Logging dialog directly for index " + index);
-        const result = await this.showCloudLoggingDialog();
-        if (result) {
-          try {
-            if (result.file) {
-              log("Processing file upload from dialog");
-              const uploadEvent = { target: { files: [result.file] } };
-              await this.handleFileUpload(uploadEvent, index);
-            } else if (result.logs) {
-              log("Processing cloud logs");
-              await uploadCloudLogs(result.logs, index);
-              this.setState((prevState) => ({
-                uploadedDatasets: prevState.uploadedDatasets.map((dataset, i) => (i === index ? "Uploaded" : dataset)),
-                activeDatasetIndex: index,
-              }));
-              this.switchDataset(index);
-            }
-          } catch (error) {
-            console.error("Failed to process data:", error);
-            alert("Failed to process data: " + error.message);
+        const result = await this.showDatasetLoadingDialog();
+        if (!result) {
+          log("Dataset loading dialog was cancelled or returned no data.");
+          return; // User cancelled the dialog
+        }
+
+        try {
+          if (result.file) {
+            const uploadEvent = { target: { files: [result.file] } };
+            await this.handleFileUpload(uploadEvent, index);
+            return;
           }
+
+          let logsToProcess;
+          if (result.logs) {
+            logsToProcess = result.logs;
+          } else if (result.extraLogs) {
+            // The 'extraLogs' are raw payloads, so we wrap them in the structure
+            // that our uploader and processor expects ({ jsonPayload: ... }).
+            logsToProcess = result.extraLogs.map((logEntry) => ({
+              jsonPayload: logEntry,
+              timestamp: logEntry.timestamp,
+            }));
+          }
+
+          if (logsToProcess) {
+            await uploadCloudLogs(logsToProcess, index);
+            this.setState(
+              (prevState) => {
+                const newUploadedDatasets = [...prevState.uploadedDatasets];
+                newUploadedDatasets[index] = "Uploaded";
+                return { uploadedDatasets: newUploadedDatasets };
+              },
+              () => this.switchDataset(index)
+            );
+          }
+        } catch (error) {
+          log(`Failed to process data from dialog: ${error.message}`, error);
         }
       }
     };
@@ -599,7 +584,8 @@ class App extends React.Component {
       };
     });
   }
-  async showCloudLoggingDialog() {
+  async showDatasetLoadingDialog() {
+    log("Executing showDatasetLoadingDialog");
     const dialog = document.createElement("dialog");
     dialog.className = "cloud-logging-dialog";
 
@@ -608,41 +594,52 @@ class App extends React.Component {
     dialog.appendChild(dialogRootElement);
     const dialogRoot = createRoot(dialogRootElement);
     dialog.showModal();
+
     return new Promise((resolve) => {
       const cleanupAndResolve = (result) => {
+        log("Closing and cleaning up DatasetLoading dialog");
         dialogRoot.unmount();
         dialog.remove();
         resolve(result);
       };
-      const handleError = (error) => {
-        console.error("Cloud Logging Error:", error);
-        toast.error(error.message || "Failed to fetch logs. Please try again.");
+      dialog.addEventListener("close", () => {
         cleanupAndResolve(null);
-      };
+      });
 
       const handleFileUpload = (event) => {
-        console.log("File upload selected from Cloud Logging dialog");
+        log("File upload selected from DatasetLoading dialog");
         const file = event?.target?.files?.[0];
         if (file) {
           cleanupAndResolve({ file });
         }
       };
 
-      const cloudLoggingComponent = React.createElement(CloudLogging, {
-        onLogsReceived: (logs) => {
-          log(`Received ${logs.length} logs from Cloud Logging`);
-          if (logs.length === 0) {
-            toast.warning("No logs found matching your criteria.");
-            cleanupAndResolve(null);
-          } else {
-            resolve({ logs });
-            cleanupAndResolve({ logs });
-          }
-        },
+      const handleCloudLogsReceived = (logs) => {
+        log(`Received ${logs.length} logs from Cloud Logging`);
+        if (logs.length > 0) {
+          cleanupAndResolve({ logs });
+        } else {
+          // If no logs, we don't close the dialog, just show a toast.
+          // The user might want to adjust params.
+          toast.warning("No logs found matching your criteria.");
+        }
+      };
+
+      const handleExtraLogsReceived = (logs) => {
+        log(`Received logs from extra data source`);
+        if (logs) {
+          cleanupAndResolve({ extraLogs: logs });
+        } else {
+          toast.warning("No logs found from the extra data source.");
+        }
+      };
+
+      const datasetLoadingComponent = React.createElement(DatasetLoading, {
+        onLogsReceived: handleCloudLogsReceived,
+        onExtraLogsReceived: handleExtraLogsReceived,
         onFileUpload: handleFileUpload,
-        setError: handleError,
       });
-      dialogRoot.render(cloudLoggingComponent);
+      dialogRoot.render(datasetLoadingComponent);
     });
   }
 
