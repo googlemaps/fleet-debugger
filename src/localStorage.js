@@ -142,9 +142,7 @@ async function processJsonFile(file) {
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const content = event.target.result;
-        const parsedData = parseJsonContent(content);
-        resolve(parsedData);
+        resolve(JSON.parse(event.target.result));
       } catch (error) {
         reject(error);
       }
@@ -155,11 +153,9 @@ async function processJsonFile(file) {
 }
 
 export function parseJsonContent(content) {
-  log("Parsing JSON content");
-
-  const processJsonObject = (obj) => {
+  const processAndNormalize = (obj) => {
     if (obj === null || typeof obj !== "object") return obj;
-    if (Array.isArray(obj)) return obj.map(processJsonObject);
+    if (Array.isArray(obj)) return obj.map(processAndNormalize);
 
     return Object.keys(obj).reduce((result, key) => {
       let value = obj[key];
@@ -168,9 +164,8 @@ export function parseJsonContent(content) {
         return result;
       }
 
-      const newKey = key.replace(/_/g, "");
+      const newKey = key.replace(/_/g, "").toLowerCase();
 
-      // Check if this is a value object with only a 'value' property and flatten
       if (
         value !== null &&
         typeof value === "object" &&
@@ -184,10 +179,7 @@ export function parseJsonContent(content) {
           return result;
         }
       } else if (typeof value === "object" && value !== null) {
-        // Recursively process nested objects
-        value = processJsonObject(value);
-
-        // Skip empty objects (those with no properties after processing)
+        value = processAndNormalize(value);
         if (typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0) {
           return result;
         }
@@ -199,15 +191,18 @@ export function parseJsonContent(content) {
   };
 
   try {
-    const parsed = JSON.parse(content);
-    const processedData = processJsonObject(parsed);
-    log("Processed JSON data: removed underscores, flattened value objects, and pruned null/undefined fields");
+    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+    const processedData = processAndNormalize(parsed);
     return sortObjectKeysRecursively(processedData);
   } catch (error) {
+    if (typeof content !== "string") {
+      console.error("JSON processing error on a non-string object:", error);
+      throw new Error(`Invalid object content for processing: ${error.message}`);
+    }
     log("Initial JSON parsing failed, attempting to wrap in array");
     try {
       const parsed = JSON.parse(`[${content}]`);
-      const processedData = processJsonObject(parsed);
+      const processedData = processAndNormalize(parsed);
       log("Processed JSON data in array format");
       return sortObjectKeysRecursively(processedData);
     } catch (innerError) {
@@ -235,6 +230,7 @@ function isRestrictedLog(row) {
 }
 
 export function ensureCorrectFormat(data) {
+  let logsArray;
   //Handle if data is not array (like when reading a file).
   if (!Array.isArray(data)) {
     // If it's already in the correct format, return it as is.
@@ -243,13 +239,21 @@ export function ensureCorrectFormat(data) {
         ...data,
         APIKEY: data.APIKEY || DEFAULT_API_KEY,
       };
+    } else {
+      // If it's not an array and not in expected format, throw an error.
+      throw new Error("Invalid input data. Expected an array or an object with a rawLogs property.");
     }
-
-    // If it's not an array and not in expected format, throw an error.
-    throw new Error("Invalid input data. Expected an array or an object with a rawLogs property.");
   }
 
-  const logsArray = data; // It's already an array of logs.
+  // At this point, we know `data` is an array. We need to determine if it's
+  // an array of full log objects or just raw payloads that need to be wrapped.
+  if (data.length > 0 && data[0].jsonPayload === undefined && data[0].jsonpayload === undefined) {
+    // This is a raw payload array (from a file or extra data source). Wrap them.
+    logsArray = data.map((logEntry) => ({ jsonPayload: logEntry, timestamp: logEntry.timestamp }));
+  } else {
+    // This is already an array of full log objects (either raw or previously normalized).
+    logsArray = data;
+  }
 
   const restrictedLogsMap = new Map();
   logsArray.forEach((row) => {
@@ -259,26 +263,30 @@ export function ensureCorrectFormat(data) {
     }
   });
 
-  // Filter out restricted logs while merging their TOS-restricted attributes into their parent logs.
+  if (restrictedLogsMap.size > 0) {
+    console.log(`[DEBUG] Found ${restrictedLogsMap.size} TOS-restricted logs to merge.`);
+  }
+
   const mergedLogs = logsArray.filter((row) => {
     if (isRestrictedLog(row)) {
-      return false;
+      return false; // Filter out the restricted log itself
     }
-    const restrictedLog = restrictedLogsMap.get(row.insertId)?.jsonPayload;
+    const restrictedLog = restrictedLogsMap.get(row.insertId);
     if (restrictedLog) {
+      const restrictedPayload = restrictedLog.jsonPayload;
       ["request", "response"].forEach((section) => {
-        if (restrictedLog[section] && row.jsonPayload[section]) {
+        if (restrictedPayload[section] && row.jsonPayload[section]) {
           TOS_RESTRICTED_ATTRIBUTES.forEach((attr) => {
-            if (restrictedLog[section][attr] !== undefined) {
-              row.jsonPayload[section][attr] = restrictedLog[section][attr];
+            if (restrictedPayload[section][attr] !== undefined) {
+              row.jsonPayload[section][attr] = restrictedPayload[section][attr];
             }
-            if (restrictedLog[section].vehicle?.[attr] !== undefined) {
+            if (restrictedPayload[section].vehicle?.[attr] !== undefined) {
               row.jsonPayload[section].vehicle = row.jsonPayload[section].vehicle || {};
-              row.jsonPayload[section].vehicle[attr] = restrictedLog[section].vehicle[attr];
+              row.jsonPayload[section].vehicle[attr] = restrictedPayload[section].vehicle[attr];
             }
-            if (restrictedLog[section].trip?.[attr] !== undefined) {
+            if (restrictedPayload[section].trip?.[attr] !== undefined) {
               row.jsonPayload[section].trip = row.jsonPayload[section].trip || {};
-              row.jsonPayload[section].trip[attr] = restrictedLog[section].trip[attr];
+              row.jsonPayload[section].trip[attr] = restrictedPayload[section].trip[attr];
             }
           });
         }
@@ -287,14 +295,11 @@ export function ensureCorrectFormat(data) {
     return true;
   });
 
-  mergedLogs.forEach((row) => {
-    if (row.jsonPayload) {
-      row.jsonPayload = sortObjectKeysRecursively(row.jsonPayload);
-    }
-  });
+  // After merging, normalize the entire structure of the final logs.
+  const fullyNormalizedLogs = mergedLogs.map((row) => parseJsonContent(row));
 
   // Determine the solution type based on the presence of _delivery_vehicle logs
-  const isLMFS = mergedLogs.some((row) => row.logName?.includes("_delivery_vehicle"));
+  const isLMFS = fullyNormalizedLogs.some((row) => row.logname?.includes("_delivery_vehicle"));
   const solutionType = isLMFS ? "LMFS" : "ODRD";
   console.log(`Determined solution type: ${solutionType}`);
 
@@ -306,13 +311,13 @@ export function ensureCorrectFormat(data) {
   };
   let hasPoints = false;
 
-  mergedLogs.forEach((row) => {
+  fullyNormalizedLogs.forEach((row) => {
     const lat =
-      _.get(row, "jsonPayload.response.lastLocation.rawLocation.latitude") ||
-      _.get(row, "jsonPayload.response.lastlocation.rawlocation.latitude");
+      _.get(row, "jsonpayload.response.lastLocation.rawLocation.latitude") ||
+      _.get(row, "jsonpayload.response.lastlocation.rawlocation.latitude");
     const lng =
-      _.get(row, "jsonPayload.response.lastLocation.rawLocation.longitude") ||
-      _.get(row, "jsonPayload.response.lastlocation.rawlocation.longitude");
+      _.get(row, "jsonpayload.response.lastLocation.rawLocation.longitude") ||
+      _.get(row, "jsonpayload.response.lastlocation.rawlocation.longitude");
 
     if (lat != null && lng != null) {
       if (!hasPoints) {
@@ -338,7 +343,7 @@ export function ensureCorrectFormat(data) {
     projectId: "",
     logSource: "Direct Cloud Logging",
     solutionType: solutionType,
-    rawLogs: mergedLogs,
+    rawLogs: fullyNormalizedLogs,
     bounds: hasPoints ? bounds : null,
   };
 }

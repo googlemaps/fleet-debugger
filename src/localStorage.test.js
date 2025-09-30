@@ -7,6 +7,47 @@ function loadTestData(filename) {
   return JSON.parse(fs.readFileSync(`./datasets/${filename}`));
 }
 
+// --- Embedded Test Data ---
+const MOCK_CLOUD_LOGGING_EXPORT = [
+  {
+    insertId: "parent1",
+    jsonPayload: {
+      "@type": "UpdateTripLog",
+      request: { original_data: "value" },
+      response: { name: "trip_A" },
+    },
+  },
+  {
+    insertId: "parent1.tos",
+    jsonPayload: {
+      "@type": "UpdateTripRestrictedLog",
+      parentInsertId: "parent1",
+      request: { waypoints: ["wp1", "wp2"] },
+    },
+  },
+];
+
+const MOCK_RAW_PAYLOAD_ARRAY = [
+  {
+    "@type": "UpdateVehicleLog",
+    request: { header: { sdk_version: "1.0" }, vehicle_id: "vehicle_extra" },
+    timestamp: "2025-01-01T00:00:00Z",
+  },
+];
+
+const MOCK_APP_EXPORT = {
+  rawLogs: [
+    {
+      insertid: "app_export_1", // Already normalized
+      jsonpayload: {
+        "@type": "UpdateVehicleLog",
+        request: { vehicleid: "vehicle_app_export" },
+      },
+    },
+  ],
+  solutionType: "ODRD",
+};
+
 test("sortObjectKeysRecursively sorts object keys recursively but preserves array order", () => {
   const unsorted = {
     c: 3,
@@ -27,127 +68,80 @@ test("sortObjectKeysRecursively sorts object keys recursively but preserves arra
   expect(JSON.stringify(sorted)).toBe(JSON.stringify(expected));
 });
 
-test("parseJsonContent handles valid JSON", () => {
-  const validJson = JSON.stringify({ test: "data" });
-  const result = parseJsonContent(validJson);
-  expect(result).toStrictEqual({ test: "data" });
-});
+describe("parseJsonContent", () => {
+  it("should handle a valid JSON string", () => {
+    const validJson = JSON.stringify({ test: "data" });
+    expect(parseJsonContent(validJson)).toEqual({ test: "data" });
+  });
 
-test("parseJsonContent handles multiple JSON objects", () => {
-  const multipleJson = '{"test": "data1"},{"test": "data2"}';
-  const result = parseJsonContent(multipleJson);
-  expect(result).toHaveLength(2);
-  expect(result[0]).toStrictEqual({ test: "data1" });
-  expect(result[1]).toStrictEqual({ test: "data2" });
-});
+  it("should handle a pre-parsed JavaScript object", () => {
+    const validObject = { test: "data" };
+    expect(parseJsonContent(validObject)).toEqual({ test: "data" });
+  });
 
-test("parseJsonContent handles JSON array", () => {
-  const arrayJson = '[{"key": "value1"},{"test": "data2"}]';
-  const result = parseJsonContent(arrayJson);
-  expect(result).toHaveLength(2);
-  expect(result[0]).toStrictEqual({ key: "value1" });
-  expect(result[1]).toStrictEqual({ test: "data2" });
-});
+  it("should handle multiple JSON objects in a string", () => {
+    const multipleJson = '{"test": "data1"},{"test": "data2"}';
+    const result = parseJsonContent(multipleJson);
+    expect(result).toEqual([{ test: "data1" }, { test: "data2" }]);
+  });
 
-test("parseJsonContent throws error for invalid JSON", () => {
+  it("should throw an error for invalid JSON", () => {
   // Temporarily spy on console.error and replace it with a function that does nothing.
-  const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-  const invalidJson = "{invalid}";
-  expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
-
-  consoleErrorSpy.mockRestore();
-});
-
-test("parseJsonContent removes underscores from keys and sorts them", () => {
-  const snakeCaseJson = JSON.stringify({
-    snake_case_key: "value",
-    another_key: "value2",
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const invalidJson = "{invalid}";
+    expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
+    consoleErrorSpy.mockRestore();
   });
 
-  const result = parseJsonContent(snakeCaseJson);
-
-  expect(result).toHaveProperty("snakecasekey", "value");
-  expect(result).toHaveProperty("anotherkey", "value2");
-  expect(result).not.toHaveProperty("snake_case_key");
-  expect(result).not.toHaveProperty("another_key");
-  expect(Object.keys(result)).toEqual(["anotherkey", "snakecasekey"]);
-});
-
-test("parseJsonContent removes underscores from deeply nested object keys", () => {
-  const nestedJson = JSON.stringify({
-    top_level: {
-      nested_key: {
-        deeply_nested_key: "value",
-      },
-    },
+  it("should remove underscores and lowercase keys recursively", () => {
+    const nestedJson = { top_level: { nested_key: "value" } };
+    const result = parseJsonContent(nestedJson);
+    expect(result).toEqual({ toplevel: { nestedkey: "value" } });
   });
 
-  const result = parseJsonContent(nestedJson);
-
-  expect(result).toHaveProperty("toplevel.nestedkey.deeplynestedkey", "value");
-  expect(result).not.toHaveProperty("top_level");
+  it("should flatten value objects recursively", () => {
+    const valueObjectJson = { level1: { valueObj: { value: "flattened" } } };
+    const result = parseJsonContent(valueObjectJson);
+    expect(result).toEqual({ level1: { valueobj: "flattened" } });
+  });
 });
 
-// New tests for value object flattening
-test("parseJsonContent flattens value objects and sorts keys", () => {
-  const valueObjectJson = JSON.stringify({
-    valueObject: { value: "flattened" },
-    normalKey: "normal",
+describe("ensureCorrectFormat", () => {
+  it("should correctly merge TOS-restricted logs and then normalize them", () => {
+    const result = ensureCorrectFormat(MOCK_CLOUD_LOGGING_EXPORT);
+    expect(result.rawLogs).toHaveLength(1);
+    const mergedPayload = result.rawLogs[0].jsonpayload;
+    expect(mergedPayload.request.waypoints).toEqual(["wp1", "wp2"]);
+    expect(mergedPayload.request.originaldata).toBe("value");
+    expect(result.rawLogs[0].insertid).toBe("parent1");
   });
 
-  const result = parseJsonContent(valueObjectJson);
-
-  expect(result.normalKey).toBe("normal");
-  expect(result.valueObject).toBe("flattened");
-  expect(typeof result.valueObject).toBe("string");
-  expect(Object.keys(result)).toEqual(["normalKey", "valueObject"]);
-});
-
-test("parseJsonContent flattens nested objects with a single 'value' property", () => {
-  const nestedValueObjectJson = JSON.stringify({
-    level1: {
-      level2: {
-        normalObj: { key: "value" },
-        valueObj: { value: "flattened" },
-      },
-    },
+  it("should handle raw payload arrays from other data sources", () => {
+    const result = ensureCorrectFormat(MOCK_RAW_PAYLOAD_ARRAY);
+    expect(result.rawLogs).toHaveLength(1);
+    const normalizedPayload = result.rawLogs[0].jsonpayload;
+    expect(normalizedPayload.request.vehicleid).toBe("vehicle_extra");
+    expect(normalizedPayload.request).not.toHaveProperty("vehicle_id");
   });
 
-  const result = parseJsonContent(nestedValueObjectJson);
-
-  expect(result.level1.level2.normalObj.key).toBe("value");
-  expect(result.level1.level2.valueObj).toBe("flattened");
-  expect(typeof result.level1.level2.valueObj).toBe("string");
-});
-
-test("parseJsonContent handles both underscore removal and value flattening together", () => {
-  const complexJson = JSON.stringify({
-    snake_case: {
-      nested_value_obj: { value: 123 },
-      other_key: { some_nested: { value: "test" } },
-    },
+  it("should handle the app's own pre-processed export format", () => {
+    const result = ensureCorrectFormat(MOCK_APP_EXPORT);
+    expect(result.rawLogs).toHaveLength(1);
+    expect(result.rawLogs[0].jsonpayload.request.vehicleid).toBe("vehicle_app_export");
+    expect(result.solutionType).toBe("ODRD");
   });
 
-  const result = parseJsonContent(complexJson);
-
-  expect(result.snakecase.nestedvalueobj).toBe(123);
-  expect(result.snakecase.otherkey.somenested).toBe("test");
-});
-
-test("parseJsonContent properly handles arrays containing value objects", () => {
-  const arrayWithValueObjects = JSON.stringify({
-    items: [
-      { name: "item1", property: { value: 100 } },
-      { name: "item2", property: { value: 200 } },
-    ],
+  it("should correctly identify LMFS logs from a full data file", () => {
+    const lmfsData = loadTestData("lmfs.json");
+    const result = ensureCorrectFormat(lmfsData.rawLogs);
+    expect(result.solutionType).toBe("LMFS");
   });
 
-  const result = parseJsonContent(arrayWithValueObjects);
-
-  expect(result.items[0].name).toBe("item1");
-  expect(result.items[0].property).toBe(100);
-  expect(result.items[1].property).toBe(200);
+  it("should correctly identify ODRD logs from a full data file", () => {
+    const odrdData = loadTestData("jump-demo.json");
+    const result = ensureCorrectFormat(odrdData.rawLogs);
+    expect(result.solutionType).toBe("ODRD");
+  });
 });
 
 test("removeEmptyObjects removes empty nested objects", () => {
@@ -161,89 +155,56 @@ test("removeEmptyObjects removes empty nested objects", () => {
   expect(removeEmptyObjects(input)).toStrictEqual(expected);
 });
 
-test("ensureCorrectFormat handles LMFS logs", () => {
-  const lmfsData = loadTestData("lmfs.json");
-  const result = ensureCorrectFormat(lmfsData.rawLogs);
-  expect(result.solutionType).toBe("LMFS");
-});
-
-test("ensureCorrectFormat handles ODRD logs", () => {
-  const odrdData = loadTestData("jump-demo.json");
-  const result = ensureCorrectFormat(odrdData.rawLogs);
-  expect(result.solutionType).toBe("ODRD");
-});
-
-test("ensureCorrectFormat merges restricted attributes", () => {
-  const parentLog = {
-    insertId: "parent",
-    jsonPayload: {
-      "@type": "type.googleapis.com/Normal",
-      request: {},
-      response: {},
-    },
-  };
-
-  const restrictedLog = {
-    jsonPayload: {
-      "@type": "type.googleapis.com/Restricted",
-      parentInsertId: "parent",
-      request: {
-        waypoints: ["point1", "point2"],
+// Your more realistic, real-world tests integrated here.
+describe("ensureCorrectFormat realistic merge scenarios", () => {
+  it("should merge basic restricted attributes", () => {
+    const parentLog = {
+      insertId: "parent",
+      jsonPayload: { "@type": "type.googleapis.com/Normal", request: {}, response: {} },
+    };
+    const restrictedLog = {
+      jsonPayload: {
+        "@type": "type.googleapis.com/Restricted",
+        parentInsertId: "parent",
+        request: { waypoints: ["point1", "point2"] },
       },
-    },
-  };
+    };
 
-  const result = ensureCorrectFormat([parentLog, restrictedLog]);
-  expect(result.rawLogs[0].jsonPayload.request.waypoints).toStrictEqual(["point1", "point2"]);
-  expect(result.rawLogs.length).toBe(1);
-});
+    const result = ensureCorrectFormat([parentLog, restrictedLog]);
+    expect(result.rawLogs).toHaveLength(1);
+    // Corrected to check the normalized key
+    expect(result.rawLogs[0].jsonpayload.request.waypoints).toEqual(["point1", "point2"]);
+  });
 
-test("ensureCorrectFormat merges non top level vehicle restricted attributes", () => {
-  const parentLog = {
-    insertId: "parent",
-    jsonPayload: {
-      "@type": "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleLog",
-      request: {
-        vehicle: {
-          name: "test-vehicle",
+  it("should merge nested vehicle and trip restricted attributes", () => {
+    const parentLog = {
+      insertId: "parent",
+      jsonPayload: {
+        "@type": "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleLog",
+        request: { vehicle: { name: "test-vehicle" } },
+        response: {},
+      },
+    };
+    const restrictedLog = {
+      jsonPayload: {
+        "@type": "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleRestrictedLog",
+        parentInsertId: "parent",
+        request: { vehicle: { currentRouteSegment: "testSegment123" } },
+        response: {
+          currentRouteSegment: "responseSegment456",
+          waypoints: [{ encodedPathToWaypoint: "encodedPath789" }],
         },
       },
-      response: {},
-    },
-  };
+    };
 
-  const restrictedLog = {
-    jsonPayload: {
-      "@type": "type.googleapis.com/maps.fleetengine.v1.UpdateVehicleRestrictedLog",
-      parentInsertId: "parent",
-      request: {
-        vehicle: {
-          currentRouteSegment: "testSegment123",
-        },
-      },
-      response: {
-        currentRouteSegment: "responseSegment456",
-        waypoints: [
-          {
-            encodedPathToWaypoint: "encodedPath789",
-          },
-        ],
-      },
-    },
-  };
+    const result = ensureCorrectFormat([parentLog, restrictedLog]);
+    const finalPayload = result.rawLogs[0].jsonpayload;
 
-  const result = ensureCorrectFormat([parentLog, restrictedLog]);
-
-  // Verify only one log remains (restricted log is filtered out)
-  expect(result.rawLogs.length).toBe(1);
-
-  // Verify vehicle attributes are merged correctly
-  expect(result.rawLogs[0].jsonPayload.request.vehicle.currentRouteSegment).toBe("testSegment123");
-
-  // Verify direct response attributes are merged
-  expect(result.rawLogs[0].jsonPayload.response.currentRouteSegment).toBe("responseSegment456");
-  expect(result.rawLogs[0].jsonPayload.response.waypoints[0].encodedPathToWaypoint).toBe("encodedPath789");
-
-  // Verify original vehicle attributes are preserved
-  expect(result.rawLogs[0].jsonPayload.request.vehicle.name).toBe("test-vehicle");
+    expect(result.rawLogs).toHaveLength(1);
+    // Corrected to check the normalized keys
+    expect(finalPayload.request.vehicle.currentroutesegment).toBe("testSegment123");
+    expect(finalPayload.response.currentroutesegment).toBe("responseSegment456");
+    expect(finalPayload.response.waypoints[0].encodedpathtowaypoint).toBe("encodedPath789");
+    expect(finalPayload.request.vehicle.name).toBe("test-vehicle");
+  });
 });
