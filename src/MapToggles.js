@@ -181,12 +181,6 @@ export function getToggleHandlers({
           center: rawLocationLatLng,
           radius: accuracy,
         });
-        window.google.maps.event.addListener(circ, "mouseover", () => {
-          setFeaturedObject({
-            rawlocationaccuracy: lastLocation.rawlocationaccuracy,
-            locationsensor: lastLocation.locationsensor,
-          });
-        });
         return circ;
       }
     }),

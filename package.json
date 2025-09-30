@@ -59,11 +59,13 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && cp utils/view-bundle.sh build/",
+    "build": "PUBLIC_URL=/fleet-debugger react-scripts build",
+    "internal": "npm run build && rsync -avzhe ssh --progress --delete --inplace ./build/ ${CLOUDTOP}:${CLOUDPATH}",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "lint": "cross-env NODE_ENV=development eslint src --ext .js,.jsx,.ts,.tsx",
+    "lintfix": "cross-env NODE_ENV=development eslint src --ext .js,.jsx,.ts,.tsx --fix",
     "docs": "echo NOT IMPLEMENTED"
   },
   "eslintConfig": {
