@@ -105,7 +105,7 @@ function MapComponent({
     const jsMapView = new window.google.maps.journeySharing.JourneySharingMapView({
       element: mapDivRef.current,
       locationProviders: [locationProviderRef.current],
-      mapOptions: { mapId, mapTypeControl: true, streetViewControl: true },
+      mapOptions: { mapId, mapTypeControl: true, streetViewControl: true, maxZoom: 22 },
     });
     const map = jsMapView.map;
     mapRef.current = map;

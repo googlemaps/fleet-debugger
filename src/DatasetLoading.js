@@ -53,6 +53,10 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
     setLocalError(null);
     setFetching(true);
     try {
+      Object.entries(queryParams).forEach(([key, value]) => {
+        localStorage.setItem(`datasetLoading_${key}`, value);
+      });
+
       buildQueryFilter(queryParams); // Quick validation
       if (isTokenValid()) {
         handleCloudLoggingFetch(sessionStorage.getItem("cloudLogging_token"));
