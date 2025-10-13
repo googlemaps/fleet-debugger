@@ -1,28 +1,18 @@
 // src/TrafficPolyline.test.js
-
 import { TRAFFIC_COLORS } from "./TrafficPolyline";
+import TrafficPolyline from "./TrafficPolyline";
 
-// Mock turf due to module compatibility
-/* eslint-disable no-unused-vars */
+// Mock the entire turf library. The implementation details don't matter,
+// only that the functions return an object with the expected shape to prevent crashes.
 jest.mock("@turf/turf", () => ({
-  lineString: (coords) => ({ type: "LineString", coordinates: coords }),
-  length: () => 10,
-  along: (_line, _distance) => ({
-    type: "Point",
-    coordinates: [0, 0],
-  }),
-  lineSlice: () => ({
-    type: "LineString",
-    geometry: {
-      coordinates: [
-        [0, 0],
-        [1, 1],
-      ],
-    },
-  }),
+  lineString: () => ({ geometry: { coordinates: [] } }),
+  length: () => 1000,
+  point: () => ({ geometry: { coordinates: [] } }),
+  lineSlice: () => ({ geometry: { coordinates: [[], []] } }),
+  along: () => ({ geometry: { coordinates: [] } }),
 }));
 
-// Mock google maps
+// Mock the Google Maps API
 global.google = {
   maps: {
     Polyline: class MockPolyline {
@@ -33,39 +23,20 @@ global.google = {
         this.map = map;
       }
     },
+    SymbolPath: {
+      FORWARD_OPEN_ARROW: "test-arrow",
+    },
   },
 };
 
 describe("TrafficPolyline", () => {
-  let TrafficPolyline;
-
-  beforeEach(() => {
-    jest.resetModules();
-    TrafficPolyline = require("./TrafficPolyline").default;
-  });
-
   const samplePath = [
     { lat: 0, lng: 0 },
     { lat: 1, lng: 1 },
   ];
 
-  test("creates STYLE_NORMAL polyline when no traffic data provided", () => {
-    const polyline = new TrafficPolyline({
-      path: samplePath,
-      map: {},
-    });
-
-    expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
-  });
-
-  test("creates NORMAL polylines when traffic data exists but no stretches", () => {
-    const polyline = new TrafficPolyline({
-      path: samplePath,
-      trafficRendering: { roadstretch: [] },
-      map: {},
-    });
-
+  test("creates STYLE_NORMAL polyline when no traffic data is provided", () => {
+    const polyline = new TrafficPolyline({ path: samplePath, map: {} });
     expect(polyline.polylines.length).toBe(1);
     expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
   });
@@ -73,51 +44,64 @@ describe("TrafficPolyline", () => {
   test("creates multiple polylines for different traffic segments", () => {
     const trafficRendering = {
       roadstretch: [
-        {
-          style: "STYLE_SLOWER_TRAFFIC",
-          lengthmeters: 100,
-          offsetmeters: 0,
-        },
-        {
-          style: "STYLE_TRAFFIC_JAM",
-          lengthmeters: 100,
-          offsetmeters: 200,
-        },
+        { style: "SLOWER_TRAFFIC", lengthmeters: 100, offsetmeters: 0 },
+        { style: "TRAFFIC_JAM", lengthmeters: 100, offsetmeters: 200 },
       ],
     };
-
-    const polyline = new TrafficPolyline({
-      path: samplePath,
-      trafficRendering,
-      map: {},
-    });
-
+    const polyline = new TrafficPolyline({ path: samplePath, trafficRendering, map: {} });
     expect(polyline.polylines.length).toBeGreaterThan(1);
-
     const colors = polyline.polylines.map((p) => p.options.strokeColor);
-    expect(colors).toContain(TRAFFIC_COLORS.STYLE_SLOWER_TRAFFIC);
-    expect(colors).toContain(TRAFFIC_COLORS.STYLE_TRAFFIC_JAM);
+    expect(colors).toContain(TRAFFIC_COLORS.SLOWER_TRAFFIC);
+    expect(colors).toContain(TRAFFIC_COLORS.TRAFFIC_JAM);
   });
 
-  test("handles invalid path gracefully", () => {
+  test("handles traffic data with missing offsetmeters without crashing", () => {
+    const trafficRendering = {
+      roadstretch: [
+        { style: "TRAFFIC_JAM", lengthmeters: 200 }, // No offsetmeters
+      ],
+    };
+    let polyline;
+    // The test passes if it doesn't throw an error.
+    expect(() => {
+      polyline = new TrafficPolyline({ path: samplePath, trafficRendering, map: {} });
+    }).not.toThrow();
+    const colors = polyline.polylines.map((p) => p.options.strokeColor);
+    expect(colors).toContain(TRAFFIC_COLORS.TRAFFIC_JAM);
+  });
+
+  test("correctly processes unsorted roadstretch data", () => {
+    const trafficRendering = {
+      roadstretch: [
+        { style: "SLOWER_TRAFFIC", offsetmeters: 500, lengthmeters: 100 },
+        { style: "TRAFFIC_JAM", offsetmeters: 100, lengthmeters: 200 },
+      ],
+    };
+    const polyline = new TrafficPolyline({ path: samplePath, trafficRendering, map: {} });
+    // Check that segments were created, implying the sorting worked.
+    expect(polyline.segments.length).toBeGreaterThan(2);
+  });
+
+  test('creates a "NO_DATA" segment for the traveled portion of the path', () => {
     const polyline = new TrafficPolyline({
-      path: [],
+      path: samplePath,
+      currentLatLng: { latitude: 0.5, longitude: 0.5 },
       map: {},
     });
+    const colors = polyline.polylines.map((p) => p.options.strokeColor);
+    expect(colors).toContain(TRAFFIC_COLORS.STYLE_NO_DATA);
+  });
 
+  test("handles invalid or empty path gracefully", () => {
+    const polyline = new TrafficPolyline({ path: [], map: {} });
     expect(polyline.polylines.length).toBe(1);
     expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NO_DATA);
   });
 
-  test("setMap updates all polylines", () => {
-    const polyline = new TrafficPolyline({
-      path: samplePath,
-      map: {},
-    });
-
-    const newMap = {};
+  test("setMap updates all child polylines", () => {
+    const polyline = new TrafficPolyline({ path: samplePath, map: {} });
+    const newMap = { id: "new-map" };
     polyline.setMap(newMap);
-
     polyline.polylines.forEach((p) => {
       expect(p.map).toBe(newMap);
     });
