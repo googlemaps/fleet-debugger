@@ -86,7 +86,7 @@ describe("parseJsonContent", () => {
   });
 
   it("should throw an error for invalid JSON", () => {
-  // Temporarily spy on console.error and replace it with a function that does nothing.
+    // Temporarily spy on console.error and replace it with a function that does nothing.
     const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     const invalidJson = "{invalid}";
     expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");

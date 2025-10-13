@@ -1,4 +1,3 @@
-// src/TripLogs.js
 /*
  * src/TripLogs.js
  *
@@ -463,7 +462,7 @@ class TripLogs {
     } else {
       const currentTrips = _.get(logEntry, "response.currenttrips");
       if (currentTrips && Array.isArray(currentTrips) && currentTrips.length > 0) {
-        return currentTrips.join();
+        return currentTrips[0];
       }
     }
   }

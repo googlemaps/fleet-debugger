@@ -21,27 +21,27 @@ export class TripObjects {
       let points;
       if (direction === "up") {
         points = [
-          { x: 12, y: 20 + shift }, // Top point of chevron
-          { x: 8, y: 24 + shift }, // Bottom left
-          { x: 16, y: 24 + shift }, // Bottom right
-          { x: 12, y: 20 + shift },
+          { x: 12, y: 16 + shift }, // Top point of chevron
+          { x: 5, y: 24 + shift }, // Bottom left
+          { x: 19, y: 24 + shift }, // Bottom right
+          { x: 12, y: 16 + shift },
         ];
       } else {
         // "down"
         points = [
           { x: 12, y: 24 + shift }, // Bottom point of chevron
-          { x: 8, y: 20 + shift }, // Top left
-          { x: 16, y: 20 + shift }, // Top right
+          { x: 5, y: 16 + shift }, // Top left
+          { x: 19, y: 16 + shift }, // Top right
           { x: 12, y: 24 + shift },
         ];
       }
 
-      return `<path d="M${points[0].x} ${points[0].y}L${points[1].x} ${points[1].y}L${points[2].x} ${points[2].y}L${points[3].x} ${points[3].y}Z" fill="${color}" stroke="${color}" stroke-width="1"/>`;
+      return `<path d="M${points[0].x} ${points[0].y}L${points[1].x} ${points[1].y}L${points[2].x} ${points[2].y}L${points[3].x} ${points[3].y}Z" fill="${color}" stroke="black" stroke-width="1" stroke-linejoin="round"/>`;
     };
 
     const svgBase = `
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-      ${isActual ? (isPickup ? createChevronPath("up", -4) : createChevronPath("down", -4)) : ""}
+      ${isActual ? (isPickup ? createChevronPath("up", -5) : createChevronPath("down", -5)) : ""}
       ${isPickup ? createChevronPath("up") : createChevronPath("down")}
     </svg>`;
 
@@ -169,6 +169,7 @@ export class TripObjects {
     }
 
     const markers = [];
+    const tripColor = getColor(trip.tripIdx);
 
     // Get points
     const pickupPoint = trip.getPickupPoint();
@@ -177,26 +178,26 @@ export class TripObjects {
     const actualDropoffPoint = trip.getActualDropoffPoint();
 
     // Create pickup markers
-    const pickupMarker = this.createMarkerWithEvents(pickupPoint, "pickup", "#3d633d", actualPickupPoint, tripId);
+    const pickupMarker = this.createMarkerWithEvents(pickupPoint, "pickup", tripColor, actualPickupPoint, tripId);
     if (pickupMarker) markers.push(pickupMarker);
 
     const actualPickupMarker = this.createMarkerWithEvents(
       actualPickupPoint,
       "actualPickup",
-      "#3d633d",
+      tripColor,
       pickupPoint,
       tripId
     );
     if (actualPickupMarker) markers.push(actualPickupMarker);
 
     // Create dropoff markers
-    const dropoffMarker = this.createMarkerWithEvents(dropoffPoint, "dropoff", "#0000FF", actualDropoffPoint, tripId);
+    const dropoffMarker = this.createMarkerWithEvents(dropoffPoint, "dropoff", tripColor, actualDropoffPoint, tripId);
     if (dropoffMarker) markers.push(dropoffMarker);
 
     const actualDropoffMarker = this.createMarkerWithEvents(
       actualDropoffPoint,
       "actualDropoff",
-      "#0000FF",
+      tripColor,
       dropoffPoint,
       tripId
     );
