@@ -94,13 +94,15 @@ export class TrafficPolyline {
   }
 
   calculateSplitPoints(roadStretches, totalLength) {
-    let points = [0];
+    // Use a Set to automatically handle duplicate points
+    const points = new Set([0, totalLength]);
     roadStretches.forEach((stretch) => {
-      points.push(stretch.offsetmeters);
-      points.push(stretch.offsetmeters + stretch.lengthmeters);
+      const offset = stretch.offsetmeters || 0;
+      points.add(offset);
+      points.add(offset + stretch.lengthmeters);
     });
-    points.push(totalLength * 1000);
-    return [...new Set(points)].sort((a, b) => a - b);
+    // Filter out any points that might be beyond the line's total length and sort them
+    return [...points].filter((p) => p <= totalLength).sort((a, b) => a - b);
   }
 
   createSegmentsData(line, splitPoints, roadStretches) {
@@ -121,7 +123,8 @@ export class TrafficPolyline {
 
   getSegmentStyle(startDistance, roadStretches) {
     for (const stretch of roadStretches) {
-      if (startDistance >= stretch.offsetmeters && startDistance < stretch.offsetmeters + stretch.lengthmeters) {
+      const offset = stretch.offsetmeters || 0;
+      if (startDistance >= offset && startDistance < offset + stretch.lengthmeters) {
         return stretch.style;
       }
     }
