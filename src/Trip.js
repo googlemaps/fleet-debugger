@@ -107,15 +107,15 @@ class Trip {
  */
 export function getColor(tripIdx) {
   const colors = [
-    "#007bff", // Blue
-    "#97cc04", // Lime Green
-    "#d63384", // Magenta
-    "#198754", // Green
-    "#f45d01", // Orange
-    "#6A0DAD", // Purple
-    "#fdc500", // Gold
     "#0dcaf0", // Cyan
+    "#97cc04", // Lime Green
+    "#198754", // Green
+    "#6A0DAD", // Purple
+    "#FA8072", // Salmon
     "#8B4513", // Brown
+    "#d63384", // Magenta
+    "#f45d01", // Orange
+    "#fdc500", // Gold
   ];
   return colors[tripIdx % colors.length];
 }

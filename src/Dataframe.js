@@ -153,7 +153,6 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
   const CustomLocationOperation = useCallback(
     ({ node }) => {
       if (isLocationObject(node)) {
-        log("Dataframe: Rendering location button for node.");
         const locationKey = `${node.latitude}_${node.longitude}`;
         const markerState = dynamicMarkerLocations[locationKey];
         const color = markerState ? markerState.color : "lightgrey";

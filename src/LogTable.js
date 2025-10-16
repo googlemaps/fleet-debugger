@@ -165,7 +165,7 @@ function LogTable(props) {
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const minTime = props.timeRange.minTime;
   const maxTime = props.timeRange.maxTime;
-  const data = props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime)).value();
+  const data = props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime), props.filters).value();
   const columnShortWidth = 50;
   const columnRegularWidth = 120;
   const columnLargeWidth = 150;
@@ -221,17 +221,17 @@ function LogTable(props) {
           solutionTypes: ["ODRD", "LMFS"],
         },
         {
-          Header: "TripId 7",
+          Header: "CurrentTrip12",
           accessor: (entry) => {
             const currentTrips = _.get(entry, "response.currenttrips");
             if (currentTrips && currentTrips[0]) {
               const tripId = currentTrips[0];
-              return tripId.substring(Math.max(0, tripId.length - 7));
+              return tripId.substring(Math.max(0, tripId.length - 12));
             }
             return null;
           },
-          width: columnShortWidth,
-          maxWidth: columnShortWidth,
+          width: 90,
+          maxWidth: 90,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
         },
