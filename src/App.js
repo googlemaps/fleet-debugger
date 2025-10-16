@@ -127,21 +127,23 @@ class App extends React.Component {
       featuredObject: { msg: "Click a table row to select object" },
       extraColumns: [],
       toggleOptions: Object.fromEntries(ALL_TOGGLES.map((t) => [t.id, false])),
-      logTypeFilters: {
-        createVehicle: true,
-        getVehicle: true,
-        updateVehicle: true,
-        createTrip: true,
-        getTrip: true,
-        updateTrip: true,
-        createDeliveryVehicle: true,
-        getDeliveryVehicle: true,
-        updateDeliveryVehicle: true,
-        createTask: true,
-        getTask: true,
-        updateTask: true,
+      filters: {
+        logTypes: {
+          createVehicle: true,
+          getVehicle: true,
+          updateVehicle: true,
+          createTrip: true,
+          getTrip: true,
+          updateTrip: true,
+          createDeliveryVehicle: true,
+          getDeliveryVehicle: true,
+          updateDeliveryVehicle: true,
+          createTask: true,
+          getTask: true,
+          updateTask: true,
+        },
+        tripId: "",
       },
-      tripIdFilter: "",
       uploadedDatasets: [null, null, null, null, null],
       activeDatasetIndex: null,
       activeMenuIndex: null,
@@ -263,9 +265,7 @@ class App extends React.Component {
       this.setState((prevState) => {
         const minDate = new Date(prevState.timeRange.minTime);
         const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.state.currentLogData.tripLogs
-          .getLogs_(minDate, maxDate, prevState.logTypeFilters, prevState.tripIdFilter)
-          .value();
+        const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, prevState.filters).value();
         if (logs.length > 0) {
           const firstRow = logs[0];
           setTimeout(() => this.focusOnSelectedRow(), 0);
@@ -283,12 +283,7 @@ class App extends React.Component {
   selectLastRow = () => {
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(
-      minDate,
-      maxDate,
-      this.state.logTypeFilters,
-      this.state.tripIdFilter
-    );
+    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, this.state.filters);
     const logs = logsWrapper.value();
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
@@ -300,10 +295,10 @@ class App extends React.Component {
   };
 
   handleRowChange = async (direction) => {
-    const { featuredObject, logTypeFilters, tripIdFilter } = this.state;
+    const { featuredObject, filters } = this.state;
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, logTypeFilters, tripIdFilter).value();
+    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, filters).value();
     let newFeaturedObject = featuredObject;
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
 
@@ -892,19 +887,25 @@ class App extends React.Component {
   }
 
   handleLogTypeFilterChange = (filterType) => {
-    log(`Filter toggled for: ${filterType}`);
     this.setState((prevState) => ({
-      logTypeFilters: {
-        ...prevState.logTypeFilters,
-        [filterType]: !prevState.logTypeFilters[filterType],
+      filters: {
+        ...prevState.filters,
+        logTypes: {
+          ...prevState.filters.logTypes,
+          [filterType]: !prevState.filters.logTypes[filterType],
+        },
       },
     }));
   };
 
   handleTripIdFilterChange = (event) => {
-    const value = event.target.value;
-    log(`Trip ID filter changed to: "${value}"`);
-    this.setState({ tripIdFilter: value });
+    const newTripId = event.target.value;
+    this.setState((prevState) => ({
+      filters: {
+        ...prevState.filters,
+        tripId: newTripId,
+      },
+    }));
   };
 
   render() {
@@ -916,8 +917,7 @@ class App extends React.Component {
       extraColumns,
       dynamicMarkerLocations,
       visibleToggles,
-      logTypeFilters,
-      tripIdFilter,
+      filters,
     } = this.state;
     const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
     const availableFilters = currentLogData.solutionType === "ODRD" ? ODRD_FILTERS : [];
@@ -942,8 +942,7 @@ class App extends React.Component {
                 setRenderMarkerOnMap={this.setRenderMarkerOnMap}
                 focusSelectedRow={this.focusOnSelectedRow}
                 initialMapBounds={this.state.initialMapBounds}
-                logTypeFilters={logTypeFilters}
-                tripIdFilter={tripIdFilter}
+                filters={filters}
               />
             </div>
             <TimeSlider
@@ -955,8 +954,7 @@ class App extends React.Component {
               onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
               centerOnLocation={this.centerOnLocation}
               focusSelectedRow={this.focusOnSelectedRow}
-              logTypeFilters={logTypeFilters}
-              tripIdFilter={tripIdFilter}
+              filters={filters}
             />
             <div className="togglebar-button-group">
               <ToggleBar
@@ -966,10 +964,10 @@ class App extends React.Component {
               />
               <FilterBar
                 availableFilters={availableFilters}
-                filterState={logTypeFilters}
+                filterState={filters.logTypes}
                 clickHandler={this.handleLogTypeFilterChange}
               />
-              <TripIdFilter value={tripIdFilter} onChange={this.handleTripIdFilterChange} />
+              <TripIdFilter value={filters.tripId} onChange={this.handleTripIdFilterChange} />
             </div>
             <div className="nav-controls">
               <div className="button-row">
@@ -1016,8 +1014,7 @@ class App extends React.Component {
               onSelectionChange={(rowData, rowIndex) => this.onSelectionChange(rowData, rowIndex)}
               setFocusOnRowFunction={this.setFocusOnRowFunction}
               centerOnLocation={this.centerOnLocation}
-              logTypeFilters={logTypeFilters}
-              tripIdFilter={tripIdFilter}
+              filters={filters}
             />
           </div>
         </div>
