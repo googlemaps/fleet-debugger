@@ -288,11 +288,39 @@ class TripLogs {
     return _(this.rawLogs).filter((le) => le.date >= minDate && le.date <= maxDate);
   }
 
-  getLogs_(minDate, maxDate) {
-    return this.getRawLogs_(minDate, maxDate)
+  getLogs_(minDate, maxDate, filters = {}) {
+    const { logTypes, tripId } = filters;
+    let rawLogsChain = this.getRawLogs_(minDate, maxDate);
+
+    if (logTypes && this.solutionType === "ODRD") {
+      log("Applying ODRD log type filters.");
+      rawLogsChain = rawLogsChain.filter((le) => logTypes[le["@type"]]);
+    }
+
+    if (tripId && tripId.trim() !== "") {
+      const trimmedFilter = tripId.trim();
+      log(`Applying trip ID filter: "${trimmedFilter}"`);
+      rawLogsChain = rawLogsChain.filter((le) => {
+        // Check trip ID in trip rows
+        const requestId = _.get(le, "request.tripid");
+        if (requestId && requestId.includes(trimmedFilter)) {
+          return true;
+        }
+
+        // Check trip ID in vehicle rows
+        const currentTrips = _.get(le, "response.currenttrips");
+        if (currentTrips && Array.isArray(currentTrips)) {
+          return currentTrips.some((id) => id.includes(trimmedFilter));
+        }
+
+        return false;
+      });
+    }
+
+    return rawLogsChain
       .concat(this.velocityJumps.map((j) => j.getLogViewerEntry()))
       .concat(this.missingUpdates.map((u) => u.getLogViewerEntry()))
-      .filter((le) => le.date >= minDate && le.date <= maxDate)
+      .filter((le) => (!minDate || le.date >= minDate) && (!maxDate || le.date <= maxDate))
       .sortBy("timestampMS");
   }
 

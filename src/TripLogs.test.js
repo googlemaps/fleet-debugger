@@ -3,10 +3,13 @@
 import TripLogs from "./TripLogs";
 import fs from "fs";
 import _ from "lodash";
+import { ensureCorrectFormat } from "./localStorage";
 
 async function loadTripLogs(dataset) {
-  const parsedData = JSON.parse(fs.readFileSync(dataset));
-  return new TripLogs(parsedData.rawLogs, parsedData.solutionType);
+  const fileContent = fs.readFileSync(dataset, "utf8");
+  const jsonData = JSON.parse(fileContent);
+  const formattedData = ensureCorrectFormat(jsonData);
+  return new TripLogs(formattedData.rawLogs, formattedData.solutionType);
 }
 
 test("basic odrd trip log loading", async () => {
@@ -41,13 +44,78 @@ test("basic lmfs trip log loading", async () => {
   ]);
 });
 
+describe("Filtering", () => {
+  let tripLogs;
+
+  beforeAll(async () => {
+    tripLogs = await loadTripLogs("./datasets/two-trips-bay-area.json");
+  });
+
+  test("filters by a single log type", () => {
+    const filters = { logTypes: { createTrip: true } };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    expect(logs.every((log) => log["@type"] === "createTrip")).toBe(true);
+    expect(logs.length).toBe(2);
+  });
+
+  test("filters by multiple log types", () => {
+    const filters = { logTypes: { updateVehicle: true, createTrip: true } };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    const types = new Set(logs.map((log) => log["@type"]));
+    expect(types.has("updateVehicle")).toBe(true);
+    expect(types.has("createTrip")).toBe(true);
+    expect(logs.length).toBe(530);
+  });
+
+  test("returns no logs for a non-matching filter", () => {
+    const filters = { logTypes: { nonExistentType: true } };
+    const noLogs = tripLogs.getLogs_(null, null, filters).value();
+    expect(noLogs.length).toBe(0);
+  });
+
+  test("filters by a full trip ID", () => {
+    const tripId = "fb1318df-9a2e-4455-9b17-3a7433a681e4";
+    const filters = { tripId: tripId };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    expect(logs.length).toBe(251);
+    const isRelated = logs.every(
+      (log) =>
+        _.get(log, "request.tripid") === tripId || _.get(log, "response.currenttrips", []).includes(tripId)
+    );
+    expect(isRelated).toBe(true);
+  });
+
+  test("filters by a partial trip ID", () => {
+    const partialId = "fb1318df";
+    const filters = { tripId: partialId };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    expect(logs.length).toBe(251);
+  });
+
+  test("returns no logs for a non-existent trip ID", () => {
+    const filters = { tripId: "non-existent-trip" };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    expect(logs.length).toBe(0);
+  });
+
+  test("combines log type and trip ID filters", () => {
+    const filters = {
+      logTypes: { updateVehicle: true },
+      tripId: "fb1318df-9a2e-4455-9b17-3a7433a681e4",
+    };
+    const logs = tripLogs.getLogs_(null, null, filters).value();
+    expect(logs.length).toBe(244);
+    expect(logs.every((log) => log["@type"] === "updateVehicle")).toBe(true);
+  });
+});
+
 describe("Location Data Processing", () => {
   test("LMFS log populates .location from .rawlocation as a fallback", () => {
     const rawLocation = { latitude: 37.422, longitude: -122.084 };
     const mockLogs = [
       {
         timestamp: "2023-01-01T12:00:00Z",
-        jsonpayload: {
+        jsonPayload: {
           "@type": "updateDeliveryVehicle",
           request: {
             deliveryvehicle: {
@@ -61,7 +129,8 @@ describe("Location Data Processing", () => {
       },
     ];
 
-    const tripLogs = new TripLogs(mockLogs, "LMFS");
+    const formattedData = ensureCorrectFormat(mockLogs);
+    const tripLogs = new TripLogs(formattedData.rawLogs, "LMFS");
     expect(tripLogs.rawLogs[0].lastlocation.location).toEqual(rawLocation);
   });
 
@@ -71,7 +140,7 @@ describe("Location Data Processing", () => {
     const mockLogs = [
       {
         timestamp: "2023-01-01T10:00:00Z",
-        jsonpayload: {
+        jsonPayload: {
           "@type": "updateVehicle",
           request: {
             vehicle: {
@@ -86,7 +155,8 @@ describe("Location Data Processing", () => {
       },
     ];
 
-    const tripLogs = new TripLogs(mockLogs, "ODRD");
+    const formattedData = ensureCorrectFormat(mockLogs);
+    const tripLogs = new TripLogs(formattedData.rawLogs, "ODRD");
     expect(tripLogs.rawLogs[0].lastlocation.location).toEqual(snappedLocation);
     expect(tripLogs.rawLogs[0].lastlocation.location).not.toEqual(rawLocation);
   });
@@ -96,7 +166,7 @@ describe("Location Data Processing", () => {
     const mockLogs = [
       {
         timestamp: "2023-01-01T12:00:00Z",
-        jsonpayload: {
+        jsonPayload: {
           "@type": "updateDeliveryVehicle",
           request: {
             deliveryvehicle: {
@@ -111,7 +181,7 @@ describe("Location Data Processing", () => {
       },
       {
         timestamp: "2023-01-01T12:01:00Z",
-        jsonpayload: {
+        jsonPayload: {
           "@type": "updateDeliveryVehicle",
           request: {
             deliveryvehicle: {},
@@ -120,18 +190,18 @@ describe("Location Data Processing", () => {
         },
       },
     ];
-    const tripLogs = new TripLogs(mockLogs, "LMFS");
+    const formattedData = ensureCorrectFormat(mockLogs);
+    const tripLogs = new TripLogs(formattedData.rawLogs, "LMFS");
     expect(tripLogs.rawLogs[1].lastlocation.location).toEqual(rawLocation);
     expect(tripLogs.rawLogs[1].lastlocation.heading).toBe(180);
   });
 });
 
 test("lastKnownState location is correctly applied to subsequent logs", () => {
-  // Create mock data with two log entries
   const mockLogs = [
     {
       timestamp: "2023-01-01T10:00:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {
@@ -146,7 +216,7 @@ test("lastKnownState location is correctly applied to subsequent logs", () => {
     },
     {
       timestamp: "2023-01-01T10:01:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {},
@@ -156,19 +226,18 @@ test("lastKnownState location is correctly applied to subsequent logs", () => {
     },
   ];
 
-  const tripLogs = new TripLogs(mockLogs, "ODRD");
+  const formattedData = ensureCorrectFormat(mockLogs);
+  const tripLogs = new TripLogs(formattedData.rawLogs, "ODRD");
 
-  // Check that the second log entry received the lastKnownState from the first
   expect(tripLogs.rawLogs[1].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[1].lastlocation.heading).toBe(90);
 });
 
 test("request and response objects are not mutated", () => {
-  // Create a log with location data
   const originalLocation = { latitude: 37.7749, longitude: -122.4194 };
   const mockLog = {
     timestamp: "2023-01-01T10:00:00Z",
-    jsonpayload: {
+    jsonPayload: {
       "@type": "updateVehicle",
       request: {
         vehicle: {
@@ -182,27 +251,22 @@ test("request and response objects are not mutated", () => {
     },
   };
 
-  const tripLogs = new TripLogs([mockLog], "ODRD");
+  const formattedData = ensureCorrectFormat([mockLog]);
+  const tripLogs = new TripLogs(formattedData.rawLogs, "ODRD");
 
-  // Verify the original request object was not modified
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).not.toBe(originalLocation);
-
-  // But the data is still equal
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).toEqual(originalLocation);
 
-  // Modify the synthetic field
   tripLogs.rawLogs[0].lastlocation.location.latitude = 38.0;
 
-  // Verify the original was not affected
   expect(tripLogs.rawLogs[0].request.vehicle.lastlocation.location).toEqual(originalLocation);
 });
 
 test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
-  // Create mock data with three log entries
   const mockLogs = [
     {
       timestamp: "2023-01-01T10:00:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {
@@ -215,7 +279,7 @@ test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
     },
     {
       timestamp: "2023-01-01T10:01:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {
@@ -227,7 +291,7 @@ test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
     },
     {
       timestamp: "2023-01-01T10:02:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {},
@@ -237,25 +301,19 @@ test("lastKnownState route segments are reset with NO_GUIDANCE", () => {
     },
   ];
 
-  const tripLogs = new TripLogs(mockLogs, "ODRD");
+  const formattedData = ensureCorrectFormat(mockLogs);
+  const tripLogs = new TripLogs(formattedData.rawLogs, "ODRD");
 
-  // First log should have the route segment
   expect(tripLogs.rawLogs[0].lastlocation.currentroutesegment).toBeDefined();
-
-  // Second log sets navstatus to NO_GUIDANCE, so lastKnownState should be reset
   expect(tripLogs.rawLogs[1].lastlocation.currentroutesegment).not.toBeDefined();
-
-  // Third log should not have route segment since it was reset
   expect(tripLogs.rawLogs[2].lastlocation.currentroutesegment).not.toBeDefined();
 });
 
 test("lastKnownState is properly propagated through a sequence of logs", () => {
-  // Create a sequence of logs with varying data
   const mockLogs = [
     {
-      // Log 1: Has location but no route
       timestamp: "2023-01-01T10:00:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {
@@ -269,9 +327,8 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
       },
     },
     {
-      // Log 2: Has route but no location
       timestamp: "2023-01-01T10:01:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {
@@ -282,9 +339,8 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
       },
     },
     {
-      // Log 3: Has neither location nor route
       timestamp: "2023-01-01T10:02:00Z",
-      jsonpayload: {
+      jsonPayload: {
         "@type": "updateVehicle",
         request: {
           vehicle: {},
@@ -294,17 +350,15 @@ test("lastKnownState is properly propagated through a sequence of logs", () => {
     },
   ];
 
-  const tripLogs = new TripLogs(mockLogs, "ODRD");
+  const formattedData = ensureCorrectFormat(mockLogs);
+  const tripLogs = new TripLogs(formattedData.rawLogs, "ODRD");
 
-  // Log 1: Should have location but no route
   expect(tripLogs.rawLogs[0].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[0].lastlocation.currentroutesegment).not.toBeDefined();
 
-  // Log 2: Should have location from Log 1 and its own route
   expect(tripLogs.rawLogs[1].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[1].lastlocation.currentroutesegment).toBeDefined();
 
-  // Log 3: Should have both location from Log 1 and route from Log 2
   expect(tripLogs.rawLogs[2].lastlocation.location).toEqual({ latitude: 37.7749, longitude: -122.4194 });
   expect(tripLogs.rawLogs[2].lastlocation.currentroutesegment).toBeDefined();
 });
