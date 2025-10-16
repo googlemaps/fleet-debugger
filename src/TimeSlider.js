@@ -77,7 +77,7 @@ function TimeSlider(props) {
     log(`TimeSlider - Finding closest event to: ${new Date(clickTime).toISOString()}`);
 
     // Find the closest event to this time
-    const logs = tripLogs.getLogs_(new Date(minVal), new Date(maxVal)).value();
+    const logs = tripLogs.getLogs_(new Date(minVal), new Date(maxVal), props.filters).value();
 
     if (logs.length > 0) {
       // Find closest log entry to the clicked time
@@ -182,7 +182,7 @@ function TimeSlider(props) {
       document.removeEventListener("mouseup", handleMouseUp);
       document.removeEventListener("touchend", handleMouseUp, { passive: true });
     };
-  }, [minVal, maxVal, tripLogs, isDragging, props.onRowSelect, props.centerOnLocation]);
+  }, [minVal, maxVal, tripLogs, isDragging, props.onRowSelect, props.centerOnLocation, props.filters]);
 
   return (
     <div style={style} ref={sliderContainerRef}>

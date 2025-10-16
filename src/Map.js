@@ -23,6 +23,7 @@ function MapComponent({
   initialMapBounds,
   setCenterOnLocation,
   setRenderMarkerOnMap,
+  filters,
 }) {
   const { tripLogs, taskLogs, jwt, projectId, mapId } = logData;
 
@@ -172,30 +173,6 @@ function MapComponent({
     };
     map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
 
-    const clickListener = map.addListener("click", (event) => {
-      log("Map click listener triggered.");
-      const clickLocation = event.latLng;
-      const logs = tripLogs.getLogs_(new Date(rangeStart), new Date(rangeEnd)).value();
-      let closestEvent = null;
-      let closestDistance = 250;
-
-      logs.forEach((logEntry) => {
-        const rawLocation = _.get(logEntry, "lastlocation.rawlocation");
-        if (rawLocation?.latitude && rawLocation?.longitude) {
-          const eventLocation = new window.google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
-          const distance = window.google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
-          if (distance < closestDistance) {
-            closestEvent = logEntry;
-            closestDistance = distance;
-          }
-        }
-      });
-      if (closestEvent) {
-        setFeaturedObject(closestEvent);
-        setTimeout(() => focusSelectedRow(), 0);
-      }
-    });
-
     const centerListener = map.addListener(
       "center_changed",
       _.debounce(() => {
@@ -207,17 +184,50 @@ function MapComponent({
     });
 
     return () => {
-      log("Map.js: Cleanup from initialization useEffect.");
       dynamicMarkersRef.current.forEach((m) => m.setMap(null));
       dynamicMarkersRef.current = [];
       Object.values(vehicleMarkersRef.current).forEach((marker) => marker && marker.setMap(null));
       vehicleMarkersRef.current = {};
-      window.google.maps.event.removeListener(clickListener);
       window.google.maps.event.removeListener(centerListener);
       window.google.maps.event.removeListener(headingListener);
       mapRef.current = null;
     };
   }, []);
+
+  // Effect to manage the map click listener
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    log("Map.js: Attaching map click listener.");
+
+    const clickListener = map.addListener("click", (event) => {
+      log("Map click listener triggered.");
+      const clickLocation = event.latLng;
+      const logs = tripLogs.getLogs_(new Date(rangeStart), new Date(rangeEnd), filters).value();
+      let closestEvent = null;
+      let searchDistanceMeters = 250;
+
+      logs.forEach((logEntry) => {
+        const rawLocation = _.get(logEntry, "lastlocation.location");
+        if (rawLocation?.latitude && rawLocation?.longitude) {
+          const eventLocation = new window.google.maps.LatLng(rawLocation.latitude, rawLocation.longitude);
+          const distance = window.google.maps.geometry.spherical.computeDistanceBetween(clickLocation, eventLocation);
+          if (distance < searchDistanceMeters) {
+            closestEvent = logEntry;
+            searchDistanceMeters = distance;
+          }
+        }
+      });
+      if (closestEvent) {
+        setFeaturedObject(closestEvent);
+        setTimeout(() => focusSelectedRow(), 0);
+      }
+    });
+
+    return () => {
+      window.google.maps.event.removeListener(clickListener);
+    };
+  }, [mapRef, tripLogs, rangeStart, rangeEnd, filters, setFeaturedObject, focusSelectedRow]);
 
   const handlePolylineSubmit = useCallback((waypoints, properties) => {
     const map = mapRef.current;

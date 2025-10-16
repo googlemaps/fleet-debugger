@@ -35,13 +35,19 @@ describe("TrafficPolyline", () => {
     { lat: 1, lng: 1 },
   ];
 
-  test("creates STYLE_NORMAL polyline when no traffic data is provided", () => {
+  test("creates casing and fill polylines when no traffic data is provided", () => {
     const polyline = new TrafficPolyline({ path: samplePath, map: {} });
-    expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
+    expect(polyline.polylines.length).toBe(2); // Casing + Fill
+    expect(polyline.polylines[1].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NORMAL);
   });
 
-  test("creates multiple polylines for different traffic segments", () => {
+  test("creates a single polyline for trip events", () => {
+    const polyline = new TrafficPolyline({ path: samplePath, map: {}, isTripEvent: true });
+    expect(polyline.polylines.length).toBe(1);
+    expect(polyline.polylines[0].options.strokeColor).toBe("#000000");
+  });
+
+  test("creates multiple polyline pairs for different traffic segments", () => {
     const trafficRendering = {
       roadstretch: [
         { style: "SLOWER_TRAFFIC", lengthmeters: 100, offsetmeters: 0 },
@@ -49,7 +55,7 @@ describe("TrafficPolyline", () => {
       ],
     };
     const polyline = new TrafficPolyline({ path: samplePath, trafficRendering, map: {} });
-    expect(polyline.polylines.length).toBeGreaterThan(1);
+    expect(polyline.polylines.length).toBeGreaterThan(2);
     const colors = polyline.polylines.map((p) => p.options.strokeColor);
     expect(colors).toContain(TRAFFIC_COLORS.SLOWER_TRAFFIC);
     expect(colors).toContain(TRAFFIC_COLORS.TRAFFIC_JAM);
@@ -94,8 +100,8 @@ describe("TrafficPolyline", () => {
 
   test("handles invalid or empty path gracefully", () => {
     const polyline = new TrafficPolyline({ path: [], map: {} });
-    expect(polyline.polylines.length).toBe(1);
-    expect(polyline.polylines[0].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NO_DATA);
+    expect(polyline.polylines.length).toBe(2);
+    expect(polyline.polylines[1].options.strokeColor).toBe(TRAFFIC_COLORS.STYLE_NO_DATA);
   });
 
   test("setMap updates all child polylines", () => {

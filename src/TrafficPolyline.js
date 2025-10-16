@@ -153,17 +153,19 @@ export class TrafficPolyline {
         strokeColor: "#000000",
         strokeOpacity: 1,
         strokeWeight: 1.5,
-        zIndex: this.zIndex || 3,
+        zIndex: this.zIndex - 1 || -1,
         isRouteSegment: true,
         icons: [
           {
             icon: {
-              path: google.maps.SymbolPath.FORWARD_OPEN_ARROW,
-              scale: 1.5,
-              strokeWeight: 1,
+              path: "M 0,-0.5 L 0.5,0.5 L -0.5,0.5 z",
+              scale: 12,
+              strokeWeight: 0,
+              fillColor: "#000000",
+              fillOpacity: 0.6,
             },
             offset: "50%",
-            repeat: "100px",
+            repeat: "75px",
           },
         ],
         map: this.map,
@@ -174,18 +176,32 @@ export class TrafficPolyline {
     }
 
     this.segments.forEach((segment) => {
-      const polyline = new google.maps.Polyline({
+      // This is wider and darker, providing a border.
+      const casing = new google.maps.Polyline({
         path: segment.path,
         zIndex: this.zIndex || 0,
         geodesic: true,
-        strokeColor: TRAFFIC_COLORS[segment.style],
-        strokeOpacity: 1,
-        strokeWeight: 4,
+        strokeColor: "#000000",
+        strokeOpacity: 0.4,
+        strokeWeight: 4.5,
         map: this.map,
         isRouteSegment: true,
         clickable: false,
       });
-      this.polylines.push(polyline);
+
+      // Colored traffic line.
+      const fill = new google.maps.Polyline({
+        path: segment.path,
+        zIndex: (this.zIndex || 0) + 1, // On top of the casing
+        geodesic: true,
+        strokeColor: TRAFFIC_COLORS[segment.style],
+        strokeOpacity: 1,
+        strokeWeight: 2.5,
+        map: this.map,
+        isRouteSegment: true,
+        clickable: false,
+      });
+      this.polylines.push(casing, fill);
     });
   }
 

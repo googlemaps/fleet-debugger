@@ -482,3 +482,32 @@
   color: Green;
   border-color: green;
 }
+
+/* Filter dropdown menu */
+.filter-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: #ffffff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  min-width: 160px;
+}
+
+.filter-menu-item {
+  display: block;
+  padding: 5px 8px;
+  color: #2c2c2c;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 3px;
+}
+
+.filter-menu-item:hover {
+  background-color: #cccccc;
+}

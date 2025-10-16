@@ -36,6 +36,78 @@ const MARKER_COLORS = [
   "#26A69A", // Darker Teal
 ];
 
+const ODRD_FILTERS = ["createVehicle", "getVehicle", "updateVehicle", "createTrip", "getTrip", "updateTrip"];
+
+function FilterBar({ availableFilters, filterState, clickHandler }) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const filterBarRef = React.useRef(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event) {
+      if (filterBarRef.current && !filterBarRef.current.contains(event.target)) {
+        log("Clicked outside FilterBar, closing menu.");
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      log("Filter menu is open, adding click outside listener.");
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  if (!availableFilters || availableFilters.length === 0) {
+    return null;
+  }
+
+  const handleButtonClick = () => {
+    log(`Filter button clicked. Menu will be ${!isOpen ? "opened" : "closed"}.`);
+    setIsOpen(!isOpen);
+  };
+
+  const activeFilterCount = availableFilters.filter((type) => filterState[type]).length;
+  const totalFilterCount = availableFilters.length;
+  const buttonText = `Filter Log Types (${activeFilterCount}/${totalFilterCount})`;
+  const isFiltered = activeFilterCount !== totalFilterCount;
+
+  return (
+    <div style={{ position: "relative", display: "inline-block" }} ref={filterBarRef}>
+      <button
+        className={`toggle-button ${isOpen || isFiltered ? "toggle-button-active" : ""}`}
+        onClick={handleButtonClick}
+      >
+        {buttonText}
+      </button>
+      {isOpen && (
+        <div className="filter-menu">
+          {availableFilters.map((filterType) => (
+            <label key={filterType} className="filter-menu-item">
+              <input type="checkbox" checked={!!filterState[filterType]} onChange={() => clickHandler(filterType)} />
+              {filterType}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TripIdFilter({ value, onChange }) {
+  return (
+    <div style={{ marginLeft: "10px" }}>
+      <input
+        type="text"
+        placeholder="Filter by Trip ID"
+        value={value}
+        onChange={onChange}
+        className="trip-id-filter-input"
+      />
+    </div>
+  );
+}
+
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -55,6 +127,21 @@ class App extends React.Component {
       featuredObject: { msg: "Click a table row to select object" },
       extraColumns: [],
       toggleOptions: Object.fromEntries(ALL_TOGGLES.map((t) => [t.id, false])),
+      logTypeFilters: {
+        createVehicle: true,
+        getVehicle: true,
+        updateVehicle: true,
+        createTrip: true,
+        getTrip: true,
+        updateTrip: true,
+        createDeliveryVehicle: true,
+        getDeliveryVehicle: true,
+        updateDeliveryVehicle: true,
+        createTask: true,
+        getTask: true,
+        updateTask: true,
+      },
+      tripIdFilter: "",
       uploadedDatasets: [null, null, null, null, null],
       activeDatasetIndex: null,
       activeMenuIndex: null,
@@ -176,7 +263,9 @@ class App extends React.Component {
       this.setState((prevState) => {
         const minDate = new Date(prevState.timeRange.minTime);
         const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate).value();
+        const logs = this.state.currentLogData.tripLogs
+          .getLogs_(minDate, maxDate, prevState.logTypeFilters, prevState.tripIdFilter)
+          .value();
         if (logs.length > 0) {
           const firstRow = logs[0];
           setTimeout(() => this.focusOnSelectedRow(), 0);
@@ -194,7 +283,12 @@ class App extends React.Component {
   selectLastRow = () => {
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate);
+    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(
+      minDate,
+      maxDate,
+      this.state.logTypeFilters,
+      this.state.tripIdFilter
+    );
     const logs = logsWrapper.value();
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
@@ -206,17 +300,25 @@ class App extends React.Component {
   };
 
   handleRowChange = async (direction) => {
-    const { featuredObject } = this.state;
+    const { featuredObject, logTypeFilters, tripIdFilter } = this.state;
     const minDate = new Date(this.state.timeRange.minTime);
     const maxDate = new Date(this.state.timeRange.maxTime);
-    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate).value();
+    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, logTypeFilters, tripIdFilter).value();
     let newFeaturedObject = featuredObject;
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
-    if (direction === "next" && currentIndex < logs.length - 1) {
+
+    if (currentIndex === -1) {
+      if (logs.length > 0) {
+        newFeaturedObject = logs[0];
+      } else {
+        return;
+      }
+    } else if (direction === "next" && currentIndex < logs.length - 1) {
       newFeaturedObject = logs[currentIndex + 1];
     } else if (direction === "previous" && currentIndex > 0) {
       newFeaturedObject = logs[currentIndex - 1];
     }
+
     if (newFeaturedObject !== featuredObject) {
       this.setState({ featuredObject: newFeaturedObject }, () => {
         this.focusOnSelectedRow();
@@ -789,6 +891,22 @@ class App extends React.Component {
     this.updateToggleState(newValue, id, toggle.columns);
   }
 
+  handleLogTypeFilterChange = (filterType) => {
+    log(`Filter toggled for: ${filterType}`);
+    this.setState((prevState) => ({
+      logTypeFilters: {
+        ...prevState.logTypeFilters,
+        [filterType]: !prevState.logTypeFilters[filterType],
+      },
+    }));
+  };
+
+  handleTripIdFilterChange = (event) => {
+    const value = event.target.value;
+    log(`Trip ID filter changed to: "${value}"`);
+    this.setState({ tripIdFilter: value });
+  };
+
   render() {
     const {
       featuredObject,
@@ -798,8 +916,11 @@ class App extends React.Component {
       extraColumns,
       dynamicMarkerLocations,
       visibleToggles,
+      logTypeFilters,
+      tripIdFilter,
     } = this.state;
     const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
+    const availableFilters = currentLogData.solutionType === "ODRD" ? ODRD_FILTERS : [];
 
     return (
       <div className="app-container">
@@ -821,6 +942,8 @@ class App extends React.Component {
                 setRenderMarkerOnMap={this.setRenderMarkerOnMap}
                 focusSelectedRow={this.focusOnSelectedRow}
                 initialMapBounds={this.state.initialMapBounds}
+                logTypeFilters={logTypeFilters}
+                tripIdFilter={tripIdFilter}
               />
             </div>
             <TimeSlider
@@ -832,12 +955,22 @@ class App extends React.Component {
               onRowSelect={(row, rowIndex) => this.onSelectionChange(row, rowIndex)}
               centerOnLocation={this.centerOnLocation}
               focusSelectedRow={this.focusOnSelectedRow}
+              logTypeFilters={logTypeFilters}
+              tripIdFilter={tripIdFilter}
             />
-            <ToggleBar
-              toggles={visibleToggles}
-              toggleState={toggleOptions}
-              clickHandler={(id) => this.toggleClickHandler(id)}
-            />
+            <div className="togglebar-button-group">
+              <ToggleBar
+                toggles={visibleToggles}
+                toggleState={toggleOptions}
+                clickHandler={(id) => this.toggleClickHandler(id)}
+              />
+              <FilterBar
+                availableFilters={availableFilters}
+                filterState={logTypeFilters}
+                clickHandler={this.handleLogTypeFilterChange}
+              />
+              <TripIdFilter value={tripIdFilter} onChange={this.handleTripIdFilterChange} />
+            </div>
             <div className="nav-controls">
               <div className="button-row">
                 <div className="playback-controls">
@@ -883,6 +1016,8 @@ class App extends React.Component {
               onSelectionChange={(rowData, rowIndex) => this.onSelectionChange(rowData, rowIndex)}
               setFocusOnRowFunction={this.setFocusOnRowFunction}
               centerOnLocation={this.centerOnLocation}
+              logTypeFilters={logTypeFilters}
+              tripIdFilter={tripIdFilter}
             />
           </div>
         </div>
