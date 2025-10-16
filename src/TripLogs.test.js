@@ -79,8 +79,7 @@ describe("Filtering", () => {
     const logs = tripLogs.getLogs_(null, null, filters).value();
     expect(logs.length).toBe(251);
     const isRelated = logs.every(
-      (log) =>
-        _.get(log, "request.tripid") === tripId || _.get(log, "response.currenttrips", []).includes(tripId)
+      (log) => _.get(log, "request.tripid") === tripId || _.get(log, "response.currenttrips", []).includes(tripId)
     );
     expect(isRelated).toBe(true);
   });
