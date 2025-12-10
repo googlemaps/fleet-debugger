@@ -208,3 +208,53 @@ describe("ensureCorrectFormat realistic merge scenarios", () => {
     expect(finalPayload.request.vehicle.name).toBe("test-vehicle");
   });
 });
+
+describe("ensureCorrectFormat TTL Logic", () => {
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const FIFTY_FIVE_DAYS_MS = 55 * ONE_DAY_MS;
+  const ONE_HOUR_MS = 60 * 60 * 1000;
+
+  it("should set retentionDate to Now + 1h for very old logs (Grace Period)", () => {
+    const oldTimestamp = new Date(Date.now() - 100 * ONE_DAY_MS).toISOString();
+    const mockLogs = [{ timestamp: oldTimestamp, jsonPayload: { test: 1 } }];
+    const result = ensureCorrectFormat(mockLogs);
+
+    const retention = new Date(result.retentionDate).getTime();
+    const expectedMin = Date.now() + ONE_HOUR_MS;
+
+    // Allow small delta for execution time
+    expect(retention).toBeGreaterThanOrEqual(expectedMin - 1000);
+    expect(retention).toBeLessThanOrEqual(expectedMin + 5000);
+  });
+
+  it("should set retentionDate to Log + 55d for recent logs", () => {
+    const tenDaysAgo = new Date(Date.now() - 10 * ONE_DAY_MS).getTime();
+    const mockLogs = [{ timestamp: new Date(tenDaysAgo).toISOString(), jsonPayload: { test: 1 } }];
+    const result = ensureCorrectFormat(mockLogs);
+
+    const retention = new Date(result.retentionDate).getTime();
+    const expected = tenDaysAgo + FIFTY_FIVE_DAYS_MS;
+
+    expect(retention).toBe(expected);
+  });
+
+  it("should default to Now + 1h if no timestamps found", () => {
+    const mockLogs = [{ jsonPayload: { no_timestamp: true } }];
+    const result = ensureCorrectFormat(mockLogs);
+
+    const retention = new Date(result.retentionDate).getTime();
+    const expectedMin = Date.now() + ONE_HOUR_MS;
+
+    expect(retention).toBeGreaterThanOrEqual(expectedMin - 1000);
+    expect(retention).toBeLessThanOrEqual(expectedMin + 5000);
+  });
+
+  it("should store retentionDate as a valid ISO string", () => {
+    const mockLogs = [{ timestamp: new Date().toISOString(), jsonPayload: { test: 1 } }];
+    const result = ensureCorrectFormat(mockLogs);
+
+    expect(typeof result.retentionDate).toBe("string");
+    // Simple regex to check ISO format YYYY-MM-DDTHH:mm:ss.sssZ
+    expect(result.retentionDate).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/);
+  });
+});

@@ -24,6 +24,7 @@ import { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ALL_TOGGLES, getVisibleToggles } from "./MapToggles";
+import { HAS_EXTRA_DATA_SOURCE } from "./constants";
 
 const MARKER_COLORS = [
   "#EA4335", // Red
@@ -414,6 +415,22 @@ class App extends React.Component {
         const data = await getUploadedData(index);
         log(`Dataset ${index}:`, data);
         if (data && data.rawLogs && Array.isArray(data.rawLogs) && data.rawLogs.length > 0) {
+          if (HAS_EXTRA_DATA_SOURCE && data.retentionDate) {
+            const retentionDate = new Date(data.retentionDate);
+            if (retentionDate <= new Date()) {
+              log(`Startup: Dataset ${index} expired. Deleting...`);
+              await deleteUploadedData(index);
+              log(`Dataset ${index + 1} has expired and was deleted.`, "error");
+              return { status: null, index };
+            } else {
+              const now = new Date();
+              const timeLeftMs = retentionDate - now;
+              const daysLeft = timeLeftMs / (1000 * 60 * 60 * 24);
+              if (daysLeft <= 10) {
+                log(`Dataset ${index + 1} will expire in ${Math.ceil(daysLeft)} days.`, "warn");
+              }
+            }
+          }
           return { status: "Uploaded", index };
         }
         return { status: null, index };
@@ -786,8 +803,48 @@ class App extends React.Component {
     }
   };
 
+  checkAndEnforceTTL = async (index) => {
+    if (!HAS_EXTRA_DATA_SOURCE) return "Valid";
+
+    try {
+      const data = await getUploadedData(index);
+      if (!data || !data.retentionDate) return "Valid";
+
+      const retentionDate = new Date(data.retentionDate);
+      const now = new Date();
+      const timeLeftMs = retentionDate - now;
+      const daysLeft = timeLeftMs / (1000 * 60 * 60 * 24);
+
+      if (timeLeftMs <= 0) {
+        log(`Dataset ${index} expired. Deleting...`);
+        await deleteUploadedData(index);
+        this.setState((prevState) => {
+          const newUploadedDatasets = [...prevState.uploadedDatasets];
+          newUploadedDatasets[index] = null;
+          return {
+            uploadedDatasets: newUploadedDatasets,
+            activeDatasetIndex: prevState.activeDatasetIndex === index ? null : prevState.activeDatasetIndex,
+          };
+        });
+        log(`Dataset ${index + 1} has expired and was deleted (Retention limit reached).`, "error");
+        return "Expired";
+      } else if (daysLeft <= 10) {
+        log(`Dataset ${index + 1} will expire in ${Math.ceil(daysLeft)} days.`, "warn");
+        return "Warning";
+      }
+      return "Valid";
+    } catch (e) {
+      console.error("Error verifying TTL:", e);
+      return "Error";
+    }
+  };
+
   switchDataset = async (index) => {
     log(`Attempting to switch to dataset ${index}`);
+
+    const ttlStatus = await this.checkAndEnforceTTL(index);
+    if (ttlStatus === "Expired") return;
+
     if (this.state.uploadedDatasets[index] !== "Uploaded") {
       console.error(`Attempted to switch to dataset ${index}, but it's not uploaded or is empty`);
       return;
