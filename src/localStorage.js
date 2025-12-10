@@ -337,6 +337,27 @@ export function ensureCorrectFormat(data) {
 
   if (!hasPoints) log("Bounds Calculation Failed: Could not find vehicle location data in any row.");
 
+  // Calculate retention date
+  let oldestTimestamp = Infinity;
+  logsArray.forEach((row) => {
+    const ts = new Date(row.timestamp || row.insertTimestamp || row.jsonPayload?.timestamp).getTime();
+    if (!isNaN(ts) && ts < oldestTimestamp) {
+      oldestTimestamp = ts;
+    }
+  });
+
+  let retentionDateIdentifier = null;
+  if (oldestTimestamp !== Infinity) {
+    const fiftyFiveDaysMs = 55 * 24 * 60 * 60 * 1000;
+    const oneHourMs = 60 * 60 * 1000;
+    const expirationBasedOnLogs = oldestTimestamp + fiftyFiveDaysMs;
+    const minimumRetention = Date.now() + oneHourMs;
+    retentionDateIdentifier = new Date(Math.max(expirationBasedOnLogs, minimumRetention)).toISOString();
+  } else {
+    // If no valid timestamps found, default to 1 hour from now for safety
+    retentionDateIdentifier = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  }
+
   return {
     APIKEY: DEFAULT_API_KEY,
     vehicle: "",
@@ -345,6 +366,7 @@ export function ensureCorrectFormat(data) {
     solutionType: solutionType,
     rawLogs: fullyNormalizedLogs,
     bounds: hasPoints ? bounds : null,
+    retentionDate: retentionDateIdentifier,
   };
 }
 
