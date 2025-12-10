@@ -6,11 +6,7 @@ import { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { isTokenValid, fetchLogsWithToken, useCloudLoggingLogin, buildQueryFilter } from "./CloudLogging";
-
-const DATA_SOURCES = {
-  CLOUD_LOGGING: "cloudLogging",
-  EXTRA: "extra",
-};
+import { HAS_EXTRA_DATA_SOURCE } from "./constants";
 
 const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
   const getStoredValue = (key, defaultValue = "") => localStorage.getItem(`datasetLoading_${key}`) || defaultValue;
@@ -181,38 +177,37 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
 
 export default function DatasetLoading(props) {
   const [activeDataSource, setActiveDataSource] = useState(
-    localStorage.getItem("datasetLoading_dataSource") ||
-      (ExtraDataSource.isAvailable() ? DATA_SOURCES.EXTRA : DATA_SOURCES.CLOUD_LOGGING)
+    localStorage.getItem("lastUsedDataSource") || (HAS_EXTRA_DATA_SOURCE ? "extra" : "cloudLogging")
   );
 
   useEffect(() => {
-    localStorage.setItem("datasetLoading_dataSource", activeDataSource);
+    localStorage.setItem("lastUsedDataSource", activeDataSource);
   }, [activeDataSource]);
 
-  const isExtra = activeDataSource === DATA_SOURCES.EXTRA;
+  const isExtra = activeDataSource === "extra";
   const ExtraFormComponent = isExtra ? ExtraDataSource.getFormComponent(props) : null;
-  const isExtraAvailable = ExtraDataSource.isAvailable();
+
+  const renderSourceSelection = () => {
+    if (!HAS_EXTRA_DATA_SOURCE) {
+      return <button className="active static">Cloud Logging</button>;
+    }
+
+    return (
+      <>
+        <button onClick={() => setActiveDataSource("cloudLogging")} className={!isExtra ? "active" : ""}>
+          Cloud Logging
+        </button>
+        <button onClick={() => setActiveDataSource("extra")} className={isExtra ? "active" : ""}>
+          {ExtraDataSource.getDisplayName()}
+        </button>
+      </>
+    );
+  };
 
   return (
     <>
       <ToastContainer position="top-right" autoClose={5000} />
-      <div className="data-source-toggle">
-        {isExtraAvailable ? (
-          <>
-            <button
-              onClick={() => setActiveDataSource(DATA_SOURCES.CLOUD_LOGGING)}
-              className={!isExtra ? "active" : ""}
-            >
-              Cloud Logging
-            </button>
-            <button onClick={() => setActiveDataSource(DATA_SOURCES.EXTRA)} className={isExtra ? "active" : ""}>
-              {ExtraDataSource.getDisplayName()}
-            </button>
-          </>
-        ) : (
-          <button className="active static">Cloud Logging</button>
-        )}
-      </div>
+      <div className="data-source-toggle">{renderSourceSelection()}</div>
 
       {isExtra ? (
         ExtraFormComponent
