@@ -41,16 +41,10 @@ jobs:
       - name: Release
         uses: cycjimmy/semantic-release-action@v3
         with:
-          semantic_version: 19.0.5
           extra_plugins: |
-            @semantic-release/commit-analyzer@5.0.0
-            semantic-release-interval
-            @semantic-release/release-notes-generator@10.0.0
+            @semantic-release/commit-analyzer
+            @semantic-release/release-notes-generator
             @semantic-release/git
-            @semantic-release/github@8.0.0
-            @semantic-release/npm@9.0.0
-            @googlemaps/semantic-release-config
-            semantic-release-npm-deprecate
+            @semantic-release/github
         env:
-          GH_TOKEN: ${{ secrets.SYNCED_GITHUB_TOKEN_REPO }}
-          NPM_TOKEN: ${{ secrets.NPM_WOMBAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SYNCED_GITHUB_TOKEN_REPO }}
