@@ -229,14 +229,40 @@ function isRestrictedLog(row) {
   return row.jsonPayload?.["@type"]?.includes("Restricted") || false;
 }
 
+function calculateRetentionDate(logsArray) {
+  let oldestTimestamp = Infinity;
+  logsArray.forEach((row) => {
+    const ts = new Date(
+      row.timestamp || row.insertTimestamp || row.jsonPayload?.timestamp || row.jsonpayload?.timestamp
+    ).getTime();
+    if (!isNaN(ts) && ts < oldestTimestamp) {
+      oldestTimestamp = ts;
+    }
+  });
+
+  let retentionDateIdentifier = null;
+  if (oldestTimestamp !== Infinity) {
+    const fiftyFiveDaysMs = 55 * 24 * 60 * 60 * 1000;
+    const oneHourMs = 60 * 60 * 1000;
+    const expirationBasedOnLogs = oldestTimestamp + fiftyFiveDaysMs;
+    const minimumRetention = Date.now() + oneHourMs;
+    const chosenRetention = new Date(Math.max(expirationBasedOnLogs, minimumRetention));
+    retentionDateIdentifier = chosenRetention.toISOString();
+  } else {
+    retentionDateIdentifier = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  }
+  return retentionDateIdentifier;
+}
+
 export function ensureCorrectFormat(data) {
   let logsArray;
   //Handle if data is not array (like when reading a file).
   if (!Array.isArray(data)) {
-    // If it's already in the correct format, return it as is.
+    // If it's already in the correct format, return it as is, BUT RE-CALCULATE TTL for grace period.
     if (data && data.rawLogs && Array.isArray(data.rawLogs)) {
       return {
         ...data,
+        retentionDate: calculateRetentionDate(data.rawLogs),
         APIKEY: data.APIKEY || DEFAULT_API_KEY,
       };
     } else {
@@ -337,26 +363,8 @@ export function ensureCorrectFormat(data) {
 
   if (!hasPoints) log("Bounds Calculation Failed: Could not find vehicle location data in any row.");
 
-  // Calculate retention date
-  let oldestTimestamp = Infinity;
-  logsArray.forEach((row) => {
-    const ts = new Date(row.timestamp || row.insertTimestamp || row.jsonPayload?.timestamp).getTime();
-    if (!isNaN(ts) && ts < oldestTimestamp) {
-      oldestTimestamp = ts;
-    }
-  });
-
-  let retentionDateIdentifier = null;
-  if (oldestTimestamp !== Infinity) {
-    const fiftyFiveDaysMs = 55 * 24 * 60 * 60 * 1000;
-    const oneHourMs = 60 * 60 * 1000;
-    const expirationBasedOnLogs = oldestTimestamp + fiftyFiveDaysMs;
-    const minimumRetention = Date.now() + oneHourMs;
-    retentionDateIdentifier = new Date(Math.max(expirationBasedOnLogs, minimumRetention)).toISOString();
-  } else {
-    // If no valid timestamps found, default to 1 hour from now for safety
-    retentionDateIdentifier = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-  }
+  // Calculate retention date using the helper
+  const retentionDateIdentifier = calculateRetentionDate(logsArray);
 
   return {
     APIKEY: DEFAULT_API_KEY,
