@@ -20,7 +20,7 @@ import {
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
-import { log } from "./Utils";
+import Utils, { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ALL_TOGGLES, getVisibleToggles } from "./MapToggles";
@@ -427,7 +427,7 @@ class App extends React.Component {
               const timeLeftMs = retentionDate - now;
               const daysLeft = timeLeftMs / (1000 * 60 * 60 * 24);
               if (daysLeft <= 10) {
-                log(`Dataset ${index + 1} will expire in ${Math.ceil(daysLeft)} days.`, "warn");
+                log(`Dataset ${index + 1} will expire in ${Utils.formatTTLRemaining(timeLeftMs)}.`, "warn");
               }
             }
           }
@@ -829,7 +829,7 @@ class App extends React.Component {
         log(`Dataset ${index + 1} has expired and was deleted (Retention limit reached).`, "error");
         return "Expired";
       } else if (daysLeft <= 10) {
-        log(`Dataset ${index + 1} will expire in ${Math.ceil(daysLeft)} days.`, "warn");
+        log(`Dataset ${index + 1} will expire in ${Utils.formatTTLRemaining(timeLeftMs)}.`, "warn");
         return "Warning";
       }
       return "Valid";

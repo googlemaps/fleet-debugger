@@ -1,6 +1,7 @@
 {
   "name": "dune-buggy",
   "version": "1.23.2",
+  "private": true,
   "description": "",
   "main": "index.js",
   "repository": {
