@@ -87,7 +87,7 @@ describe("parseJsonContent", () => {
 
   it("should throw an error for invalid JSON", () => {
     // Temporarily spy on console.error and replace it with a function that does nothing.
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
     const invalidJson = "{invalid}";
     expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
     consoleErrorSpy.mockRestore();
@@ -256,5 +256,22 @@ describe("ensureCorrectFormat TTL Logic", () => {
     expect(typeof result.retentionDate).toBe("string");
     // Simple regex to check ISO format YYYY-MM-DDTHH:mm:ss.sssZ
     expect(result.retentionDate).toMatch(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z/);
+  });
+
+  it("should recalculate retentionDate on import, ignoring stale values in file", () => {
+    // A file might include a retentionDate.
+    const staleDate = new Date(Date.now() - 100 * ONE_DAY_MS).toISOString();
+    const mockExportedFile = {
+      rawLogs: [{ timestamp: new Date(Date.now() - 200 * ONE_DAY_MS).toISOString(), jsonPayload: { test: 1 } }],
+      retentionDate: staleDate,
+      APIKEY: "abc"
+    };
+
+    const result = ensureCorrectFormat(mockExportedFile);
+    const retention = new Date(result.retentionDate).getTime();
+    const expectedMin = Date.now() + ONE_HOUR_MS;
+
+    expect(result.retentionDate).not.toBe(staleDate);
+    expect(retention).toBeGreaterThanOrEqual(expectedMin - 1000);
   });
 });
