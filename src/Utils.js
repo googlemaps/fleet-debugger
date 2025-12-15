@@ -27,6 +27,34 @@ class Utils {
     }
     return timeStr;
   }
+
+  /**
+   * Formats a duration for TTL warnings.
+   * > 1 day: "X days"
+   * 1h - 24h: "X hours"
+   * 1m - 60m: "X minutes"
+   * < 1m: "X seconds"
+   */
+  static formatTTLRemaining(ms) {
+    const days = ms / (1000 * 60 * 60 * 24);
+    const hours = ms / (1000 * 60 * 60);
+    const minutes = ms / (1000 * 60);
+    const seconds = ms / 1000;
+
+    if (days >= 1) {
+      const d = Math.ceil(days);
+      return `${d} day${d > 1 ? "s" : ""}`;
+    } else if (hours >= 1) {
+      const h = Math.ceil(hours);
+      return `${h} hour${h > 1 ? "s" : ""}`;
+    } else if (minutes >= 1) {
+      const m = Math.ceil(minutes);
+      return `${m} minute${m > 1 ? "s" : ""}`;
+    } else {
+      const s = Math.ceil(seconds);
+      return `${s} second${s !== 1 ? "s" : ""}`;
+    }
+  }
 }
 
 /**

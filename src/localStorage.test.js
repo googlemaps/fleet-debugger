@@ -87,7 +87,7 @@ describe("parseJsonContent", () => {
 
   it("should throw an error for invalid JSON", () => {
     // Temporarily spy on console.error and replace it with a function that does nothing.
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => { });
+    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     const invalidJson = "{invalid}";
     expect(() => parseJsonContent(invalidJson)).toThrow("Invalid JSON content");
     consoleErrorSpy.mockRestore();
@@ -264,7 +264,7 @@ describe("ensureCorrectFormat TTL Logic", () => {
     const mockExportedFile = {
       rawLogs: [{ timestamp: new Date(Date.now() - 200 * ONE_DAY_MS).toISOString(), jsonPayload: { test: 1 } }],
       retentionDate: staleDate,
-      APIKEY: "abc"
+      APIKEY: "abc",
     };
 
     const result = ensureCorrectFormat(mockExportedFile);
