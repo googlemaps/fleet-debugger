@@ -274,4 +274,19 @@ describe("ensureCorrectFormat TTL Logic", () => {
     expect(result.retentionDate).not.toBe(staleDate);
     expect(retention).toBeGreaterThanOrEqual(expectedMin - 1000);
   });
+
+  it("should pick the 1h grace period if existing future TTL is less than 1h", () => {
+    const thirtyMinFuture = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const mockExportedFile = {
+      rawLogs: [{ timestamp: new Date(Date.now() - 100 * ONE_DAY_MS).toISOString(), jsonPayload: { test: 1 } }],
+      retentionDate: thirtyMinFuture,
+    };
+
+    const result = ensureCorrectFormat(mockExportedFile);
+    const retention = new Date(result.retentionDate).getTime();
+    const expectedMin = Date.now() + ONE_HOUR_MS;
+
+    expect(result.retentionDate).not.toBe(thirtyMinFuture);
+    expect(retention).toBeGreaterThanOrEqual(expectedMin - 1000);
+  });
 });

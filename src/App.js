@@ -808,7 +808,20 @@ class App extends React.Component {
 
     try {
       const data = await getUploadedData(index);
-      if (!data || !data.retentionDate) return "Valid";
+      if (!data) {
+        log(`Dataset ${index + 1} not found in storage. It may have expired or been deleted.`, "error");
+        this.setState((prevState) => {
+          const newUploadedDatasets = [...prevState.uploadedDatasets];
+          newUploadedDatasets[index] = null;
+          return {
+            uploadedDatasets: newUploadedDatasets,
+            activeDatasetIndex: prevState.activeDatasetIndex === index ? null : prevState.activeDatasetIndex,
+          };
+        });
+        return "Expired";
+      }
+
+      if (!data.retentionDate) return "Valid";
 
       const retentionDate = new Date(data.retentionDate);
       const now = new Date();
