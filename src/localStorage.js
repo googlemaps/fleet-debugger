@@ -260,9 +260,10 @@ export function ensureCorrectFormat(data) {
   if (!Array.isArray(data)) {
     // If it's already in the correct format, return it as is, BUT RE-CALCULATE TTL for grace period.
     if (data && data.rawLogs && Array.isArray(data.rawLogs)) {
+      const calculatedTTL = calculateRetentionDate(data.rawLogs);
       return {
         ...data,
-        retentionDate: calculateRetentionDate(data.rawLogs),
+        retentionDate: data.retentionDate > calculatedTTL ? data.retentionDate : calculatedTTL,
         APIKEY: data.APIKEY || DEFAULT_API_KEY,
       };
     } else {
@@ -364,7 +365,7 @@ export function ensureCorrectFormat(data) {
   if (!hasPoints) log("Bounds Calculation Failed: Could not find vehicle location data in any row.");
 
   // Calculate retention date using the helper
-  const retentionDateIdentifier = calculateRetentionDate(logsArray);
+  const calculatedTTL = calculateRetentionDate(logsArray);
 
   return {
     APIKEY: DEFAULT_API_KEY,
@@ -374,7 +375,7 @@ export function ensureCorrectFormat(data) {
     solutionType: solutionType,
     rawLogs: fullyNormalizedLogs,
     bounds: hasPoints ? bounds : null,
-    retentionDate: retentionDateIdentifier,
+    retentionDate: data.retentionDate > calculatedTTL ? data.retentionDate : calculatedTTL,
   };
 }
 
