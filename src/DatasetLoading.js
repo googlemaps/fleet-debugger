@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import ExtraDataSource from "./ExtraDataSource";
 import { log } from "./Utils";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
 import { isTokenValid, fetchLogsWithToken, useCloudLoggingLogin, buildQueryFilter } from "./CloudLogging";
 import { HAS_EXTRA_DATA_SOURCE } from "./constants";
 
@@ -206,7 +205,6 @@ export default function DatasetLoading(props) {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={5000} />
       <div className="data-source-toggle">{renderSourceSelection()}</div>
 
       {isExtra ? (
