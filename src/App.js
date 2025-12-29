@@ -175,8 +175,8 @@ class App extends React.Component {
   }
 
   initializeData = async () => {
-    await this.checkUploadedDatasets();
-    if (!this.state.uploadedDatasets[0]) {
+    const datasets = await this.checkUploadedDatasets();
+    if (!datasets[0]) {
       await this.checkForDemoFile();
     }
   };
@@ -449,6 +449,7 @@ class App extends React.Component {
         }
       }
     );
+    return newUploadedDatasets.map((d) => d.status);
   };
 
   renderUploadButton = (index) => {
