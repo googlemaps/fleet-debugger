@@ -138,6 +138,8 @@ function processRawLogs(rawLogs, solutionType) {
     routeSegment: null,
     routeSegmentTraffic: null,
     currentTrips: [],
+    responseLocation: null,
+    responseHeading: 0,
   };
 
   for (let idx = 0; idx < sortedLogs.length; idx++) {
@@ -161,37 +163,50 @@ function processRawLogs(rawLogs, solutionType) {
 
       // Get current data from the API call
       const currentLocation = _.get(newLog, `${vehiclePath}.lastlocation`);
+      const currentResponseLocation = _.get(newLog, "response.lastlocation");
       const currentRouteSegment = _.get(newLog, `${vehiclePath}.currentroutesegment`);
       const currentRouteSegmentTraffic = _.get(newLog, `${vehiclePath}.currentroutesegmenttraffic`);
 
-      // Navigation status (fallback to response because it's typically only in the request when it changes)
-      newLog.navStatus = _.get(newLog, `${vehiclePath}.navstatus`) || _.get(newLog, "response.navigationstatus");
-
-      // Create lastlocation object using deep cloned data where available
+      // Location & Heading Normalization - create lastlocation objects using deep cloned data
       newLog.lastlocation = currentLocation ? _.cloneDeep(currentLocation) : {};
+      // For calculations of server/client time deltas
+      newLog.lastlocationResponse = currentResponseLocation ? _.cloneDeep(currentResponseLocation) : {};
 
       // Data Normalization within a single log, create location from rawlocation when absent
       if (!newLog.lastlocation.location && newLog.lastlocation.rawlocation) {
-        log(`processRawLogs: Falling back to rawlocation for log at ${newLog.timestamp}`);
+        log(`processRawLogs Request: Falling back to rawlocation for log at ${newLog.timestamp}`);
         newLog.lastlocation.location = _.cloneDeep(newLog.lastlocation.rawlocation);
       }
+      if (!newLog.lastlocationResponse.location && newLog.lastlocationResponse.rawlocation) {
+        log(`processRawLogs Response: Falling back to rawlocation for log at ${newLog.timestamp}`);
+        newLog.lastlocationResponse.location = _.cloneDeep(newLog.lastlocationResponse.rawlocation);
+      }
 
-      // Apply last known location if needed
+      // Apply last known locations if needed
       if (!newLog.lastlocation.location && lastKnownState.location) {
         newLog.lastlocation.location = _.cloneDeep(lastKnownState.location);
         newLog.lastlocation.heading = lastKnownState.heading;
       }
-
-      // Keep the same current trips if we had an API error
-      if (hasApiError && lastKnownState.currentTrips.length > 0) {
-        log(`Preserving current trips due to API error for log at ${newLog.timestamp}`);
-        if (!newLog.response) {
-          newLog.response = {};
-        }
-        newLog.response.currenttrips = [...lastKnownState.currentTrips];
-      } else if (_.get(newLog, "response.currenttrips")) {
-        lastKnownState.currentTrips = [...newLog.response.currenttrips];
+      if (!newLog.lastlocationResponse.location && lastKnownState.responseLocation) {
+        newLog.lastlocationResponse.location = _.cloneDeep(lastKnownState.responseLocation);
+        newLog.lastlocationResponse.heading = lastKnownState.responseHeading;
       }
+
+      // Update lastKnownState for next iterations
+      const locToStore = currentLocation?.location || currentLocation?.rawlocation;
+      if (locToStore) {
+        lastKnownState.location = _.cloneDeep(locToStore);
+        lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
+      }
+      const respLocToStore = currentResponseLocation?.location || currentResponseLocation?.rawlocation;
+      if (respLocToStore) {
+        lastKnownState.responseLocation = _.cloneDeep(respLocToStore);
+        lastKnownState.responseHeading = currentResponseLocation.heading ?? lastKnownState.responseHeading;
+      }
+
+      // Route & Traffic Logic
+      // Navigation status (fallback to response because it's typically only in the request when it changes)
+      newLog.navStatus = _.get(newLog, `${vehiclePath}.navstatus`) || _.get(newLog, "response.navigationstatus");
 
       // If Navigation SDK is NO_GUIDANCE, reset the lastKnownState planned route and traffic
       if (typeof newLog.navStatus === "string" && newLog.navStatus.endsWith("NO_GUIDANCE")) {
@@ -217,26 +232,21 @@ function processRawLogs(rawLogs, solutionType) {
         }
       }
 
-      // Create other synthetic fields needed for the app
-      // For calculations of server/client time deltas
-      newLog.lastlocationResponse = _.get(newLog, "response.lastlocation")
-        ? _.cloneDeep(_.get(newLog, "response.lastlocation"))
-        : null;
-
-      newLog.error = _.get(newLog, "error.message");
+      // Keep the same current trips if we had an API error
+      if (hasApiError && lastKnownState.currentTrips.length > 0) {
+        log(`Preserving current trips due to API error for log at ${newLog.timestamp}`);
+        if (!newLog.response) newLog.response = {};
+        newLog.response.currenttrips = [...lastKnownState.currentTrips];
+      } else if (_.get(newLog, "response.currenttrips")) {
+        lastKnownState.currentTrips = [...newLog.response.currenttrips];
+      }
 
       // Sort currentTrips array since sometimes it could contain multiple trip ids in random order
       if (_.get(newLog, "response.currenttrips")) {
         newLog.response.currenttrips.sort();
       }
 
-      // Update lastKnownState for next iterations
-      const locToStore = currentLocation?.location || currentLocation?.rawlocation;
-      if (locToStore) {
-        lastKnownState.location = _.cloneDeep(locToStore);
-        lastKnownState.heading = currentLocation.heading ?? lastKnownState.heading;
-      }
-
+      newLog.error = _.get(newLog, "error.message");
       newLogs.push(newLog);
     }
   }
@@ -553,6 +563,10 @@ class TripLogs {
         const lastLocation = le.lastlocation;
         if (lastLocation && lastLocation.location) {
           curTripData.appendCoords(lastLocation, le.timestamp);
+        }
+        const lastLocationResponse = le.lastlocationResponse;
+        if (lastLocationResponse && lastLocationResponse.location) {
+          curTripData.appendResponseCoords(lastLocationResponse, le.timestamp);
         }
       }
       const tripStatus = _.get(le, "response.tripstatus");

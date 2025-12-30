@@ -9,6 +9,7 @@ class Trip {
     this.tripName = tripName;
     this.updateRequests = 1;
     this.pathCoords = [];
+    this.pathCoordsResponse = [];
     this.tripDuration = 0;
     this.creationTime = "Unknown";
     this.firstUpdate = firstUpdate;
@@ -37,11 +38,12 @@ class Trip {
     };
   }
 
-  getPathCoords(minDate, maxDate) {
+  getPathCoords(minDate, maxDate, useResponse = false) {
+    const coords = useResponse ? this.pathCoordsResponse : this.pathCoords;
     if (!(minDate && maxDate)) {
-      return this.pathCoords;
+      return coords;
     }
-    return _(this.pathCoords)
+    return _(coords)
       .filter((le) => {
         return le.date >= minDate && le.date <= maxDate;
       })
@@ -52,6 +54,15 @@ class Trip {
   // or synthesize pathCoords on the fly?
   appendCoords(lastLocation, timestamp) {
     this.pathCoords.push({
+      lat: lastLocation.location.latitude,
+      lng: lastLocation.location.longitude,
+      trip_id: this.tripName,
+      date: new Date(timestamp),
+    });
+  }
+
+  appendResponseCoords(lastLocation, timestamp) {
+    this.pathCoordsResponse.push({
       lat: lastLocation.location.latitude,
       lng: lastLocation.location.longitude,
       trip_id: this.tripName,

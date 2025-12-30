@@ -24,6 +24,8 @@ function MapComponent({
   setCenterOnLocation,
   setRenderMarkerOnMap,
   filters,
+  useResponseLocation,
+  setUseResponseLocation,
 }) {
   const { tripLogs, taskLogs, jwt, projectId, mapId } = logData;
 
@@ -112,6 +114,7 @@ function MapComponent({
     mapRef.current = map;
 
     const tripObjects = new TripObjects({ map, setFeaturedObject, setTimeRange });
+    mapDivRef.current.tripObjects = tripObjects;
 
     const addTripPolys = () => {
       const trips = tripLogs.getTrips();
@@ -163,15 +166,52 @@ function MapComponent({
     };
     map.controls[window.google.maps.ControlPosition.TOP_LEFT].push(polylineButton);
 
+    const bottomControlsWrapper = document.createElement("div");
+    bottomControlsWrapper.className = "map-controls-bottom-left";
+
     const followButton = document.createElement("div");
     followButton.className = "follow-vehicle-button";
     followButton.innerHTML = `<div class="follow-vehicle-background"></div><svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20" width="24" height="24" class="follow-vehicle-chevron"><path d="M -10,10 L 0,-10 L 10,10 L 0,5 z" fill="#4285F4" stroke="#4285F4" stroke-width="1"/></svg>`;
     followButton.onclick = () => {
       log("Follow vehicle button clicked.");
       recenterOnVehicleWrapper();
-      map.setZoom(17);
     };
-    map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(followButton);
+
+    const toggleContainer = document.createElement("div");
+    toggleContainer.className = "map-toggle-container";
+
+    const updateToggleStyles = (reqActive) => {
+      reqBtn.className = reqActive ? "map-toggle-button active" : "map-toggle-button";
+      resBtn.className = reqActive ? "map-toggle-button" : "map-toggle-button active";
+    };
+
+    const reqBtn = document.createElement("button");
+    reqBtn.textContent = "Request";
+    reqBtn.className = "map-toggle-button";
+    reqBtn.onclick = () => {
+      setUseResponseLocation(false);
+      updateToggleStyles(true);
+    };
+
+    const resBtn = document.createElement("button");
+    resBtn.textContent = "Response";
+    resBtn.className = "map-toggle-button";
+    resBtn.onclick = () => {
+      setUseResponseLocation(true);
+      updateToggleStyles(false);
+    };
+
+    const separator = document.createElement("div");
+    separator.className = "map-toggle-separator";
+
+    updateToggleStyles(!useResponseLocation);
+
+    toggleContainer.appendChild(reqBtn);
+    toggleContainer.appendChild(resBtn);
+
+    bottomControlsWrapper.appendChild(followButton);
+    bottomControlsWrapper.appendChild(toggleContainer);
+    map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(bottomControlsWrapper);
 
     const centerListener = map.addListener(
       "center_changed",
@@ -245,16 +285,17 @@ function MapComponent({
     if (!map) return;
     log("recenterOnVehicleWrapper called for follow mode.");
 
-    let position = null;
-    if (selectedRow?.lastlocation?.rawlocation) {
-      position = selectedRow.lastlocation.rawlocation;
-    } else if (lastValidPositionRef.current) {
-      position = lastValidPositionRef.current;
+    if (!isFollowingVehicle) {
+      const locationObj = useResponseLocation ? selectedRow?.lastlocationResponse : selectedRow?.lastlocation;
+      const position = locationObj?.location || locationObj?.rawlocation || lastValidPositionRef.current;
+      if (position) {
+        map.setCenter({ lat: position.latitude, lng: position.longitude });
+        map.setZoom(17);
+      }
     }
 
-    if (position) map.setCenter({ lat: position.latitude, lng: position.longitude });
     setIsFollowingVehicle((prev) => !prev);
-  }, [selectedRow]);
+  }, [selectedRow, useResponseLocation, isFollowingVehicle]);
 
   useEffect(() => {
     const followButton = document.querySelector(".follow-vehicle-button");
@@ -338,16 +379,13 @@ function MapComponent({
       return;
     }
 
-    const location =
-      _.get(selectedRow.lastlocation, "location") ||
-      _.get(selectedRow.lastlocation, "rawlocation") ||
-      _.get(selectedRow.lastlocationResponse, "location");
+    const locationObj = useResponseLocation ? selectedRow.lastlocationResponse : selectedRow.lastlocation;
+    const location = _.get(locationObj, "location") || _.get(locationObj, "rawlocation");
 
     if (location?.latitude && location?.longitude) {
       const pos = { lat: location.latitude, lng: location.longitude };
       lastValidPositionRef.current = pos;
-      const heading =
-        _.get(selectedRow.lastlocation, "heading") || _.get(selectedRow.lastlocationResponse, "heading") || 0;
+      const heading = _.get(locationObj, "heading") || 0;
 
       if (vehicleMarkersRef.current.background) {
         vehicleMarkersRef.current.background.setPosition(pos);
@@ -396,7 +434,7 @@ function MapComponent({
         });
       }
 
-      const rawLocation = _.get(selectedRow.lastlocation, "rawlocation");
+      const rawLocation = _.get(locationObj, "rawlocation");
       if (rawLocation?.latitude && rawLocation?.longitude) {
         const rawPos = { lat: rawLocation.latitude, lng: rawLocation.longitude };
         if (vehicleMarkersRef.current.rawLocation) {
@@ -429,7 +467,37 @@ function MapComponent({
     } else {
       Object.values(vehicleMarkersRef.current).forEach((marker) => marker && marker.setMap(null));
     }
-  }, [selectedRow, isFollowingVehicle]);
+  }, [selectedRow, isFollowingVehicle, useResponseLocation]);
+
+  // Update trip objects when toggle changes
+  useEffect(() => {
+    if (mapDivRef.current && mapDivRef.current.tripObjects) {
+      log(`Updating TripObjects useResponseLocation to ${useResponseLocation}`);
+      const tripObjects = mapDivRef.current.tripObjects;
+      tripObjects.setUseResponseLocation(useResponseLocation);
+
+      // Redraw trips
+      const trips = tripLogs.getTrips();
+      _.forEach(trips, (trip) => {
+        tripObjects.addTripVisuals(trip, minDate, maxDate);
+      });
+    }
+  }, [useResponseLocation, tripLogs, minDate, maxDate]);
+
+  // Update toggle button UI
+  useEffect(() => {
+    const container = document.querySelector(".map-toggle-container");
+    if (container) {
+      const [reqBtn, , resBtn] = container.children;
+      if (reqBtn && resBtn) {
+        reqBtn.className = `map-toggle-button${!useResponseLocation ? " active" : ""}`;
+        resBtn.className = `map-toggle-button${useResponseLocation ? " active" : ""}`;
+      }
+    }
+    if (isFollowingVehicle && selectedRow) {
+      // Re-center if we are following and the toggle changed
+    }
+  }, [useResponseLocation, isFollowingVehicle, selectedRow, recenterOnVehicleWrapper]);
 
   const toggleHandlers = useMemo(() => {
     const map = mapRef.current;

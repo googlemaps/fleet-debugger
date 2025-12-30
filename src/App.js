@@ -150,6 +150,7 @@ class App extends React.Component {
       activeMenuIndex: null,
       initialMapBounds: null,
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
+      useResponseLocationPerDataset: [false, false, false, false, false],
       currentLogData: {
         ...this.props.logData,
         taskLogs: new TaskLogs(this.props.logData.tripLogs),
@@ -222,6 +223,16 @@ class App extends React.Component {
   setFeaturedObject(featuredObject) {
     this.setState({ featuredObject: featuredObject });
   }
+
+  setUseResponseLocation = (useResponseLocation) => {
+    if (this.state.activeDatasetIndex !== null) {
+      this.setState((prevState) => {
+        const newValues = [...prevState.useResponseLocationPerDataset];
+        newValues[prevState.activeDatasetIndex] = useResponseLocation;
+        return { useResponseLocationPerDataset: newValues };
+      });
+    }
+  };
 
   setFocusOnRowFunction = (func) => {
     this.focusOnRowFunction = func;
@@ -909,9 +920,9 @@ class App extends React.Component {
 
             setTimeout(() => {
               if (savedRowIndex >= 0) {
-                const minDate = new Date(this.state.timeRange.minTime);
-                const maxDate = new Date(this.state.timeRange.maxTime);
-                const logs = tripLogs.getLogs_(minDate, maxDate).value();
+                const logs = tripLogs
+                  .getLogs_(new Date(this.state.timeRange.minTime), new Date(this.state.timeRange.maxTime))
+                  .value();
 
                 if (savedRowIndex < logs.length) {
                   log(`Restoring row at index ${savedRowIndex}`);
@@ -1014,6 +1025,12 @@ class App extends React.Component {
                 focusSelectedRow={this.focusOnSelectedRow}
                 initialMapBounds={this.state.initialMapBounds}
                 filters={filters}
+                useResponseLocation={
+                  this.state.activeDatasetIndex !== null
+                    ? this.state.useResponseLocationPerDataset[this.state.activeDatasetIndex]
+                    : false
+                }
+                setUseResponseLocation={this.setUseResponseLocation}
               />
             </div>
             <TimeSlider
