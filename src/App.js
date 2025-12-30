@@ -365,7 +365,14 @@ class App extends React.Component {
 
   handleSpeedChange = (event) => {
     const newSpeed = parseInt(event.target.value);
-    this.setState({ playSpeed: newSpeed });
+    this.setState({ playSpeed: newSpeed }, () => {
+      if (this.state.isPlaying) {
+        clearInterval(this.timerID);
+        this.timerID = setInterval(() => {
+          this.handleNextEvent();
+        }, newSpeed);
+      }
+    });
   };
 
   handleKeyPress = (event) => {
@@ -1077,11 +1084,8 @@ class App extends React.Component {
                   </div>
                   <div>
                     <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
-                    <select
-                      value={this.state.playSpeed}
-                      onChange={this.handleSpeedChange}
-                      disabled={this.state.isPlaying}
-                    >
+                    <select value={this.state.playSpeed} onChange={this.handleSpeedChange}>
+                      <option value="100">0.1s</option>
                       <option value="250">0.25s</option>
                       <option value="500">0.5s</option>
                       <option value="1000">1s</option>
