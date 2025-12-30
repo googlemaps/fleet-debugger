@@ -303,13 +303,11 @@ class TripLogs {
     let rawLogsChain = this.getRawLogs_(minDate, maxDate);
 
     if (logTypes && this.solutionType === "ODRD") {
-      log("Applying ODRD log type filters.");
       rawLogsChain = rawLogsChain.filter((le) => logTypes[le["@type"]]);
     }
 
     if (tripId && tripId.trim() !== "") {
       const trimmedFilter = tripId.trim();
-      log(`Applying trip ID filter: "${trimmedFilter}"`);
       rawLogsChain = rawLogsChain.filter((le) => {
         // Check trip ID in trip rows
         const requestId = _.get(le, "request.tripid");

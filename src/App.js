@@ -272,31 +272,42 @@ class App extends React.Component {
     });
   }
 
+  getFilteredLogs = () => {
+    const { currentLogData, timeRange, filters, activeDatasetIndex } = this.state;
+    if (!currentLogData || !currentLogData.tripLogs) return [];
+
+    const cacheKey = `${activeDatasetIndex}-${timeRange.minTime}-${timeRange.maxTime}-${JSON.stringify(filters)}`;
+
+    if (this._logsCache && this._logsCache.key === cacheKey) {
+      return this._logsCache.logs;
+    }
+
+    const logs = currentLogData.tripLogs
+      .getLogs_(new Date(timeRange.minTime), new Date(timeRange.maxTime), filters)
+      .value();
+
+    this._logsCache = { key: cacheKey, logs };
+    return logs;
+  };
+
   selectFirstRow = () => {
     return new Promise((resolve) => {
-      this.setState((prevState) => {
-        const minDate = new Date(prevState.timeRange.minTime);
-        const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, prevState.filters).value();
-        if (logs.length > 0) {
-          const firstRow = logs[0];
-          setTimeout(() => this.focusOnSelectedRow(), 0);
+      const logs = this.getFilteredLogs();
+      if (logs.length > 0) {
+        const firstRow = logs[0];
+        this.setState({ featuredObject: firstRow }, () => {
+          this.focusOnSelectedRow();
           resolve(firstRow);
-          return { featuredObject: firstRow };
-        } else {
-          console.log("selectFirstRow: No logs found in the current time range");
-          resolve(null);
-          return null;
-        }
-      });
+        });
+      } else {
+        console.log("selectFirstRow: No logs found in the current time range");
+        resolve(null);
+      }
     });
   };
 
   selectLastRow = () => {
-    const minDate = new Date(this.state.timeRange.minTime);
-    const maxDate = new Date(this.state.timeRange.maxTime);
-    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, this.state.filters);
-    const logs = logsWrapper.value();
+    const logs = this.getFilteredLogs();
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
       this.setFeaturedObject(lastRow);
@@ -307,10 +318,8 @@ class App extends React.Component {
   };
 
   handleRowChange = async (direction) => {
-    const { featuredObject, filters } = this.state;
-    const minDate = new Date(this.state.timeRange.minTime);
-    const maxDate = new Date(this.state.timeRange.maxTime);
-    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, filters).value();
+    const { featuredObject } = this.state;
+    const logs = this.getFilteredLogs();
     let newFeaturedObject = featuredObject;
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
 
@@ -920,9 +929,7 @@ class App extends React.Component {
 
             setTimeout(() => {
               if (savedRowIndex >= 0) {
-                const logs = tripLogs
-                  .getLogs_(new Date(this.state.timeRange.minTime), new Date(this.state.timeRange.maxTime))
-                  .value();
+                const logs = this.getFilteredLogs();
 
                 if (savedRowIndex < logs.length) {
                   log(`Restoring row at index ${savedRowIndex}`);
