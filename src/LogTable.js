@@ -165,7 +165,9 @@ function LogTable(props) {
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1);
   const minTime = props.timeRange.minTime;
   const maxTime = props.timeRange.maxTime;
-  const data = props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime), props.filters).value();
+  const data = React.useMemo(() => {
+    return props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime), props.filters).value();
+  }, [props.logData.tripLogs, minTime, maxTime, props.filters]);
   const columnShortWidth = 50;
   const columnRegularWidth = 120;
   const columnLargeWidth = 150;

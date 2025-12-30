@@ -11,6 +11,11 @@ export class TripObjects {
     this.arrows = new Map();
     this.setFeaturedObject = setFeaturedObject;
     this.setTimeRange = setTimeRange;
+    this.useResponseLocation = false;
+  }
+
+  setUseResponseLocation(useResponse) {
+    this.useResponseLocation = useResponse;
   }
 
   createSVGMarker(type, color) {
@@ -115,6 +120,7 @@ export class TripObjects {
   addTripVisuals(trip, minDate, maxDate) {
     const tripId = trip.tripName;
     const isNonTripSegment = tripId.startsWith("non-trip-segment-");
+    const useResponse = this.useResponseLocation;
 
     log(`Processing trip visuals for ${tripId}`, {
       isNonTripSegment,
@@ -130,7 +136,7 @@ export class TripObjects {
     this.clearTripObjects(tripId);
 
     // Add path polyline
-    const tripCoords = trip.getPathCoords(minDate, maxDate);
+    const tripCoords = trip.getPathCoords(minDate, maxDate, useResponse);
     if (tripCoords.length > 0) {
       const strokeColor = isNonTripSegment ? "#474647" : getColor(trip.tripIdx);
 
@@ -168,16 +174,14 @@ export class TripObjects {
       return;
     }
 
-    const markers = [];
     const tripColor = getColor(trip.tripIdx);
-
-    // Get points
     const pickupPoint = trip.getPickupPoint();
     const actualPickupPoint = trip.getActualPickupPoint();
     const dropoffPoint = trip.getDropoffPoint();
     const actualDropoffPoint = trip.getActualDropoffPoint();
 
-    // Create pickup markers
+    const markers = [];
+
     const pickupMarker = this.createMarkerWithEvents(pickupPoint, "pickup", tripColor, actualPickupPoint, tripId);
     if (pickupMarker) markers.push(pickupMarker);
 
