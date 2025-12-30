@@ -115,7 +115,7 @@
 }
 
 .follow-vehicle-button {
-  position: absolute;
+  position: relative;
   z-index: 1000;
   width: 36px;
   height: 36px;
@@ -123,6 +123,7 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  margin: 0;
   transition: all 0.2s ease;
 }
 
@@ -286,6 +287,7 @@
   color: white;
   position: relative;
 }
+
 .dataset-button-active {
   background-color: #4CAF50;
   padding: 10px 25px 10px 10px;
@@ -294,7 +296,6 @@
 .dataset-button-uploaded {
   background-color: #008CBA;
   padding: 10px 25px 10px 10px;
-  
 }
 
 .dataset-button-empty {
@@ -310,13 +311,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-left: 1px solid rgba(255,255,255,0.3);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  z-index: 1; /* Ensure it's above the button text */
+  z-index: 1;
+  /* Ensure it's above the button text */
 }
 
 .dataset-button-actions:hover {
-  background-color: rgba(0,0,0,0.1);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 /* Dropdown menu */
@@ -327,9 +329,10 @@
   background: white;
   border: 1px solid #ccc;
   border-radius: 3px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   z-index: 100;
-  min-width: 100px; /* Ensure the menu is wide enough */
+  min-width: 100px;
+  /* Ensure the menu is wide enough */
 }
 
 .dataset-button-menu-item {
@@ -510,4 +513,54 @@
 
 .filter-menu-item:hover {
   background-color: #cccccc;
+}
+
+/* Map Controls */
+.map-controls-bottom-left {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 0px;
+  margin-left: 10px;
+}
+
+.map-toggle-container {
+  margin-left: 10px;
+  margin-top: 0px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  height: 36px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.map-toggle-button {
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border: 2px solid transparent;
+  cursor: pointer;
+  background-color: transparent;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.map-toggle-button.active {
+  color: #4285F4;
+  background-color: rgba(209, 223, 247, 0.5);
+  border: 2px solid #4285F4;
+  border-radius: 20px;
+  box-shadow: 0 0 8px rgba(66, 133, 244, 0.4), inset 0 0 4px rgba(66, 133, 244, 0.2);
+}
+
+.map-toggle-separator {
+  width: 1px;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.15);
 }

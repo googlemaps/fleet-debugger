@@ -150,6 +150,7 @@ class App extends React.Component {
       activeMenuIndex: null,
       initialMapBounds: null,
       selectedRowIndexPerDataset: [-1, -1, -1, -1, -1],
+      useResponseLocationPerDataset: [false, false, false, false, false],
       currentLogData: {
         ...this.props.logData,
         taskLogs: new TaskLogs(this.props.logData.tripLogs),
@@ -223,6 +224,16 @@ class App extends React.Component {
     this.setState({ featuredObject: featuredObject });
   }
 
+  setUseResponseLocation = (useResponseLocation) => {
+    if (this.state.activeDatasetIndex !== null) {
+      this.setState((prevState) => {
+        const newValues = [...prevState.useResponseLocationPerDataset];
+        newValues[prevState.activeDatasetIndex] = useResponseLocation;
+        return { useResponseLocationPerDataset: newValues };
+      });
+    }
+  };
+
   setFocusOnRowFunction = (func) => {
     this.focusOnRowFunction = func;
   };
@@ -261,31 +272,42 @@ class App extends React.Component {
     });
   }
 
+  getFilteredLogs = () => {
+    const { currentLogData, timeRange, filters, activeDatasetIndex } = this.state;
+    if (!currentLogData || !currentLogData.tripLogs) return [];
+
+    const cacheKey = `${activeDatasetIndex}-${timeRange.minTime}-${timeRange.maxTime}-${JSON.stringify(filters)}`;
+
+    if (this._logsCache && this._logsCache.key === cacheKey) {
+      return this._logsCache.logs;
+    }
+
+    const logs = currentLogData.tripLogs
+      .getLogs_(new Date(timeRange.minTime), new Date(timeRange.maxTime), filters)
+      .value();
+
+    this._logsCache = { key: cacheKey, logs };
+    return logs;
+  };
+
   selectFirstRow = () => {
     return new Promise((resolve) => {
-      this.setState((prevState) => {
-        const minDate = new Date(prevState.timeRange.minTime);
-        const maxDate = new Date(prevState.timeRange.maxTime);
-        const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, prevState.filters).value();
-        if (logs.length > 0) {
-          const firstRow = logs[0];
-          setTimeout(() => this.focusOnSelectedRow(), 0);
+      const logs = this.getFilteredLogs();
+      if (logs.length > 0) {
+        const firstRow = logs[0];
+        this.setState({ featuredObject: firstRow }, () => {
+          this.focusOnSelectedRow();
           resolve(firstRow);
-          return { featuredObject: firstRow };
-        } else {
-          console.log("selectFirstRow: No logs found in the current time range");
-          resolve(null);
-          return null;
-        }
-      });
+        });
+      } else {
+        console.log("selectFirstRow: No logs found in the current time range");
+        resolve(null);
+      }
     });
   };
 
   selectLastRow = () => {
-    const minDate = new Date(this.state.timeRange.minTime);
-    const maxDate = new Date(this.state.timeRange.maxTime);
-    const logsWrapper = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, this.state.filters);
-    const logs = logsWrapper.value();
+    const logs = this.getFilteredLogs();
     if (logs.length > 0) {
       const lastRow = logs[logs.length - 1];
       this.setFeaturedObject(lastRow);
@@ -296,10 +318,8 @@ class App extends React.Component {
   };
 
   handleRowChange = async (direction) => {
-    const { featuredObject, filters } = this.state;
-    const minDate = new Date(this.state.timeRange.minTime);
-    const maxDate = new Date(this.state.timeRange.maxTime);
-    const logs = this.state.currentLogData.tripLogs.getLogs_(minDate, maxDate, filters).value();
+    const { featuredObject } = this.state;
+    const logs = this.getFilteredLogs();
     let newFeaturedObject = featuredObject;
     const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
 
@@ -345,7 +365,14 @@ class App extends React.Component {
 
   handleSpeedChange = (event) => {
     const newSpeed = parseInt(event.target.value);
-    this.setState({ playSpeed: newSpeed });
+    this.setState({ playSpeed: newSpeed }, () => {
+      if (this.state.isPlaying) {
+        clearInterval(this.timerID);
+        this.timerID = setInterval(() => {
+          this.handleNextEvent();
+        }, newSpeed);
+      }
+    });
   };
 
   handleKeyPress = (event) => {
@@ -909,9 +936,7 @@ class App extends React.Component {
 
             setTimeout(() => {
               if (savedRowIndex >= 0) {
-                const minDate = new Date(this.state.timeRange.minTime);
-                const maxDate = new Date(this.state.timeRange.maxTime);
-                const logs = tripLogs.getLogs_(minDate, maxDate).value();
+                const logs = this.getFilteredLogs();
 
                 if (savedRowIndex < logs.length) {
                   log(`Restoring row at index ${savedRowIndex}`);
@@ -1014,6 +1039,12 @@ class App extends React.Component {
                 focusSelectedRow={this.focusOnSelectedRow}
                 initialMapBounds={this.state.initialMapBounds}
                 filters={filters}
+                useResponseLocation={
+                  this.state.activeDatasetIndex !== null
+                    ? this.state.useResponseLocationPerDataset[this.state.activeDatasetIndex]
+                    : false
+                }
+                setUseResponseLocation={this.setUseResponseLocation}
               />
             </div>
             <TimeSlider
@@ -1053,11 +1084,8 @@ class App extends React.Component {
                   </div>
                   <div>
                     <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
-                    <select
-                      value={this.state.playSpeed}
-                      onChange={this.handleSpeedChange}
-                      disabled={this.state.isPlaying}
-                    >
+                    <select value={this.state.playSpeed} onChange={this.handleSpeedChange}>
+                      <option value="100">0.1s</option>
                       <option value="250">0.25s</option>
                       <option value="500">0.5s</option>
                       <option value="1000">1s</option>
