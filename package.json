@@ -22,7 +22,7 @@
     "@turf/turf": "^7.2.0",
     "@vis.gl/react-google-maps": "^1.5.2",
     "axios": "^1.7.2",
-    "express": "^4.19.2",
+    "express": "^4.22.1",
     "googleapis": "^140.0.1",
     "jszip": "^3.10.1",
     "lodash": "^4.17.21",
