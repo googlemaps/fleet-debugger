@@ -87,16 +87,21 @@
 
 /* Map and button styles */
 .map-button {
-  padding: 8px 12px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 17px;
   border: none;
   background: white;
   cursor: pointer;
   border-radius: 2px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  margin: 10px 10px 10px -5px;
+  box-shadow: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  margin: 10px 10px 10px -10px;
   font-family: Roboto, Arial, sans-serif;
   font-size: 18px;
-  color: #666;
+  font-weight: 400;
+  color: rgb(86, 86, 86);
 }
 
 .inner-button {
