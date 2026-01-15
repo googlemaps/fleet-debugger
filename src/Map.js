@@ -275,7 +275,13 @@ function MapComponent({
     log("handlePolylineSubmit called.");
 
     const path = waypoints.map((wp) => new window.google.maps.LatLng(wp.latitude, wp.longitude));
-    const newPolyline = new window.google.maps.Polyline({ path, geodesic: true, ...properties });
+    const newPolyline = new window.google.maps.Polyline({
+      path,
+      geodesic: true,
+      strokeColor: properties.color,
+      strokeOpacity: properties.opacity,
+      strokeWeight: properties.strokeWeight,
+    });
     newPolyline.setMap(map);
     setPolylines((prev) => [...prev, newPolyline]);
   }, []);
