@@ -306,7 +306,7 @@ function LogTable(props) {
       stdColumns.push({
         Header: elems[elems.length - 1],
         accessor: dotPath === ".error" ? "error" : dotPath,
-        width: columnRegularWidth,
+        width: columnLargeWidth,
         className: "logtable-cell",
         Cell: ({ cell }) => {
           const value = cell.value;
