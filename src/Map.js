@@ -483,9 +483,8 @@ function MapComponent({
       const hasRaw = rawLat !== undefined && rawLng !== undefined;
       const hasFlp = flpLat !== undefined && flpLng !== undefined;
 
-      const to5 = (num) => (num ? num.toFixed(5) : num); // Within 1.1m is considered a match
-      const isMatch = hasRaw && hasFlp && to5(rawLat) === to5(flpLat) && to5(rawLng) === to5(flpLng);
-
+      const EPSILON = 0.00001; // Approx 1.1 meters at the equator
+      const isMatch = hasRaw && hasFlp && Math.abs(rawLat - flpLat) < EPSILON && Math.abs(rawLng - flpLng) < EPSILON;
       const updateMarker = (markerRefName, position, color, zIndex, scale = 2) => {
         if (!position) {
           if (vehicleMarkersRef.current[markerRefName]) {
