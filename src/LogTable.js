@@ -170,7 +170,7 @@ function LogTable(props) {
   }, [props.logData.tripLogs, minTime, maxTime, props.filters]);
   const columnShortWidth = 50;
   const columnRegularWidth = 120;
-  const columnLargeWidth = 150;
+  const columnLargeWidth = 152;
   const columns = React.useMemo(() => {
     const stdColumns = _.filter(
       [
