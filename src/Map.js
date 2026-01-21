@@ -482,7 +482,9 @@ function MapComponent({
 
       const hasRaw = rawLat !== undefined && rawLng !== undefined;
       const hasFlp = flpLat !== undefined && flpLng !== undefined;
-      const isMatch = hasRaw && hasFlp && rawLat === flpLat && rawLng === flpLng;
+
+      const to5 = (num) => (num ? num.toFixed(5) : num); // Within 1.1m is considered a match
+      const isMatch = hasRaw && hasFlp && to5(rawLat) === to5(flpLat) && to5(rawLng) === to5(flpLng);
 
       const updateMarker = (markerRefName, position, color, zIndex, scale = 2) => {
         if (!position) {
@@ -523,7 +525,7 @@ function MapComponent({
       };
 
       if (isMatch) {
-        updateMarker("matchLocation", rawLocation, "#C71585", 8, 3);
+        updateMarker("matchLocation", flpLocation, "#C71585", 8, 3);
         updateMarker("rawLocation", null);
         updateMarker("flpLocation", null);
       } else {
