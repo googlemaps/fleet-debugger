@@ -9,6 +9,7 @@ import { decode } from "s2polyline-ts";
 import TrafficPolyline from "./TrafficPolyline";
 import { TripObjects } from "./TripObjects";
 import { getToggleHandlers } from "./MapToggles.js";
+import { LEGEND_HTML } from "./LegendContent.js";
 
 function MapComponent({
   logData,
@@ -109,6 +110,7 @@ function MapComponent({
       element: mapDivRef.current,
       locationProviders: [locationProviderRef.current],
       mapOptions: { mapId, mapTypeControl: true, streetViewControl: true, maxZoom: 22 },
+      automaticViewportMode: "NONE",
     });
     const map = jsMapView.map;
     mapRef.current = map;
@@ -212,6 +214,36 @@ function MapComponent({
     bottomControlsWrapper.appendChild(followButton);
     bottomControlsWrapper.appendChild(toggleContainer);
     map.controls[window.google.maps.ControlPosition.LEFT_BOTTOM].push(bottomControlsWrapper);
+
+    // Legend Controls
+    const legendToggleContainer = document.createElement("div");
+    legendToggleContainer.className = "map-toggle-container";
+    legendToggleContainer.style.marginTop = "10px";
+    legendToggleContainer.style.marginRight = "10px";
+    legendToggleContainer.style.marginBottom = "0px";
+
+    const legendBtn = document.createElement("button");
+    legendBtn.textContent = "Legend";
+    legendBtn.className = "map-toggle-button";
+    legendToggleContainer.appendChild(legendBtn);
+
+    const legendContentDiv = document.createElement("div");
+    legendContentDiv.style.display = "none";
+    legendContentDiv.innerHTML = LEGEND_HTML;
+
+    legendBtn.onclick = () => {
+      const isHidden = legendContentDiv.style.display === "none";
+      if (isHidden) {
+        legendContentDiv.style.display = "block";
+        legendBtn.classList.add("active");
+      } else {
+        legendContentDiv.style.display = "none";
+        legendBtn.classList.remove("active");
+      }
+    };
+
+    map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(legendToggleContainer);
+    map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(legendContentDiv);
 
     const centerListener = map.addListener(
       "center_changed",
@@ -441,30 +473,73 @@ function MapComponent({
       }
 
       const rawLocation = _.get(locationObj, "rawlocation");
-      if (rawLocation?.latitude && rawLocation?.longitude) {
-        const rawPos = { lat: rawLocation.latitude, lng: rawLocation.longitude };
-        if (vehicleMarkersRef.current.rawLocation) {
-          vehicleMarkersRef.current.rawLocation.setPosition(rawPos);
-          if (!vehicleMarkersRef.current.rawLocation.getMap()) {
-            vehicleMarkersRef.current.rawLocation.setMap(map);
+      const flpLocation = _.get(locationObj, "flplocation");
+
+      const rawLat = rawLocation?.latitude;
+      const rawLng = rawLocation?.longitude;
+      const flpLat = flpLocation?.latitude;
+      const flpLng = flpLocation?.longitude;
+
+      const hasRaw = rawLat !== undefined && rawLng !== undefined;
+      const hasFlp = flpLat !== undefined && flpLng !== undefined;
+      const isMatch = hasRaw && hasFlp && rawLat === flpLat && rawLng === flpLng;
+
+      const updateMarker = (markerRefName, position, color, zIndex, scale = 2) => {
+        if (!position) {
+          if (vehicleMarkersRef.current[markerRefName]) {
+            vehicleMarkersRef.current[markerRefName].setMap(null);
+          }
+          return;
+        }
+
+        const pos = { lat: position.latitude, lng: position.longitude };
+        if (vehicleMarkersRef.current[markerRefName]) {
+          vehicleMarkersRef.current[markerRefName].setPosition(pos);
+          if (!vehicleMarkersRef.current[markerRefName].getMap()) {
+            vehicleMarkersRef.current[markerRefName].setMap(map);
+          }
+          const icon = vehicleMarkersRef.current[markerRefName].getIcon();
+          if (icon.fillColor !== color || icon.scale !== scale) {
+            icon.fillColor = color;
+            icon.strokeColor = color;
+            icon.scale = scale;
+            vehicleMarkersRef.current[markerRefName].setIcon(icon);
           }
         } else {
-          vehicleMarkersRef.current.rawLocation = new window.google.maps.Marker({
-            position: rawPos,
+          vehicleMarkersRef.current[markerRefName] = new window.google.maps.Marker({
+            position: pos,
             map,
             icon: {
               path: window.google.maps.SymbolPath.CIRCLE,
-              fillColor: "#FF0000",
+              fillColor: color,
               fillOpacity: 1,
-              scale: 2,
-              strokeColor: "#FF0000",
+              scale: scale,
+              strokeColor: color,
               strokeWeight: 1,
             },
-            zIndex: 8,
+            zIndex: zIndex,
           });
         }
-      } else if (vehicleMarkersRef.current.rawLocation) {
-        vehicleMarkersRef.current.rawLocation.setMap(null);
+      };
+
+      if (isMatch) {
+        updateMarker("matchLocation", rawLocation, "#C71585", 8, 3);
+        updateMarker("rawLocation", null);
+        updateMarker("flpLocation", null);
+      } else {
+        updateMarker("matchLocation", null);
+
+        if (hasRaw) {
+          updateMarker("rawLocation", rawLocation, "#FF0000", 8, 2);
+        } else {
+          updateMarker("rawLocation", null);
+        }
+
+        if (hasFlp) {
+          updateMarker("flpLocation", flpLocation, "#4285F4", 8, 2);
+        } else {
+          updateMarker("flpLocation", null);
+        }
       }
 
       if (isFollowingVehicle) {
