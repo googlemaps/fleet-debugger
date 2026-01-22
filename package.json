@@ -25,7 +25,7 @@
     "express": "^4.22.1",
     "googleapis": "^140.0.1",
     "jszip": "^3.10.1",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "open": "^10.1.0",
     "query-string": "^9.0.0",
     "rc-slider": "^11.1.8",
