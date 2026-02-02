@@ -14,8 +14,10 @@ describe("buildQueryFilter", () => {
     const filter = buildQueryFilter(params);
 
     // Check for key components in the filter
-    expect(filter).toContain('resource.type="fleetengine.googleapis.com/Fleet"');
-    expect(filter).toContain('labels.vehicle_id="vehicle1"');
+    expect(filter).toContain(
+      '(resource.type="fleetengine.googleapis.com/Fleet" OR resource.type="fleetengine.googleapis.com/DeliveryFleet")'
+    );
+    expect(filter).toContain('(labels.vehicle_id="vehicle1" OR labels.delivery_vehicle_id="vehicle1")');
     expect(filter).toContain("2023-01-01T01:00:00");
     expect(filter).toContain("2023-01-02T02:00:00");
   });
@@ -31,8 +33,8 @@ describe("buildQueryFilter", () => {
 
     const filter = buildQueryFilter(params);
 
-    // Should include regex for multiple trip IDs
-    expect(filter).toContain('labels.trip_id=~"(trip1|trip2)"');
+    // Should include regex for multiple trip IDs and verify task_id is included
+    expect(filter).toContain('(labels.trip_id=~"(trip1|trip2)" OR labels.task_id=~"(trip1|trip2)")');
   });
 
   test("builds filter with single trip ID", () => {
@@ -46,8 +48,8 @@ describe("buildQueryFilter", () => {
 
     const filter = buildQueryFilter(params);
 
-    // Should use exact match for single trip ID
-    expect(filter).toContain('labels.trip_id="trip1"');
+    // Should use exact match for single trip ID and verify task_id is included
+    expect(filter).toContain('(labels.trip_id="trip1" OR labels.task_id="trip1")');
   });
 
   test("builds filter with both vehicle and trip IDs", () => {
@@ -62,7 +64,9 @@ describe("buildQueryFilter", () => {
     const filter = buildQueryFilter(params);
 
     // Should combine vehicle and trip filters with OR
-    expect(filter).toContain('(labels.vehicle_id="vehicle1" OR labels.trip_id=~"(trip1|trip2)")');
+    expect(filter).toContain(
+      '((labels.vehicle_id="vehicle1" OR labels.delivery_vehicle_id="vehicle1") OR (labels.trip_id=~"(trip1|trip2)" OR labels.task_id=~"(trip1|trip2)"))'
+    );
   });
 
   test("throws error for missing project ID", () => {
