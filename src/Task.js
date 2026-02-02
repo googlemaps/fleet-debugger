@@ -40,7 +40,13 @@ class Task {
       taskInfo.taskoutcomelocation = lastUpdate.taskResp.taskoutcomelocation;
       taskInfo.taskoutcometime = lastUpdate.taskResp.taskoutcometime;
       taskInfo.trackingid = lastUpdate.taskResp.trackingid || lastUpdate.taskReq.task.trackingid;
-      if (taskInfo.taskoutcomelocationsource && taskInfo.plannedlocation && taskInfo.taskoutcomelocation) {
+      if (
+        taskInfo.taskoutcomelocationsource &&
+        taskInfo.plannedlocation &&
+        taskInfo.plannedlocation.point &&
+        taskInfo.taskoutcomelocation &&
+        taskInfo.taskoutcomelocation.point
+      ) {
         taskInfo.plannedVsActualDeltaMeters = window.google.maps.geometry.spherical.computeDistanceBetween(
           {
             lat: taskInfo.plannedlocation.point.latitude,
