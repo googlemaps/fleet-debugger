@@ -22,24 +22,53 @@ export function buildQueryFilter(params) {
   const startDate = params.startTime || new Date(0).toISOString();
   const endDate = params.endTime || new Date(Date.now() + 86400000).toISOString();
 
-  // Build vehicle/trip filter part
-  let entityFilter = "";
+  /*
+   * Query for both On-demand Trips (Fleet) AND Scheduled Tasks (DeliveryFleet)
+   *
+   * We use "resource.type" OR logic because a single log entry has only one resource type.
+   *
+   * Structure:
+   * (
+   *   (On-demand Trips (ODRD) Conditions) OR (Scheduled Tasks (LMFS) Conditions)
+   * )
+   * AND timestamp...
+   * AND logName...
+   */
+
+  let vehicleFilter = "";
   if (params.vehicleId?.trim()) {
-    entityFilter += `labels.vehicle_id="${params.vehicleId.trim()}"`;
+    const vId = params.vehicleId.trim();
+    vehicleFilter = `(labels.vehicle_id="${vId}" OR labels.delivery_vehicle_id="${vId}")`;
   }
+
+  let tripTaskFilter = "";
   if (params.tripIds?.trim()) {
-    const trips = params.tripIds
+    const ids = params.tripIds
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    if (trips.length > 0) {
-      const tripFilter = trips.length === 1 ? `labels.trip_id="${trips[0]}"` : `labels.trip_id=~"(${trips.join("|")})"`;
-      entityFilter = entityFilter ? `(${entityFilter} OR ${tripFilter})` : tripFilter;
+
+    if (ids.length > 0) {
+      if (ids.length === 1) {
+        const id = ids[0];
+        tripTaskFilter = `(labels.trip_id="${id}" OR labels.task_id="${id}")`;
+      } else {
+        const joined = ids.join("|");
+        tripTaskFilter = `(labels.trip_id=~"(${joined})" OR labels.task_id=~"(${joined})")`;
+      }
     }
   }
 
+  // If both present: (vehicleFilter OR tripTaskFilter)
+  let entityFilter = "";
+  if (vehicleFilter && tripTaskFilter) {
+    entityFilter = `(${vehicleFilter} OR ${tripTaskFilter})`;
+  } else {
+    entityFilter = vehicleFilter || tripTaskFilter;
+  }
+
   const filter = `
-    resource.type="fleetengine.googleapis.com/Fleet"
+    (resource.type="fleetengine.googleapis.com/Fleet" OR resource.type="fleetengine.googleapis.com/DeliveryFleet")
     AND ${entityFilter}
     AND timestamp >= "${startDate}"
     AND timestamp <= "${endDate}"
@@ -48,7 +77,12 @@ export function buildQueryFilter(params) {
       logName:"logs/fleetengine.googleapis.com%2Fupdate_vehicle" OR
       logName:"logs/fleetengine.googleapis.com%2Fcreate_trip" OR
       logName:"logs/fleetengine.googleapis.com%2Fupdate_trip" OR
-      logName:"logs/fleetengine.googleapis.com%2Fget_trip"
+      logName:"logs/fleetengine.googleapis.com%2Fget_trip" OR
+      logName:"logs/fleetengine.googleapis.com%2Fcreate_delivery_vehicle" OR
+      logName:"logs/fleetengine.googleapis.com%2Fupdate_delivery_vehicle" OR
+      logName:"logs/fleetengine.googleapis.com%2Fcreate_task" OR
+      logName:"logs/fleetengine.googleapis.com%2Fupdate_task" OR
+      logName:"logs/fleetengine.googleapis.com%2Fget_task"
     )
   `;
 

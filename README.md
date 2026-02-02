@@ -46,8 +46,6 @@ Click on any empty "Load Dataset" button to open the data loading interface.
 1.  **Configure Parameters:** Input your Project ID, Vehicle ID(s) or Trip/Task ID(s), and the selected time range within the UI.
 2.  **Connect to Cloud Logging:** Click the "Sign in and Fetch Logs" button and follow the prompts to authenticate with your Google Account and grant access. You'll need appropriate IAM permissions (e.g., `roles/logging.viewer`) to read logs.
 
-**Note:** The direct Cloud Logging import feature is fully supported for `On-demand trips`. `Scheduled tasks` support is limited ([tracking issue](https://github.com/googlemaps/fleet-debugger/issues/278)).
-
 ### 2. Import from Log Files
 
 You can load log data from JSON or ZIP files using the "Load JSON or ZIP file instead" button. This is useful for:
@@ -92,6 +90,7 @@ To reload the original demo data:
     ```bash
     npm install
     ```
+4.  Add Maps Javascript API Key to src/constants.js
 
 ### Start development server
 

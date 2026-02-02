@@ -101,14 +101,14 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
       </div>
       <div className="form-field">
         <label className="form-label">
-          Trip IDs (comma-separated):
+          Trip/Task IDs (comma-separated):
           <input
             type="text"
             name="tripIds"
             value={queryParams.tripIds}
             onChange={(e) => setQueryParams({ ...queryParams, tripIds: e.target.value })}
             className="form-input"
-            placeholder="TRIP_ID_1,TRIP_ID_2"
+            placeholder="TRIP_ID, TASK_ID"
             autoComplete="on"
           />
         </label>
