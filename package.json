@@ -38,7 +38,7 @@
     "react-window": "^1.8.10",
     "react18-json-view": "^0.2.9",
     "s2polyline-ts": "^1.0.0",
-    "webpack": "5.94.0",
+    "webpack": "5.105.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
