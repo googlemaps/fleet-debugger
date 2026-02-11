@@ -106,6 +106,8 @@ export const useSheetsLogin = (onSuccess, onError) => {
 
 // --- Flatten / Unflatten ---
 
+const reversePath = (path) => path.split(".").reverse().join(".");
+
 function flattenObject(obj, prefix = "") {
   const result = {};
   for (const key of Object.keys(obj)) {
@@ -216,12 +218,13 @@ export async function exportToGoogleSheet(index, token) {
   const valueRanges = [];
   for (const sheetName of sheetNames) {
     const logs = grouped[sheetName];
-    const headers = collectAllKeys(logs);
-    const rows = [headers];
+    const originalHeaders = collectAllKeys(logs);
+    const displayHeaders = originalHeaders.map(reversePath);
+    const rows = [displayHeaders];
 
     for (const entry of logs) {
       const flat = flattenObject(entry);
-      const row = headers.map((h) => toCellValue(flat[h]));
+      const row = originalHeaders.map((h) => toCellValue(flat[h]));
       rows.push(row);
     }
 
@@ -274,14 +277,15 @@ export async function importFromGoogleSheet(spreadsheetInput, token) {
     const rows = valueRange.values;
     if (!rows || rows.length < 2) continue;
 
-    const headers = rows[0];
+    const displayHeaders = rows[0];
+    const originalHeaders = displayHeaders.map(reversePath);
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
       const obj = {};
-      for (let j = 0; j < headers.length; j++) {
+      for (let j = 0; j < originalHeaders.length; j++) {
         const value = fromCellValue(j < row.length ? row[j] : undefined);
         if (value !== undefined) {
-          _.set(obj, headers[j], value);
+          _.set(obj, originalHeaders[j], value);
         }
       }
       allLogs.push(obj);
