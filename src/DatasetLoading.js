@@ -6,7 +6,7 @@ import { log } from "./Utils";
 import { toast } from "react-toastify";
 import { isTokenValid, fetchLogsWithToken, useCloudLoggingLogin, buildQueryFilter } from "./CloudLogging";
 import { useSheetsLogin, isSheetsTokenValid, getSheetsToken, importFromGoogleSheet } from "./GoogleSheets";
-import { HAS_EXTRA_DATA_SOURCE } from "./constants";
+import { HAS_EXTRA_DATA_SOURCE, GOOGLE_CLIENT_ID } from "./constants";
 
 const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
   const getStoredValue = (key, defaultValue = "") => localStorage.getItem(`datasetLoading_${key}`) || defaultValue;
@@ -298,7 +298,7 @@ export default function DatasetLoading(props) {
       {isExtra ? (
         ExtraFormComponent
       ) : (
-        <GoogleOAuthProvider clientId="829183678942-eq2c9cd7pjdm39l2um5thgbrvgva07e7.apps.googleusercontent.com">
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
           <CloudLoggingFormComponent {...props} />
         </GoogleOAuthProvider>
       )}

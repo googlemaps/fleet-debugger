@@ -2,10 +2,11 @@
 import { useGoogleLogin } from "@react-oauth/google";
 import { getUploadedData, getVehicleIdFromLogs } from "./localStorage";
 import { log } from "./Utils";
+import { GOOGLE_CLIENT_ID } from "./constants";
 import _ from "lodash";
 
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
-const CLIENT_ID = "829183678942-eq2c9cd7pjdm39l2um5thgbrvgva07e7.apps.googleusercontent.com";
+const CLIENT_ID = GOOGLE_CLIENT_ID;
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 const TOKEN_EXPIRY_BUFFER = 5 * 60 * 1000;
 
