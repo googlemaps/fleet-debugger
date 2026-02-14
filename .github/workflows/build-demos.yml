@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    if: github.repository == 'googlemaps/fleet-debugger'
+    if: github.repository == 'googlemaps/fleet-debugger' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     
     steps:
