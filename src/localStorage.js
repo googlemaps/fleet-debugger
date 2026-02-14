@@ -89,6 +89,26 @@ export async function uploadCloudLogs(logs, index) {
   }
 }
 
+function getVehicleIdFromLogs(rawLogs) {
+  for (const entry of rawLogs) {
+    const jsonPayload = entry.jsonpayload || {};
+    const response = jsonPayload.response || {};
+    const vehicleId = response.vehicleid || response.deliveryvehicleid;
+    if (vehicleId) return vehicleId;
+  }
+  return "unknown";
+}
+
+function getFirstLogDate(rawLogs) {
+  const oldestTimestamp = getOldestTimestamp(rawLogs);
+  if (oldestTimestamp === Infinity) {
+    return new Date().toISOString().split("T")[0];
+  }
+  return new Date(oldestTimestamp).toISOString().split("T")[0];
+}
+
+export { getVehicleIdFromLogs, getFirstLogDate };
+
 export async function saveDatasetAsJson(index) {
   try {
     log(`Attempting to save dataset ${index} as JSON`);
@@ -106,9 +126,9 @@ export async function saveDatasetAsJson(index) {
     const link = document.createElement("a");
     link.href = url;
 
-    // Set the filename based on the dataset number and current date
-    const date = new Date().toISOString().split("T")[0];
-    link.download = `dataset_${index + 1}_${date}.json`;
+    const vehicleId = getVehicleIdFromLogs(data.rawLogs);
+    const date = getFirstLogDate(data.rawLogs);
+    link.download = `Fleet Debugger - ${vehicleId} - ${date}.json`;
 
     document.body.appendChild(link);
     link.click();
@@ -229,7 +249,7 @@ function isRestrictedLog(row) {
   return row.jsonPayload?.["@type"]?.includes("Restricted") || false;
 }
 
-function calculateRetentionDate(logsArray) {
+function getOldestTimestamp(logsArray) {
   let oldestTimestamp = Infinity;
   logsArray.forEach((row) => {
     const ts = new Date(
@@ -239,6 +259,11 @@ function calculateRetentionDate(logsArray) {
       oldestTimestamp = ts;
     }
   });
+  return oldestTimestamp;
+}
+
+function calculateRetentionDate(logsArray) {
+  const oldestTimestamp = getOldestTimestamp(logsArray);
 
   let retentionDateIdentifier = null;
   if (oldestTimestamp !== Infinity) {

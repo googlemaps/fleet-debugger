@@ -6,7 +6,7 @@ import Utils, { log } from "./Utils";
 export const ALL_TOGGLES = [
   {
     id: "showGPSBubbles",
-    name: "GPS Accuracy",
+    name: "Location Accuracy",
     docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
     columns: ["lastlocation.rawlocationaccuracy", "lastlocation.locationsensor"],
     solutionTypes: ["ODRD", "LMFS"],

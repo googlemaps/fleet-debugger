@@ -17,6 +17,7 @@ import {
   saveDatasetAsJson,
   saveToIndexedDB,
 } from "./localStorage";
+import { exportToGoogleSheet, requestSheetsToken } from "./GoogleSheets";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
@@ -527,6 +528,28 @@ class App extends React.Component {
       }
     };
 
+    const handleGoogleSheetExport = async (e) => {
+      e.stopPropagation();
+      log(`Google Sheet export initiated for dataset ${index}`);
+      this.setState({ activeMenuIndex: null });
+
+      try {
+        const token = await requestSheetsToken();
+        const sheetUrl = await exportToGoogleSheet(index, token);
+        toast.success(
+          <span>
+            Exported to{" "}
+            <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
+              Google Sheet
+            </a>
+          </span>
+        );
+      } catch (error) {
+        log(`Error exporting to Google Sheet: ${error.message}`, error);
+        toast.error(`Google Sheet export failed: ${error.message}`);
+      }
+    };
+
     const handlePruneClick = async (e) => {
       e.stopPropagation();
       log(`Prune initiated for dataset ${index}`);
@@ -681,7 +704,10 @@ class App extends React.Component {
               {isMenuOpen && (
                 <div className="dataset-button-menu">
                   <div className="dataset-button-menu-item export" onClick={handleSaveClick}>
-                    Export
+                    Export File
+                  </div>
+                  <div className="dataset-button-menu-item export" onClick={handleGoogleSheetExport}>
+                    Export GSheet
                   </div>
                   <div className="dataset-button-menu-item prune" onClick={handlePruneClick}>
                     Prune
