@@ -212,18 +212,14 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
         </div>
       )}
       <div className="cloud-logging-buttons">
-        <button type="button" onClick={handleFetch} disabled={fetching} className="primary-button">
+        <button type="button" onClick={handleFetch} disabled={fetching} className="fetch-logs-button">
           {fetching ? "Fetching..." : isTokenValid() ? "Fetch Logs" : "Sign in and Fetch Logs"}
         </button>
-        <button
-          type="button"
-          onClick={() => setSheetFormVisible(!sheetFormVisible)}
-          className="secondary-button google-sheet-button"
-        >
-          Load from Google Sheet
+        <button type="button" onClick={() => setSheetFormVisible(!sheetFormVisible)} className="sideload-logs-button">
+          Load Google Sheet
         </button>
-        <label htmlFor="fileUploadInput" className="secondary-button">
-          Load JSON or ZIP file instead
+        <label htmlFor="fileUploadInput" className="sideload-logs-button">
+          Load JSON or ZIP
         </label>
         <input type="file" id="fileUploadInput" accept=".json,.zip" onChange={onFileUpload} className="file-input" />
       </div>
@@ -245,7 +241,7 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
             type="button"
             onClick={handleSheetLoadClick}
             disabled={sheetLoading}
-            className="primary-button"
+            className="fetch-logs-button"
             style={{ marginTop: "8px" }}
           >
             {sheetLoading ? "Loading..." : isSheetsTokenValid() ? "Load Sheet" : "Sign in and Load Sheet"}
