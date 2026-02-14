@@ -704,10 +704,10 @@ class App extends React.Component {
               {isMenuOpen && (
                 <div className="dataset-button-menu">
                   <div className="dataset-button-menu-item export" onClick={handleSaveClick}>
-                    Export
+                    Export File
                   </div>
                   <div className="dataset-button-menu-item export" onClick={handleGoogleSheetExport}>
-                    Google Sheet
+                    Export GSheet
                   </div>
                   <div className="dataset-button-menu-item prune" onClick={handlePruneClick}>
                     Prune
