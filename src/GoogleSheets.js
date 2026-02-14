@@ -60,28 +60,43 @@ export function requestSheetsToken() {
       return;
     }
 
-    if (!window.google?.accounts?.oauth2) {
-      reject(new Error("Google Identity Services not loaded. Please refresh and try again."));
-      return;
-    }
+    const checkGis = () => {
+      if (window.google?.accounts?.oauth2) {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: (tokenResponse) => {
+            if (tokenResponse.error) {
+              reject(new Error(`Auth error: ${tokenResponse.error}`));
+              return;
+            }
+            storeSheetsToken(tokenResponse.access_token, tokenResponse.expires_in);
+            resolve(tokenResponse.access_token);
+          },
+          error_callback: (error) => {
+            reject(new Error(`Auth error: ${error.message || "Unknown"}`));
+          },
+        });
 
-    const tokenClient = window.google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: (tokenResponse) => {
-        if (tokenResponse.error) {
-          reject(new Error(`Auth error: ${tokenResponse.error}`));
-          return;
-        }
-        storeSheetsToken(tokenResponse.access_token, tokenResponse.expires_in);
-        resolve(tokenResponse.access_token);
-      },
-      error_callback: (error) => {
-        reject(new Error(`Auth error: ${error.message || "Unknown"}`));
-      },
-    });
+        tokenClient.requestAccessToken();
+        return true;
+      }
+      return false;
+    };
 
-    tokenClient.requestAccessToken();
+    if (checkGis()) return;
+
+    // Wait up to 5 seconds for GIS to load
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (checkGis()) {
+        clearInterval(interval);
+      } else if (attempts > 50) {
+        clearInterval(interval);
+        reject(new Error("Google Identity Services not loaded. Please refresh and try again."));
+      }
+    }, 100);
   });
 }
 
