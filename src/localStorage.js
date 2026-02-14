@@ -99,7 +99,15 @@ function getVehicleIdFromLogs(rawLogs) {
   return "unknown";
 }
 
-export { getVehicleIdFromLogs };
+function getFirstLogDate(rawLogs) {
+  const oldestTimestamp = getOldestTimestamp(rawLogs);
+  if (oldestTimestamp === Infinity) {
+    return new Date().toISOString().split("T")[0];
+  }
+  return new Date(oldestTimestamp).toISOString().split("T")[0];
+}
+
+export { getVehicleIdFromLogs, getFirstLogDate };
 
 export async function saveDatasetAsJson(index) {
   try {
@@ -119,7 +127,7 @@ export async function saveDatasetAsJson(index) {
     link.href = url;
 
     const vehicleId = getVehicleIdFromLogs(data.rawLogs);
-    const date = new Date().toISOString().split("T")[0];
+    const date = getFirstLogDate(data.rawLogs);
     link.download = `Fleet Debugger - ${vehicleId} - ${date}.json`;
 
     document.body.appendChild(link);
@@ -241,7 +249,7 @@ function isRestrictedLog(row) {
   return row.jsonPayload?.["@type"]?.includes("Restricted") || false;
 }
 
-function calculateRetentionDate(logsArray) {
+function getOldestTimestamp(logsArray) {
   let oldestTimestamp = Infinity;
   logsArray.forEach((row) => {
     const ts = new Date(
@@ -251,6 +259,11 @@ function calculateRetentionDate(logsArray) {
       oldestTimestamp = ts;
     }
   });
+  return oldestTimestamp;
+}
+
+function calculateRetentionDate(logsArray) {
+  const oldestTimestamp = getOldestTimestamp(logsArray);
 
   let retentionDateIdentifier = null;
   if (oldestTimestamp !== Infinity) {

@@ -1,6 +1,6 @@
 // src/GoogleSheets.js
 import { useGoogleLogin } from "@react-oauth/google";
-import { getUploadedData, getVehicleIdFromLogs } from "./localStorage";
+import { getUploadedData, getVehicleIdFromLogs, getFirstLogDate } from "./localStorage";
 import { log } from "./Utils";
 import { GOOGLE_CLIENT_ID } from "./constants";
 import _ from "lodash";
@@ -220,7 +220,7 @@ export async function exportToGoogleSheet(index, token) {
   const sheets = sheetNames.map((name) => ({ properties: { title: name } }));
 
   const vehicleId = getVehicleIdFromLogs(data.rawLogs);
-  const date = new Date().toISOString().split("T")[0];
+  const date = getFirstLogDate(data.rawLogs);
   const spreadsheet = await sheetsApiFetch(SHEETS_API_BASE, token, {
     method: "POST",
     body: JSON.stringify({
