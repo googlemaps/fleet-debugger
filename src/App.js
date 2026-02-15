@@ -9,6 +9,7 @@ import ToggleBar from "./ToggleBar";
 import TripLogs from "./TripLogs";
 import TaskLogs from "./TaskLogs";
 import DatasetLoading from "./DatasetLoading";
+import ExtraDataSource from "./ExtraDataSource";
 import {
   uploadFile,
   getUploadedData,
@@ -25,7 +26,8 @@ import Utils, { log } from "./Utils";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { ALL_TOGGLES, getVisibleToggles } from "./MapToggles";
-import { HAS_EXTRA_DATA_SOURCE } from "./constants";
+
+const HAS_EXTRA_DATA_SOURCE = ExtraDataSource.isAvailable();
 
 const MARKER_COLORS = [
   "#EA4335", // Red
@@ -807,6 +809,7 @@ class App extends React.Component {
         onLogsReceived: handleCloudLogsReceived,
         onExtraLogsReceived: handleExtraLogsReceived,
         onFileUpload: handleFileUpload,
+        hasExtraDataSource: HAS_EXTRA_DATA_SOURCE,
       });
       dialogRoot.render(datasetLoadingComponent);
     });
