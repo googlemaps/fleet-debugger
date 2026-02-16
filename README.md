@@ -12,19 +12,20 @@ Fleet Debugger helps you understand complex journey and vehicle behaviors by off
 *   **Synchronization:** Events are linked across the map, data table, and timeline. Click an event in one place, and it's highlighted everywhere.
 *   **Detailed log entry inspection:** Deep dive into API requests and responses.
 *   **Filter & inspect log messages:** Use customizable table views to easily find and analyze specific log entries.
-*   **File Import:** Load logs from JSON or ZIP files.
+*   **Importing Logs:** Load logs from JSON or ZIP files, or from Google Sheets.
+*   **Exporting Logs:** Export loaded dataset to a local file or Google Sheet for easy collaboration.
 *   **Direct Cloud Logging Connection:** Securely fetch logs directly from your Google Cloud project.
 *   **Flexible Filtering:** Easily narrow down data by time range, entity IDs, and more.
 *   **View status changes:** Track changes in vehicle, trip, task, and navigation status.
 *   **Visualize multiple trips:** View all trips or tasks for a single vehicle.
 *   **Analyze GPS data:** Examine location, accuracy, and heading information.
-    *   **GPS accuracy, speed, and heading analysis:** Detailed analysis tools for these metrics ([GPS accuracy](docs/GPSAccuracy.md), [speed](docs/Speed.md), [heading](docs/Heading.md)).
+*   **GPS accuracy, speed, and heading analysis:** Detailed analysis tools for these metrics ([GPS accuracy](docs/GPSAccuracy.md), [speed](docs/Speed.md), [heading](docs/Heading.md)).
 *   **Analyze dwell times:** Measure time spent at specific locations ([dwell times](docs/DwellTimes.md)).
 *   **View planned navigation routes:** See the routes with traffic conditions as experienced by drivers (requires [Restricted Use Logs](#restricted-use-logs)).
 *   **See requested vs. actual pickup and dropoff points:** (requires [Restricted Use Logs](#restricted-use-logs)).
 *   **Map and Timeslider Interaction:** Click directly on the map or the timeslider to select the nearest log event.
 *   **Tracking (Chevron):** Use the tracking button to keep the map centered on the current event during replay.
-*   **Exporting Logs:** Export loaded dataset to a local file for easy collaboration.
+
 
 ## Using the Demo Site
 
