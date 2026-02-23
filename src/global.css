@@ -37,21 +37,31 @@
 .logtable-header-cell,
 .logtable-cell {
   flex: 0 0 auto;
-  padding: 8px;
+  padding: 8px 8px 4px 4px;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+.logtable-header-cell,
+.logtable-header-cell.logtable-cell {
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+  text-overflow: clip;
+}
+
+.logtable-cell {
+  text-overflow: clip;
 }
 
 .logtable-header-row {
-  border-bottom: 1px solid black;
+  border-bottom: none;
 }
 
 .logtable-row {
-  border-bottom: 1px solid #eee;
+  border: none;
 }
 
 .logtable-row.selected {
@@ -66,7 +76,15 @@
 .logtable-header-cell>*,
 .logtable-cell>* {
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.logtable-header-cell>*,
+.logtable-header-cell.logtable-cell>* {
+  text-overflow: clip;
+}
+
+.logtable-cell>* {
+  text-overflow: clip;
 }
 
 /* Event indicator styles */
@@ -584,4 +602,22 @@
   width: 1px;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.15);
+}
+/* Resizer styles for react-table */
+.resizer {
+  display: inline-block;
+  background: transparent;
+  width: 5px;
+  height: 100%;
+  position: absolute;
+  right: 0;
+  top: 0;
+  transform: translateX(50%);
+  z-index: 1;
+  touch-action: none;
+  cursor: col-resize;
+}
+
+.resizer:hover, .resizer.isResizing {
+  background: rgba(0, 0, 0, 0.5);
 }

@@ -1130,6 +1130,7 @@ class App extends React.Component {
                   <div>
                     <strong>&lt;</strong> and <strong>&gt;</strong> to quickly navigate selected events
                   </div>
+                  <div>Click row to view full log entry and long click to also center map</div>
                 </div>
               </div>
             </div>

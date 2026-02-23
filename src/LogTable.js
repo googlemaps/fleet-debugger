@@ -1,18 +1,53 @@
 // src/LogTable.js
 import React, { useState } from "react";
-import { useSortBy, useTable } from "react-table";
+import { useSortBy, useTable, useBlockLayout, useResizeColumns } from "react-table";
 import { FixedSizeList as List } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import _ from "lodash";
 
+const CELL_PADDING = 24;
+
+function getDisplayText(col, entry) {
+  const raw = typeof col.accessor === "function" ? col.accessor(entry) : _.get(entry, col.accessor);
+  if (raw === undefined || raw === null) return "";
+  const str = typeof raw === "object" ? JSON.stringify(raw) : String(raw);
+  if (col.trim) return str.replace(col.trim, "");
+  return str;
+}
+
+function computeColumnWidths(columns, data) {
+  const sampleSize = Math.min(data.length, 200);
+
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  context.font = "16px Times-Roman";
+
+  columns.forEach((col) => {
+    const headerStr = col.Header || "";
+    let maxWidthPx = context.measureText(headerStr).width;
+
+    for (let i = 0; i < sampleSize; i++) {
+      const text = getDisplayText(col, data[i]);
+      if (text) {
+        const textWidth = context.measureText(text).width;
+        if (textWidth > maxWidthPx) maxWidthPx = textWidth;
+      }
+    }
+    const fitted = Math.ceil(maxWidthPx + CELL_PADDING);
+    col.width = Math.min(fitted, col.width);
+  });
+}
+
 function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerOnLocation }) {
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable(
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow, totalColumnsWidth } = useTable(
     {
       columns,
       data,
       autoResetSortBy: false,
     },
-    useSortBy
+    useBlockLayout,
+    useSortBy,
+    useResizeColumns
   );
 
   const handleRowSelection = React.useCallback(
@@ -94,7 +129,7 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
                 key={key}
                 {...restCellProps}
                 className={`logtable-cell ${cell.column.className || ""}`}
-                style={{ width: cell.column.width }}
+                style={restCellProps.style}
               >
                 {cell.render("Cell")}
               </div>
@@ -103,7 +138,7 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
         </div>
       );
     },
-    [prepareRow, rows, selectedRow, handleRowSelection, centerOnLocation]
+    [prepareRow, rows, selectedRow, handleRowSelection, centerOnLocation, totalColumnsWidth]
   );
 
   return (
@@ -116,8 +151,8 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
     >
       <AutoSizer>
         {({ height, width }) => (
-          <div>
-            <div {...getTableProps()}>
+          <div style={{ width, overflowX: "auto", overflowY: "hidden" }}>
+            <div {...getTableProps()} style={{ minWidth: "100%", width: totalColumnsWidth }}>
               <div>
                 {headerGroups.map((headerGroup) => {
                   const { key, ...restHeaderGroupProps } = headerGroup.getHeaderGroupProps();
@@ -130,9 +165,14 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
                             key={key}
                             {...restColumnProps}
                             className={`logtable-header-cell ${column.className || ""}`}
-                            style={{ width: column.width }}
+                            style={{ ...restColumnProps.style, position: "relative" }}
                           >
                             {column.render("Header")}
+                            <div
+                              {...column.getResizerProps()}
+                              className={`resizer ${column.isResizing ? "isResizing" : ""}`}
+                              onClick={(e) => e.stopPropagation()}
+                            />
                           </div>
                         );
                       })}
@@ -143,11 +183,13 @@ function Table({ columns, data, onSelectionChange, listRef, selectedRow, centerO
               <div {...getTableBodyProps()}>
                 <List
                   ref={listRef}
-                  height={height - 100}
+                  height={height - 54}
                   itemCount={rows.length}
-                  itemSize={35}
-                  width={width}
+                  itemSize={32}
+                  width={totalColumnsWidth > width ? totalColumnsWidth : width}
                   overscanCount={10}
+                  itemData={totalColumnsWidth}
+                  style={{ overflowX: "hidden" }}
                 >
                   {Row}
                 </List>
@@ -168,9 +210,9 @@ function LogTable(props) {
   const data = React.useMemo(() => {
     return props.logData.tripLogs.getLogs_(new Date(minTime), new Date(maxTime), props.filters).value();
   }, [props.logData.tripLogs, minTime, maxTime, props.filters]);
-  const columnShortWidth = 50;
-  const columnRegularWidth = 120;
-  const columnLargeWidth = 152;
+  const columnShortWidth = 100;
+  const columnRegularWidth = 130;
+  const columnLargeWidth = 190;
   const columns = React.useMemo(() => {
     const stdColumns = _.filter(
       [
@@ -185,7 +227,8 @@ function LogTable(props) {
         {
           Header: "Method",
           accessor: "@type",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="type.googleapis.com/maps.fleetengine." />,
+          Cell: TrimCellRenderer,
+          trim: "type.googleapis.com/maps.fleetengine.",
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -199,7 +242,6 @@ function LogTable(props) {
             }
           },
           width: columnShortWidth,
-          maxWidth: columnShortWidth,
           className: "logtable-cell short-column",
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -207,9 +249,9 @@ function LogTable(props) {
           Header: "Sensor",
           accessor: "lastlocation.rawlocationsensor",
           id: "lastlocation_rawlocationsensor",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="LOCATION_SENSOR_" />,
+          Cell: TrimCellRenderer,
+          trim: "LOCATION_SENSOR_",
           width: columnShortWidth,
-          maxWidth: columnShortWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
         },
@@ -217,7 +259,8 @@ function LogTable(props) {
           Header: "Location",
           accessor: "lastlocation.locationsensor",
           id: "lastlocation_locationsensor",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="_LOCATION_PROVIDER" />,
+          Cell: TrimCellRenderer,
+          trim: "_LOCATION_PROVIDER",
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -232,8 +275,7 @@ function LogTable(props) {
             }
             return null;
           },
-          width: 90,
-          maxWidth: 90,
+          width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
         },
@@ -241,7 +283,8 @@ function LogTable(props) {
           Header: "Vehicle State",
           accessor: "response.vehiclestate",
           id: "response_vehiclestate",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="VEHICLE_STATE_" />,
+          Cell: TrimCellRenderer,
+          trim: "VEHICLE_STATE_",
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
@@ -249,7 +292,8 @@ function LogTable(props) {
         {
           Header: "Task State",
           accessor: "response.state",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="TASK_STATE_" />,
+          Cell: TrimCellRenderer,
+          trim: "TASK_STATE_",
           width: columnRegularWidth,
           className: "logtable-cell",
           solutionTypes: ["LMFS"],
@@ -258,7 +302,8 @@ function LogTable(props) {
           Header: "Trip Status",
           accessor: "response.tripstatus",
           id: "response_tripstatus",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="TRIP_STATUS_" />,
+          Cell: TrimCellRenderer,
+          trim: "TRIP_STATUS_",
           width: columnLargeWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD"],
@@ -290,7 +335,8 @@ function LogTable(props) {
         {
           Header: "Nav Status",
           accessor: "navStatus",
-          Cell: ({ cell: { value } }) => <TrimCell value={value} trim="NAVIGATION_STATUS_" />,
+          Cell: TrimCellRenderer,
+          trim: "NAVIGATION_STATUS_",
           width: columnLargeWidth,
           className: "logtable-cell",
           solutionTypes: ["ODRD", "LMFS"],
@@ -315,14 +361,9 @@ function LogTable(props) {
         },
       });
     });
-    const headers = [
-      {
-        Header: "Event Logs Table (click row to view full log entry and long click to also center map)",
-        columns: stdColumns,
-      },
-    ];
-    return headers;
-  }, [props.extraColumns, props.logData.solutionType]);
+    computeColumnWidths(stdColumns, data);
+    return stdColumns;
+  }, [props.extraColumns, props.logData.solutionType, data]);
 
   const handleRowSelection = React.useCallback(
     (rowIndex, rowData) => {
@@ -365,8 +406,9 @@ function LogTable(props) {
   );
 }
 
-// Helper method for removing common substrings in cells
-const TrimCell = ({ value, trim }) => {
+const TrimCellRenderer = ({ cell }) => {
+  const { value } = cell;
+  const trim = cell.column.trim;
   return <>{value && value.replace(trim, "")}</>;
 };
 
