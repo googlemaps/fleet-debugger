@@ -107,3 +107,21 @@ export function parsePolylineInput(input) {
 
   throw new Error("Invalid polyline format or no valid coordinates found.");
 }
+
+/**
+ * Calculates the total distance of a polyline in meters.
+ * @param {Array<{latitude: number, longitude: number}>} points
+ * @returns {number} distance in meters
+ */
+export function calculatePolylineDistanceMeters(points) {
+  if (!points || points.length < 2) return 0;
+  let distanceMeters = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = new window.google.maps.LatLng(points[i].latitude, points[i].longitude);
+    const p2 = new window.google.maps.LatLng(points[i + 1].latitude, points[i + 1].longitude);
+    if (window.google?.maps?.geometry?.spherical) {
+      distanceMeters += window.google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
+    }
+  }
+  return distanceMeters;
+}
