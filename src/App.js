@@ -131,6 +131,7 @@ class App extends React.Component {
       featuredObject: { msg: "Click a table row to select object" },
       extraColumns: [],
       toggleOptions: Object.fromEntries(ALL_TOGGLES.map((t) => [t.id, false])),
+      isDataframeCollapsed: false,
       filters: {
         logTypes: {
           createVehicle: true,
@@ -1082,6 +1083,12 @@ class App extends React.Component {
     }));
   };
 
+  toggleDataframe = () => {
+    this.setState((prevState) => ({
+      isDataframeCollapsed: !prevState.isDataframeCollapsed,
+    }));
+  };
+
   render() {
     const {
       featuredObject,
@@ -1092,13 +1099,49 @@ class App extends React.Component {
       dynamicMarkerLocations,
       visibleToggles,
       filters,
+      isDataframeCollapsed,
     } = this.state;
     const selectedEventTime = featuredObject?.timestamp ? new Date(featuredObject.timestamp).getTime() : null;
     const availableFilters = currentLogData.solutionType === "ODRD" ? ODRD_FILTERS : [];
 
     return (
-      <div className="app-container">
+      <div className={`app-container ${isDataframeCollapsed ? "dataframe-collapsed" : ""}`}>
         <ToastContainer position="top-right" autoClose={5000} />
+        <button
+          className="dataframe-toggle-tab"
+          onClick={this.toggleDataframe}
+          title={isDataframeCollapsed ? "Show side panel" : "Hide side panel"}
+        >
+          {isDataframeCollapsed ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          )}
+        </button>
         <div className="main-content">
           <div className="map-and-control-section">
             <div className="map-container">
