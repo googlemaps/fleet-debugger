@@ -3,12 +3,13 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
-import { log } from "./Utils";
+import { log, formatDistance } from "./Utils";
 import PolylineCreation from "./PolylineCreation";
 import { decode } from "s2polyline-ts";
 import TrafficPolyline from "./TrafficPolyline";
 import { TripObjects } from "./TripObjects";
 import { getToggleHandlers } from "./MapToggles.js";
+import { toast } from "react-toastify";
 import { LEGEND_HTML } from "./LegendContent.js";
 
 function MapComponent({
@@ -158,10 +159,10 @@ function MapComponent({
 
     // Add UI Controls
     const polylineButton = document.createElement("button");
-    polylineButton.textContent = "Add Polyline";
+    polylineButton.textContent = "Measure";
     polylineButton.className = "map-button";
     polylineButton.onclick = (event) => {
-      log("Add Polyline button clicked.");
+      log("Measure Polyline button clicked.");
       const rect = event.target.getBoundingClientRect();
       setButtonPosition({ top: rect.bottom, left: rect.left });
       setShowPolylineUI((prev) => !prev);
@@ -316,6 +317,56 @@ function MapComponent({
     });
     newPolyline.setMap(map);
     setPolylines((prev) => [...prev, newPolyline]);
+
+    let distanceMarker = null;
+
+    if (properties.distanceUnit !== "none" && properties.distanceMeters) {
+      let midPoint;
+      if (path.length === 2 && window.google?.maps?.geometry?.spherical) {
+        midPoint = window.google.maps.geometry.spherical.interpolate(path[0], path[1], 0.5);
+      } else {
+        midPoint = path[Math.floor(path.length / 2)];
+      }
+
+      const formatted = formatDistance(properties.distanceMeters);
+      const textToRender = properties.distanceUnit === "imperial" ? formatted.imperial : formatted.metric;
+
+      const svgIcon = {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="30">
+             <text x="60" y="15" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="12px" font-weight="bold" fill="${properties.color}" stroke="white" stroke-width="3" paint-order="stroke">${textToRender}</text>
+           </svg>`
+        )}`,
+        anchor: new window.google.maps.Point(60, 15),
+      };
+
+      distanceMarker = new window.google.maps.Marker({
+        position: midPoint,
+        map,
+        icon: svgIcon,
+        zIndex: 1000,
+      });
+    }
+
+    let deletePending = false;
+    let deleteTimeout = null;
+
+    const removeElements = () => {
+      if (deletePending) {
+        newPolyline.setMap(null);
+        if (distanceMarker) distanceMarker.setMap(null);
+      } else {
+        toast.info("Click the polyline again to delete it.");
+        deletePending = true;
+        clearTimeout(deleteTimeout);
+        deleteTimeout = setTimeout(() => {
+          deletePending = false;
+        }, 3000);
+      }
+    };
+
+    newPolyline.addListener("click", removeElements);
+    if (distanceMarker) distanceMarker.addListener("click", removeElements);
   }, []);
 
   const recenterOnVehicleWrapper = useCallback(() => {
@@ -635,6 +686,7 @@ function MapComponent({
       <div ref={mapDivRef} id="map" style={{ height: "100%", width: "100%" }} />
       {showPolylineUI && (
         <PolylineCreation
+          map={mapRef.current}
           onSubmit={handlePolylineSubmit}
           onClose={() => setShowPolylineUI(false)}
           buttonPosition={buttonPosition}

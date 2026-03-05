@@ -143,4 +143,20 @@ export const log = (...args) => {
   }
 };
 
+/**
+ * Formats a distance in meters into a human-readable string (meters/km and feet/miles).
+ * @param {number} distanceMeters
+ * @returns {{ metric: string, imperial: string }}
+ */
+export function formatDistance(distanceMeters) {
+  const distanceFeet = distanceMeters * 3.28084;
+  const distanceMiles = distanceMeters * 0.000621371;
+
+  const metric = distanceMeters < 1000 ? distanceMeters.toFixed(1) + " m" : (distanceMeters / 1000).toFixed(2) + " km";
+
+  const imperial = distanceFeet < 5280 ? distanceFeet.toFixed(1) + " ft" : distanceMiles.toFixed(2) + " mi";
+
+  return { metric, imperial };
+}
+
 export { Utils as default };
