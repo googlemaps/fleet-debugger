@@ -175,8 +175,25 @@ class App extends React.Component {
     this.initializeData().then(() => {
       this.updateMapAndAssociatedData();
     });
+
+    // Initialize the Broadcast Channel
+    this.syncChannel = new BroadcastChannel("app_playback_sync");
+    this.syncChannel.onmessage = this.handleSyncMessage;
+
     document.addEventListener("keydown", this.handleKeyPress);
   }
+
+  // Handle incoming signals from the other tab
+  handleSyncMessage = (event) => {
+    const { action } = event.data;
+
+    // We pass 'true' to these methods to indicate the action came from a sync.
+    // This tells the method NOT to broadcast it back, preventing infinite loops.
+    if (action === "NEXT") this.handleNextEvent(true);
+    if (action === "PREVIOUS") this.handlePreviousEvent(true);
+    if (action === "TOGGLE_PLAY") this.handlePlayStop(true);
+    if (action === "SET_SPEED") this.handleSpeedChange(event.data.speed, true);
+  };
 
   initializeData = async () => {
     const datasets = await this.checkUploadedDatasets();
@@ -345,48 +362,79 @@ class App extends React.Component {
     }
   };
 
-  handleNextEvent = () => {
+  handleNextEvent = (fromSync = false) => {
     this.handleRowChange("next");
+
+    // Only broadcast if this action originated from this tab
+    if (!fromSync && this.syncChannel) {
+      this.syncChannel.postMessage({ action: "NEXT" });
+    }
   };
 
-  handlePreviousEvent = () => {
+  handlePreviousEvent = (fromSync = false) => {
     this.handleRowChange("previous");
+
+    // Only broadcast if this action originated from this tab
+    if (!fromSync && this.syncChannel) {
+      this.syncChannel.postMessage({ action: "PREVIOUS" });
+    }
   };
 
-  handlePlayStop = () => {
+  handlePlayStop = (fromSync = false) => {
     this.setState((prevState) => {
       if (!prevState.isPlaying) {
         this.timerID = setInterval(() => {
-          this.handleNextEvent();
+          this.handleNextEvent(true);
         }, prevState.playSpeed);
       } else {
         clearInterval(this.timerID);
       }
       return { isPlaying: !prevState.isPlaying };
     });
+
+    // Only broadcast the play/stop toggle if it originated from this tab
+    if (!fromSync && this.syncChannel) {
+      this.syncChannel.postMessage({ action: "TOGGLE_PLAY" });
+    }
   };
 
-  handleSpeedChange = (event) => {
-    const newSpeed = parseInt(event.target.value);
+  handleSpeedChange = (eventOrSpeed, fromSync = false) => {
+    // Determine the new speed depending on if it came from an event or a direct value
+    const newSpeed =
+      typeof eventOrSpeed === "object" && eventOrSpeed.target
+        ? parseInt(eventOrSpeed.target.value)
+        : parseInt(eventOrSpeed);
+
     this.setState({ playSpeed: newSpeed }, () => {
       if (this.state.isPlaying) {
         clearInterval(this.timerID);
         this.timerID = setInterval(() => {
-          this.handleNextEvent();
+          this.handleNextEvent(true);
         }, newSpeed);
       }
     });
+
+    // Broadcast the speed change to other tabs
+    if (!fromSync && this.syncChannel) {
+      this.syncChannel.postMessage({ action: "SET_SPEED", speed: newSpeed });
+    }
   };
 
   handleKeyPress = (event) => {
+    // Ignore keystrokes if the user is typing in an input or select box
+    if (["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)) return;
+
     if (["ArrowLeft", ",", "<"].includes(event.key)) {
-      this.handlePreviousEvent();
+      this.handlePreviousEvent(); // Defaults to fromSync=false, so it broadcasts!
     } else if (["ArrowRight", ".", ">"].includes(event.key)) {
-      this.handleNextEvent();
+      this.handleNextEvent(); // Defaults to fromSync=false, so it broadcasts!
     }
   };
 
   componentWillUnmount() {
+    if (this.syncChannel) {
+      this.syncChannel.close();
+    }
     clearInterval(this.timerID);
     document.removeEventListener("keydown", this.handleKeyPress);
     if (this._outsideClickHandler) {
@@ -1113,7 +1161,7 @@ class App extends React.Component {
                     <button onClick={this.handleNextEvent}>Next&nbsp;&gt;</button>
                   </div>
                   <div>
-                    <button onClick={this.handlePlayStop}>{this.state.isPlaying ? "Stop" : "Play"}</button>
+                    <button onClick={() => this.handlePlayStop()}>{this.state.isPlaying ? "Stop" : "Play"}</button>
                     <select value={this.state.playSpeed} onChange={this.handleSpeedChange}>
                       <option value="100">0.1s</option>
                       <option value="250">0.25s</option>
