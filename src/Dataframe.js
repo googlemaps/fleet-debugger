@@ -199,11 +199,13 @@ function Dataframe({ featuredObject, extraColumns, onColumnToggle, onToggleMarke
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", position: "relative" }}>
       <div style={{ padding: "4px 8px", flexShrink: 0 }}>
-        <button onClick={handleCopyRoot}>Copy Object</button>
+        <button onClick={handleCopyRoot} className="copy-object-button">
+          Copy Object
+        </button>
       </div>
-      <div style={{ overflow: "auto", flexGrow: 1 }}>
+      <div className="dataframe-content">
         <JsonView
           src={featuredObject}
           collapsed={shouldCollapse}
