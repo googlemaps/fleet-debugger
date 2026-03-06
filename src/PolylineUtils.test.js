@@ -99,8 +99,8 @@ describe("calculatePolylineDistanceMeters", () => {
 describe("formatDistance", () => {
   test("formats under 1000 meters correctly", () => {
     const { metric, imperial } = formatDistance(500);
-    expect(metric).toBe("500.0 m");
-    expect(imperial).toBe("1640.4 ft");
+    expect(metric).toBe("500 m");
+    expect(imperial).toBe("1640 ft");
   });
 
   test("formats over 1000 meters into km and miles", () => {
