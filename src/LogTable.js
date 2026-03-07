@@ -349,11 +349,17 @@ function LogTable(props) {
     // Add dynamic columns
     _.map(props.extraColumns, (dotPath) => {
       const elems = dotPath.split(".");
+
+      let columnClass = "logtable-cell";
+      if (dotPath.startsWith("response.")) {
+        columnClass += " response-column";
+      }
+
       stdColumns.push({
         Header: elems[elems.length - 1],
         accessor: dotPath === ".error" ? "error" : dotPath,
         width: columnLargeWidth,
-        className: "logtable-cell",
+        className: columnClass,
         Cell: ({ cell }) => {
           const value = cell.value;
           if (value === undefined || value === null) return null;

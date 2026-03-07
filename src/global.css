@@ -94,6 +94,10 @@ html {
   text-overflow: clip;
 }
 
+/* logtable for response fields */
+.response-column {
+  background-color: rgba(255, 0, 0, 0.05);
+}
 /* Event indicator styles */
 .selected-event-indicator-container {
   position: relative;
