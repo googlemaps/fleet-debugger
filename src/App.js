@@ -18,7 +18,13 @@ import {
   saveDatasetAsJson,
   saveToIndexedDB,
 } from "./localStorage";
-import { exportToGoogleSheet, requestSheetsToken } from "./GoogleSheets";
+import {
+  exportToGoogleSheet,
+  requestSheetsToken,
+  extractSpreadsheetId,
+  importFromGoogleSheet,
+  getApiType,
+} from "./GoogleSheets";
 import _ from "lodash";
 import { getQueryStringValue, setQueryStringValue } from "./queryString";
 import "./global.css";
@@ -177,6 +183,16 @@ class App extends React.Component {
       this.updateMapAndAssociatedData();
     });
 
+    const pendingSheetId = getQueryStringValue("sheetId");
+    if (pendingSheetId) {
+      // Remove the sheetId from the URL to prevent reload loops
+      const url = new URL(window.location.href);
+      url.searchParams.delete("sheetId");
+      window.history.replaceState({}, document.title, url.toString());
+
+      this.loadSharedSheet(pendingSheetId);
+    }
+
     // Initialize the Broadcast Channel
     this.syncChannel = new BroadcastChannel("app_playback_sync");
     this.syncChannel.onmessage = this.handleSyncMessage;
@@ -200,6 +216,50 @@ class App extends React.Component {
     const datasets = await this.checkUploadedDatasets();
     if (!datasets[0]) {
       await this.checkForDemoFile();
+    }
+  };
+
+  loadSharedSheet = async (sheetId) => {
+    this.setState({ pendingSheetId: null });
+    try {
+      toast.info("Loading Google Sheet...");
+      const token = await requestSheetsToken();
+      const logs = await importFromGoogleSheet(sheetId, token);
+
+      const logsWithTimestamp = logs.map((logEntry) => ({
+        ...logEntry,
+        timestamp: logEntry.timestamp || new Date().toISOString(),
+      }));
+
+      await uploadCloudLogs(logsWithTimestamp, "_clipboard");
+
+      toast.success("Dataset from Google Sheet loaded. You can now Paste into any dataset.", { autoClose: false });
+    } catch (error) {
+      log(`Error loading shared sheet: ${error.message}`, error);
+
+      // If the browser blocks the popup (often happens on page load without user gesture)
+      if (error.message && error.message.includes("Failed to open login popup window")) {
+        toast.warning(
+          <div>
+            Popup blocked by browser.
+            <br />
+            <br />
+            <button
+              className="toggle-button toggle-button-active"
+              onClick={() => {
+                toast.dismiss();
+                this.loadSharedSheet(sheetId);
+              }}
+              style={{ padding: "4px 8px", fontSize: "14px" }}
+            >
+              Load Google Sheet
+            </button>
+          </div>,
+          { autoClose: false, closeOnClick: false }
+        );
+      } else {
+        toast.error(`Failed to load shared sheet: ${error.message}`);
+      }
     }
   };
 
@@ -587,18 +647,87 @@ class App extends React.Component {
       try {
         const token = await requestSheetsToken();
         const sheetUrl = await exportToGoogleSheet(index, token);
+        const spreadsheetId = extractSpreadsheetId(sheetUrl);
+        const deepLink = `${window.location.origin}${window.location.pathname}?sheetId=${spreadsheetId}`;
         toast.success(
           <span>
             Exported to{" "}
             <a href={sheetUrl} target="_blank" rel="noopener noreferrer">
               Google Sheet
             </a>
+            <br />
+            Shareable Fleet Debugger URL <a href={deepLink}>{deepLink}</a>
           </span>,
           { autoClose: false }
         );
       } catch (error) {
         log(`Error exporting to Google Sheet: ${error.message}`, error);
         toast.error(`Google Sheet export failed: ${error.message}`);
+      }
+    };
+
+    const handleCopyClick = async (e) => {
+      e.stopPropagation();
+      log(`Copy dataset ${index} initiated`);
+      this.setState({ activeMenuIndex: null });
+
+      try {
+        const data = await getUploadedData(index);
+        if (!data || !data.rawLogs || data.rawLogs.length === 0) {
+          toast.warning("Dataset is empty, nothing to copy.");
+          return;
+        }
+
+        let logsToCopy = data.rawLogs;
+        const { logTypes } = this.state.filters;
+        const totalFilterCount = Object.keys(logTypes).length;
+        const activeFilterCount = Object.values(logTypes).filter(Boolean).length;
+
+        if (activeFilterCount !== totalFilterCount) {
+          if (window.confirm("Do you want to copy only the currently filtered log types?")) {
+            logsToCopy = data.rawLogs.filter((logEntry) => {
+              const apiType = getApiType(logEntry);
+              return logTypes[apiType] !== false;
+            });
+          }
+        }
+
+        const dataToSave = { ...data, rawLogs: logsToCopy };
+        await saveToIndexedDB(dataToSave, "_clipboard");
+        toast.success(`Dataset ${index + 1} copied to clipboard!`);
+      } catch (error) {
+        log(`Error copying dataset: ${error.message}`, error);
+        toast.error(`Error copying dataset: ${error.message}`);
+      }
+    };
+
+    const handlePasteClick = async (e) => {
+      e.stopPropagation();
+      log(`Paste to dataset ${index} initiated`);
+      this.setState({ activeMenuIndex: null });
+
+      try {
+        const clipboardData = await getUploadedData("_clipboard");
+        if (!clipboardData || !clipboardData.rawLogs) {
+          toast.warning("Clipboard is empty.");
+          return;
+        }
+        await saveToIndexedDB(clipboardData, index);
+        toast.success(`Pasted into Dataset ${index + 1}!`);
+
+        this.setState(
+          (prevState) => {
+            const newUploadedDatasets = [...prevState.uploadedDatasets];
+            newUploadedDatasets[index] = "Uploaded";
+            return { uploadedDatasets: newUploadedDatasets };
+          },
+          () => {
+            this.switchDataset(index);
+          }
+        );
+      } catch (error) {
+        log(`Error pasting dataset: ${error.message}`, error);
+        toast.error(`Error pasting dataset: ${error.message}`);
       }
     };
 
@@ -680,6 +809,25 @@ class App extends React.Component {
         }
 
         try {
+          if (result.pasteClipboard) {
+            const clipboardData = await getUploadedData("_clipboard");
+            if (!clipboardData || !clipboardData.rawLogs) {
+              toast.warning("Clipboard is empty.");
+              return;
+            }
+            await saveToIndexedDB(clipboardData, index);
+            toast.success(`Pasted into Dataset ${index + 1}!`);
+            this.setState(
+              (prevState) => {
+                const newUploadedDatasets = [...prevState.uploadedDatasets];
+                newUploadedDatasets[index] = "Uploaded";
+                return { uploadedDatasets: newUploadedDatasets };
+              },
+              () => this.switchDataset(index)
+            );
+            return;
+          }
+
           if (result.file) {
             const uploadEvent = { target: { files: [result.file] } };
             await this.handleFileUpload(uploadEvent, index);
@@ -706,7 +854,9 @@ class App extends React.Component {
                 newUploadedDatasets[index] = "Uploaded";
                 return { uploadedDatasets: newUploadedDatasets };
               },
-              () => this.switchDataset(index)
+              () => {
+                this.switchDataset(index);
+              }
             );
           }
         } catch (error) {
@@ -748,28 +898,33 @@ class App extends React.Component {
             isActive ? "dataset-button-active" : isUploaded ? "dataset-button-uploaded" : "dataset-button-empty"
           }`}
         >
-          {isUploaded ? `Dataset ${index + 1}` : `Select Dataset ${index + 1}`}
-
+          {isUploaded ? `Dataset ${index + 1}` : `Select Data ${index + 1}`}
           {isUploaded && isActive && (
             <span className="dataset-button-actions" onClick={toggleMenu}>
               ▼
-              {isMenuOpen && (
-                <div className="dataset-button-menu">
-                  <div className="dataset-button-menu-item export" onClick={handleSaveClick}>
-                    Export File
-                  </div>
-                  <div className="dataset-button-menu-item export" onClick={handleGoogleSheetExport}>
-                    Export GSheet
-                  </div>
-                  <div className="dataset-button-menu-item prune" onClick={handlePruneClick}>
-                    Prune
-                  </div>
-                  <div className="dataset-button-menu-item delete" onClick={handleDeleteClick}>
-                    Delete
-                  </div>
-                </div>
-              )}
             </span>
+          )}
+          {isMenuOpen && (
+            <div className="dataset-button-menu" style={{ top: "100%", right: 0 }}>
+              <div className="dataset-button-menu-item paste" onClick={handlePasteClick}>
+                Paste Dataset
+              </div>
+              <div className="dataset-button-menu-item copy" onClick={handleCopyClick}>
+                Copy Dataset
+              </div>
+              <div className="dataset-button-menu-item export" onClick={handleSaveClick}>
+                Export File
+              </div>
+              <div className="dataset-button-menu-item export" onClick={handleGoogleSheetExport}>
+                Export GSheet
+              </div>
+              <div className="dataset-button-menu-item prune" onClick={handlePruneClick}>
+                Prune
+              </div>
+              <div className="dataset-button-menu-item delete" onClick={handleDeleteClick}>
+                Delete
+              </div>
+            </div>
           )}
         </button>
       </div>
@@ -858,6 +1013,7 @@ class App extends React.Component {
         onLogsReceived: handleCloudLogsReceived,
         onExtraLogsReceived: handleExtraLogsReceived,
         onFileUpload: handleFileUpload,
+        onPasteClipboard: () => cleanupAndResolve({ pasteClipboard: true }),
         hasExtraDataSource: HAS_EXTRA_DATA_SOURCE,
       });
       dialogRoot.render(datasetLoadingComponent);

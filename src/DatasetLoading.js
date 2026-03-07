@@ -8,7 +8,7 @@ import { isTokenValid, fetchLogsWithToken, useCloudLoggingLogin, buildQueryFilte
 import DatasetSideLoading from "./DatasetSideLoading";
 import { GOOGLE_CLIENT_ID } from "./constants";
 
-const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
+const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload, onPasteClipboard }) => {
   const getStoredValue = (key, defaultValue = "") => localStorage.getItem(`datasetLoading_${key}`) || defaultValue;
 
   const [fetching, setFetching] = useState(false);
@@ -162,7 +162,12 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload }) => {
           <progress className="progress-bar" />
         </div>
       )}
-      <DatasetSideLoading onLogsReceived={onLogsReceived} onFileUpload={onFileUpload} setLocalError={setLocalError}>
+      <DatasetSideLoading
+        onLogsReceived={onLogsReceived}
+        onFileUpload={onFileUpload}
+        setLocalError={setLocalError}
+        onPasteClipboard={onPasteClipboard}
+      >
         <button type="button" onClick={handleFetch} disabled={fetching} className="fetch-logs-button">
           {fetching ? "Fetching..." : isTokenValid() ? "Fetch Logs" : "Sign in and Fetch Logs"}
         </button>

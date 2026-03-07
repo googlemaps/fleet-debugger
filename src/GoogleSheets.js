@@ -25,7 +25,7 @@ const API_TYPE_REGEX_MAP = [
   { name: "updateTask", regex: /updateTask/i },
 ];
 
-function getApiType(logEntry) {
+export function getApiType(logEntry) {
   const typeField = logEntry["@type"] || logEntry.jsonpayload?.["@type"] || "";
   for (const { name, regex } of API_TYPE_REGEX_MAP) {
     if (regex.test(typeField)) return name;
@@ -266,7 +266,7 @@ export async function exportToGoogleSheet(index, token) {
 
 // --- Import ---
 
-function extractSpreadsheetId(input) {
+export function extractSpreadsheetId(input) {
   const trimmed = input.trim();
   const urlMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (urlMatch) return urlMatch[1];
