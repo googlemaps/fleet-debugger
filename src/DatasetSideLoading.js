@@ -1,7 +1,8 @@
 // src/DatasetSideLoading.js
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { useSheetsLogin, isSheetsTokenValid, getSheetsToken, importFromGoogleSheet } from "./GoogleSheets";
+import { getUploadedData } from "./localStorage";
 import { log } from "./Utils";
 
 /**
@@ -14,10 +15,21 @@ import { log } from "./Utils";
  * @param {Function} props.setLocalError Callback to set error messages in the parent.
  * @param {React.ReactNode} props.children The primary fetch button(s) to show alongside sideload buttons.
  */
-export const DatasetSideLoading = ({ onLogsReceived, onFileUpload, setLocalError, children }) => {
+export const DatasetSideLoading = ({ onLogsReceived, onFileUpload, setLocalError, onPasteClipboard, children }) => {
   const [sheetFormVisible, setSheetFormVisible] = useState(false);
   const [sheetUrl, setSheetUrl] = useState(localStorage.getItem("datasetLoading_sheetUrl") || "");
   const [sheetLoading, setSheetLoading] = useState(false);
+  const [hasClipboard, setHasClipboard] = useState(false);
+
+  useEffect(() => {
+    getUploadedData("_clipboard")
+      .then((data) => {
+        if (data && data.rawLogs && data.rawLogs.length > 0) {
+          setHasClipboard(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSheetImport = (token) => {
     setSheetLoading(true);
@@ -69,6 +81,11 @@ export const DatasetSideLoading = ({ onLogsReceived, onFileUpload, setLocalError
     <>
       <div className="cloud-logging-buttons">
         {children}
+        {onPasteClipboard && hasClipboard && (
+          <button type="button" onClick={onPasteClipboard} className="sideload-logs-button">
+            Paste Dataset
+          </button>
+        )}
         <button type="button" onClick={() => setSheetFormVisible(!sheetFormVisible)} className="sideload-logs-button">
           Load Google Sheet
         </button>
