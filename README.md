@@ -1,5 +1,7 @@
 # Fleet Debugger Tool
 
+> **Launch Now:** [https://googlemaps.github.io/fleet-debugger](https://googlemaps.github.io/fleet-debugger/demos/multiple-trips)
+
 Fleet Debugger is an open-source web tool designed to help you visualize and analyze logs from Google Maps Platform's Mobility solutions, supporting both [Scheduled tasks](https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/tasks-intro) and [On-demand trips](https://developers.google.com/maps/documentation/mobility/fleet-engine/essentials/trip-intro). It provides an interactive map and timeline to analyze vehicle and task or trip data, running entirely in your browser.
 
 ![Fleet Debugger interface showing a map and log entries](docs/screenshots/vehiclereplay.gif)
@@ -26,21 +28,17 @@ Fleet Debugger helps you understand complex journey and vehicle behaviors by off
 *   **Map and Timeslider Interaction:** Click directly on the map or the timeslider to select the nearest log event.
 *   **Tracking (Chevron):** Use the tracking button to keep the map centered on the current event during replay.
 
-
-## Using the Demo Site
+## Accessing the Hosted Tool
 
 The fastest way to get started is using our GitHub hosted site.
-
-This site includes demo data for:
+This deployment also includes demo datasets for you to explore the capabilities of the tool:
 
 *   [On-demand trips](https://googlemaps.github.io/fleet-debugger/demos/multiple-trips)
 *   [Scheduled tasks](https://googlemaps.github.io/fleet-debugger/demos/lmfs/)
 
 ## Loading Your Data
 
-Click on any empty "Load Dataset" button to open the data loading interface.
-
-![Fleet Engine Logs Loading](docs/screenshots/Fleet_Engine_Logs_Loading.png)
+Click on any empty "Select Data X" space to open the data loading interface.
 
 ### 1. Direct Cloud Logging Connection (Recommended)
 
@@ -49,14 +47,19 @@ Click on any empty "Load Dataset" button to open the data loading interface.
 
 ### 2. Import from Log Files
 
-You can load log data from JSON or ZIP files using the "Load JSON or ZIP file instead" button. This is useful for:
+You can load log data from JSON or ZIP files using the "Load JSON or ZIP" button. This is useful for:
 
 *   Analyzing logs shared with you.
 *   Loading previously exported datasets.
+*   You can also load exported logs from the Google Cloud Console's [Logs Explorer](https://console.cloud.google.com/logs/query).
 
-You can export logs from the Google Cloud Console's Logs Explorer.
+### 3. Import from Google Sheets
 
-> **Note**: All data processing happens client-side. Your logs or API keys are not uploaded to any server. Data is stored in your browser's Local Storage.
+You can also import datasets that have been exported to Google Sheets. Clicking "Load Google Sheet" will allow you to paste a Google Sheet URL and import the logs directly.
+
+**Deep Linking:** You can share Google Sheets directly using a deep link parameter: `?sheetId=[SHEET_ID]`. When someone opens the Fleet Debugger with this link, it will automatically authenticate and load the Google Sheet logs directly into their local clipboard, where they can be pasted into any Dataset.
+
+> **Note**: All data processing happens client-side. Your logs are not uploaded to any server. Data is stored in your browser's Local Storage.
 
 ## Restricted Use Logs
 
@@ -65,16 +68,20 @@ To see features like the driver's planned navigation route, traffic, and origina
 
 ## Managing Datasets
 
-Each dataset has a dropdown menu:
+Each active dataset has a dropdown menu with several options to manage your data:
 
--   **Export:** Save the current dataset as a JSON file to your local system.
+-   **Copy Dataset:** Copies the active dataset's logs to your local clipboard. If you have active log type filters applied, it will prompt you to choose whether to copy all logs or only the filtered ones.
+-   **Paste Dataset:** Pastes data from your clipboard into the dataset. (This is also available on empty datasets).
+-   **Export File:** Save the current dataset as a JSON file to your local system.
+-   **Export GSheet:** Exports the current dataset directly to a new Google Sheet and provides a shareable deep link.
+-   **Prune:** Removes all log entries that are not currently displayed (based on your active filters).
 -   **Delete:** Remove the dataset from the Fleet Debugger and your browser's local storage.
 
 ### Restoring Demo Data
 
 To reload the original demo data:
-1.  Select "Delete" from the `Dataset 1` dropdown menu.
-2.  Refresh the page. The demo data will be automatically reloaded.
+1.  Select "Delete" from the `Dataset 1` dropdown menu to clear it.
+2.  Refresh the page. The demo data will be automatically reloaded into empty slots.
 
 ## Running Your Own Server
 
