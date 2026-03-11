@@ -238,7 +238,7 @@ class App extends React.Component {
       log(`Error loading shared sheet: ${error.message}`, error);
 
       // If the browser blocks the popup (often happens on page load without user gesture)
-      if (error.message && error.message.includes("Failed to open login popup window")) {
+      if (error.message && error.message.includes("Failed to open popup window")) {
         toast.warning(
           <div>
             Popup blocked by browser.
