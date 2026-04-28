@@ -237,10 +237,14 @@ class App extends React.Component {
     } catch (error) {
       log(`Error loading shared sheet: ${error.message}`, error);
 
-      if (error.status === 403 || error.status === 404 || (error.message && (error.message.includes("(403)") || error.message.includes("(404)")))) {
+      if (
+        error.status === 403 ||
+        error.status === 404 ||
+        (error.message && (error.message.includes("(403)") || error.message.includes("(404)")))
+      ) {
         toast.info("Access Denied. Redirecting to Google Sheets to request access...", { autoClose: 5000 });
-        const newWin = window.open(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, '_blank');
-        if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+        const newWin = window.open(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, "_blank");
+        if (!newWin || newWin.closed || typeof newWin.closed === "undefined") {
           // Popup blocked, open in same tab
           window.location.href = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
         }
@@ -905,8 +909,9 @@ class App extends React.Component {
         />
         <button
           onClick={handleClick}
-          className={`dataset-button ${isActive ? "dataset-button-active" : isUploaded ? "dataset-button-uploaded" : "dataset-button-empty"
-            }`}
+          className={`dataset-button ${
+            isActive ? "dataset-button-active" : isUploaded ? "dataset-button-uploaded" : "dataset-button-empty"
+          }`}
         >
           {isUploaded ? `Dataset ${index + 1}` : `Select Data ${index + 1}`}
           {isUploaded && isActive && (
