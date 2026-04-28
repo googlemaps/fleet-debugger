@@ -382,7 +382,12 @@ function LogTable(props) {
   const focusOnRow = React.useCallback(
     (rowData) => {
       if (rowData && listRef.current) {
-        const rowIndex = data.findIndex((row) => row.timestamp === rowData.timestamp);
+        const rowIndex = data.findIndex((row) => {
+          if (row.idx !== undefined && rowData.idx !== undefined) {
+            return row.idx === rowData.idx;
+          }
+          return row.timestamp === rowData.timestamp;
+        });
         if (rowIndex !== -1) {
           listRef.current.scrollToItem(rowIndex, "center");
           setSelectedRowIndex(rowIndex);

@@ -408,7 +408,12 @@ class App extends React.Component {
     const { featuredObject } = this.state;
     const logs = this.getFilteredLogs();
     let newFeaturedObject = featuredObject;
-    const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
+    const currentIndex = logs.findIndex((log) => {
+      if (log.idx !== undefined && featuredObject.idx !== undefined) {
+        return log.idx === featuredObject.idx;
+      }
+      return log.timestamp === featuredObject.timestamp;
+    });
 
     if (currentIndex === -1) {
       if (logs.length > 0) {
