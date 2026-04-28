@@ -46,8 +46,18 @@ export const DatasetSideLoading = ({ onLogsReceived, onFileUpload, setLocalError
         }
       })
       .catch((err) => {
-        if (setLocalError) setLocalError(`Sheet import error: ${err.message}`);
-        toast.error(`Sheet import error: ${err.message}`);
+        if (err.status === 403 || err.status === 404 || (err.message && (err.message.includes("(403)") || err.message.includes("(404)")))) {
+          const sheetIdMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          const sheetId = sheetIdMatch ? sheetIdMatch[1] : sheetUrl;
+          toast.info("Access Denied. Redirecting to Google Sheets to request access...", { autoClose: 5000 });
+          const newWin = window.open(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, '_blank');
+          if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+            window.location.href = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+          }
+        } else {
+          if (setLocalError) setLocalError(`Sheet import error: ${err.message}`);
+          toast.error(`Sheet import error: ${err.message}`);
+        }
       })
       .finally(() => setSheetLoading(false));
   };
