@@ -237,8 +237,18 @@ class App extends React.Component {
     } catch (error) {
       log(`Error loading shared sheet: ${error.message}`, error);
 
-      // If the browser blocks the popup (often happens on page load without user gesture)
-      if (error.message && error.message.includes("Failed to open popup window")) {
+      if (
+        error.status === 403 ||
+        error.status === 404 ||
+        (error.message && (error.message.includes("(403)") || error.message.includes("(404)")))
+      ) {
+        toast.info("Access Denied. Redirecting to Google Sheets to request access...", { autoClose: 5000 });
+        const newWin = window.open(`https://docs.google.com/spreadsheets/d/${sheetId}/edit`, "_blank");
+        if (!newWin || newWin.closed || typeof newWin.closed === "undefined") {
+          // Popup blocked, open in same tab
+          window.location.href = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+        }
+      } else if (error.message && error.message.includes("Failed to open popup window")) {
         toast.warning(
           <div>
             Popup blocked by browser.
@@ -402,7 +412,12 @@ class App extends React.Component {
     const { featuredObject } = this.state;
     const logs = this.getFilteredLogs();
     let newFeaturedObject = featuredObject;
-    const currentIndex = logs.findIndex((log) => log.timestamp === featuredObject.timestamp);
+    const currentIndex = logs.findIndex((log) => {
+      if (log.idx !== undefined && featuredObject.idx !== undefined) {
+        return log.idx === featuredObject.idx;
+      }
+      return log.timestamp === featuredObject.timestamp;
+    });
 
     if (currentIndex === -1) {
       if (logs.length > 0) {

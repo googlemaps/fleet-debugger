@@ -192,7 +192,11 @@ async function sheetsApiFetch(url, token, options = {}) {
   });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(`Sheets API error (${response.status}): ${errorData.error?.message || JSON.stringify(errorData)}`);
+    const err = new Error(
+      `Sheets API error (${response.status}): ${errorData.error?.message || JSON.stringify(errorData)}`
+    );
+    err.status = response.status;
+    throw err;
   }
   return response.json();
 }
