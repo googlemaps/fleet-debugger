@@ -245,6 +245,7 @@ function LogTable(props) {
           className: "logtable-cell short-column",
           solutionTypes: ["ODRD", "LMFS"],
         },
+
         {
           Header: "Sensor",
           accessor: "lastlocation.rawlocationsensor",
@@ -257,8 +258,8 @@ function LogTable(props) {
         },
         {
           Header: "Location",
-          accessor: "lastlocation.locationsensor",
-          id: "lastlocation_locationsensor",
+          accessor: "lastlocationResponse.locationsensor",
+          id: "lastlocationResponse_locationsensor",
           Cell: TrimCellRenderer,
           trim: "_LOCATION_PROVIDER",
           width: columnRegularWidth,

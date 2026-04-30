@@ -192,6 +192,16 @@ function processRawLogs(rawLogs, solutionType) {
         newLog.lastlocationResponse.heading = lastKnownState.responseHeading;
       }
 
+      const updateMask = _.get(newLog, "request.updatemask") || "";
+      if (
+        currentResponseLocation &&
+        !newLog.lastlocationResponse.locationsensor &&
+        !newLog.request?.header &&
+        updateMask.includes("last_location")
+      ) {
+        newLog.lastlocationResponse.locationsensor = "API";
+      }
+
       // Update lastKnownState for next iterations
       const locToStore = currentLocation?.location || currentLocation?.rawlocation;
       if (locToStore) {
