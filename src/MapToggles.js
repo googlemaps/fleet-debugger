@@ -8,7 +8,7 @@ export const ALL_TOGGLES = [
     id: "showGPSBubbles",
     name: "Location Accuracy",
     docLink: "https://github.com/googlemaps/fleet-debugger/blob/main/docs/GPSAccuracy.md",
-    columns: ["lastlocation.rawlocationaccuracy", "lastlocation.locationsensor"],
+    columns: ["lastlocationResponse.rawlocationaccuracy", "lastlocationResponse.locationsensor"],
     solutionTypes: ["ODRD", "LMFS"],
   },
   {
@@ -134,10 +134,10 @@ export function getToggleHandlers({
       bubbleMapRef.current[bubbleName] = tripLogs
         .getLogs_(minDate, maxDate)
         .map((le) => {
-          const rawloc = le.lastlocation?.rawlocation;
+          const rawloc = le.lastlocationResponse?.location || le.lastlocationResponse?.rawlocation;
           if (rawloc && typeof rawloc.latitude === "number" && typeof rawloc.longitude === "number") {
             const latLng = new window.google.maps.LatLng(rawloc.latitude, rawloc.longitude);
-            return cb(latLng, le.lastlocation, le);
+            return cb(latLng, le.lastlocationResponse, le);
           }
           return null;
         })
@@ -147,9 +147,9 @@ export function getToggleHandlers({
   };
 
   return {
-    showGPSBubbles: GenerateBubbles("showGPSBubbles", (rawLocationLatLng, lastLocation) => {
+    showGPSBubbles: GenerateBubbles("showGPSBubbles", (rawLocationLatLng, lastlocationResponse) => {
       let color;
-      switch (lastLocation.locationsensor) {
+      switch (lastlocationResponse.locationsensor) {
         case "GPS":
           color = "#11FF11";
           break;
@@ -169,7 +169,7 @@ export function getToggleHandlers({
         default:
           color = "#000000";
       }
-      const accuracy = lastLocation.rawlocationaccuracy;
+      const accuracy = lastlocationResponse.rawlocationaccuracy;
       if (accuracy) {
         const circ = new window.google.maps.Circle({
           strokeColor: color,
