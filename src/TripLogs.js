@@ -132,12 +132,33 @@ function processRawLogs(rawLogs, solutionType) {
   let sortedLogs = isReversed ? _.reverse(origLogs) : origLogs;
   let newLogs = [];
 
+  const tripBoundaries = new Map(); // tripId -> { minTime, maxTime }
+
+  // First pass to find boundaries for each trip
+  for (const origLog of sortedLogs) {
+    const apiCall = processApiCall(origLog);
+    if (apiCall && apiCall.response) {
+      const currentTrips = apiCall.response.currenttrips;
+      if (currentTrips && Array.isArray(currentTrips)) {
+        const timestampMS = new Date(origLog.timestamp || origLog.servertime).getTime();
+        for (const tripId of currentTrips) {
+          if (!tripBoundaries.has(tripId)) {
+            tripBoundaries.set(tripId, { minTime: timestampMS, maxTime: timestampMS });
+          } else {
+            const bounds = tripBoundaries.get(tripId);
+            bounds.minTime = Math.min(bounds.minTime, timestampMS);
+            bounds.maxTime = Math.max(bounds.maxTime, timestampMS);
+          }
+        }
+      }
+    }
+  }
+
   const lastKnownState = {
     location: null,
     heading: 0,
     routeSegment: null,
     routeSegmentTraffic: null,
-    currentTrips: [],
     responseLocation: null,
     responseHeading: 0,
   };
@@ -157,7 +178,6 @@ function processRawLogs(rawLogs, solutionType) {
       newLog.request = apiCall.request;
       newLog.response = apiCall.response;
       newLog.error = apiCall.error;
-      const hasApiError = !!newLog.error || (origLog.jsonpayload && origLog.jsonpayload.errorresponse);
 
       adjustFieldFormats(solutionType, newLog);
 
@@ -242,13 +262,16 @@ function processRawLogs(rawLogs, solutionType) {
         }
       }
 
-      // Keep the same current trips if we had an API error
-      if (hasApiError && lastKnownState.currentTrips.length > 0) {
-        log(`Preserving current trips due to API error for log at ${newLog.timestamp}`);
-        if (!newLog.response) newLog.response = {};
-        newLog.response.currenttrips = [...lastKnownState.currentTrips];
-      } else if (_.get(newLog, "response.currenttrips")) {
-        lastKnownState.currentTrips = [...newLog.response.currenttrips];
+      const newCurrentTrips = _.get(newLog, "response.currenttrips");
+
+      if (!newCurrentTrips || newCurrentTrips.length === 0) {
+        for (const [tripId, bounds] of tripBoundaries.entries()) {
+          if (newLog.timestampMS >= bounds.minTime && newLog.timestampMS <= bounds.maxTime) {
+            log(`Backfilling trip ${tripId} for log at ${newLog.timestamp}`);
+            newLog.lastlocationResponse.currenttrips = [tripId];
+            break;
+          }
+        }
       }
 
       // Sort currentTrips array since sometimes it could contain multiple trip ids in random order
@@ -326,7 +349,7 @@ class TripLogs {
         }
 
         // Check trip ID in vehicle rows
-        const currentTrips = _.get(le, "response.currenttrips");
+        const currentTrips = _.get(le, "response.currenttrips") || _.get(le, "lastlocationResponse.currenttrips");
         if (currentTrips && Array.isArray(currentTrips)) {
           return currentTrips.some((id) => id.includes(trimmedFilter));
         }
@@ -506,7 +529,10 @@ class TripLogs {
       const stopsLeft = _.get(logEntry, "response.remainingvehiclejourneysegments");
       return stopsLeft && "Stops Left " + stopsLeft.length;
     } else {
-      const currentTrips = _.get(logEntry, "response.currenttrips");
+      let currentTrips = _.get(logEntry, "response.currenttrips");
+      if (!currentTrips || currentTrips.length === 0) {
+        currentTrips = _.get(logEntry, "lastlocationResponse.currenttrips");
+      }
       if (currentTrips && Array.isArray(currentTrips) && currentTrips.length > 0) {
         return currentTrips[0];
       }
