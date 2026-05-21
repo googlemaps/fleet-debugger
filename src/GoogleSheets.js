@@ -3,7 +3,6 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { getUploadedData, getVehicleIdFromLogs, getFirstLogDate } from "./localStorage";
 import { log } from "./Utils";
 import { GOOGLE_CLIENT_ID } from "./constants";
-import _ from "lodash";
 
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 const CLIENT_ID = GOOGLE_CLIENT_ID;
@@ -278,6 +277,19 @@ export function extractSpreadsheetId(input) {
   throw new Error("Invalid spreadsheet URL or ID");
 }
 
+function setDeep(obj, path, value) {
+  const segments = typeof path === "string" ? path.split(".") : path;
+  let current = obj;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const key = segments[i];
+    if (current[key] === undefined || current[key] === null || typeof current[key] !== "object") {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  current[segments[segments.length - 1]] = value;
+}
+
 export async function importFromGoogleSheet(spreadsheetInput, token) {
   const spreadsheetId = extractSpreadsheetId(spreadsheetInput);
   log(`Importing from spreadsheet: ${spreadsheetId}`);
@@ -306,7 +318,7 @@ export async function importFromGoogleSheet(spreadsheetInput, token) {
       for (let j = 0; j < originalHeaders.length; j++) {
         const value = fromCellValue(j < row.length ? row[j] : undefined);
         if (value !== undefined) {
-          _.set(obj, originalHeaders[j], value);
+          setDeep(obj, originalHeaders[j], value);
         }
       }
       allLogs.push(obj);
