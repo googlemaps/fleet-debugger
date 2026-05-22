@@ -80,17 +80,17 @@ html {
   width: 50px;
 }
 
-.logtable-header-cell>*,
-.logtable-cell>* {
+.logtable-header-cell > *,
+.logtable-cell > * {
   overflow: hidden;
 }
 
-.logtable-header-cell>*,
-.logtable-header-cell.logtable-cell>* {
+.logtable-header-cell > *,
+.logtable-header-cell.logtable-cell > * {
   text-overflow: clip;
 }
 
-.logtable-cell>* {
+.logtable-cell > * {
   text-overflow: clip;
 }
 
@@ -98,6 +98,7 @@ html {
 .response-column {
   background-color: rgba(255, 0, 0, 0.05);
 }
+
 /* Event indicator styles */
 .selected-event-indicator-container {
   position: relative;
@@ -332,7 +333,9 @@ html {
   justify-content: center;
   cursor: pointer;
   z-index: 1000;
-  transition: right 0.3s ease, background-color 0.2s ease;
+  transition:
+    right 0.3s ease,
+    background-color 0.2s ease;
   color: #5f6368;
   box-shadow: -2px 0 4px rgba(0, 0, 0, 0.05);
 }
@@ -707,4 +710,38 @@ html {
 .resizer:hover,
 .resizer.isResizing {
   background: rgba(0, 0, 0, 0.5);
+}
+
+/* Telemetry & Column Format Styles */
+.simplify-button-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
+.simplify-button-container:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.simplify-icon {
+  pointer-events: none;
+}
+
+.simplified-value {
+  color: #005662;
+  /* Deep dark teal */
+}
+
+.logtable-header-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+  overflow: hidden;
 }
