@@ -26,6 +26,14 @@ const CloudLoggingFormComponent = ({ onLogsReceived, onFileUpload, onPasteClipbo
     log("handleCloudLoggingFetch called with token.");
     fetchLogsWithToken(token, queryParams, null, onLogsReceived)
       .catch((err) => {
+        if (
+          err.message.includes("INSUFFICIENT_OAUTH_SCOPES") ||
+          err.message.includes("ACCESS_TOKEN_SCOPE_INSUFFICIENT")
+        ) {
+          toast.warning("Missing Cloud Logging permission. Re-prompting for authorization...");
+          googleLogin({ prompt: "consent" });
+          return;
+        }
         setLocalError(`Error: ${err.message}`);
         toast.error(`Error: ${err.message}`);
       })
