@@ -1,5 +1,5 @@
 // src/CloudLogging.js
-import { useGoogleLogin } from "@react-oauth/google";
+import { useGoogleLogin, hasGrantedAnyScopeGoogle } from "@react-oauth/google";
 import { log } from "./Utils";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -131,6 +131,16 @@ const fetchLogBatch = async (token, filter, projectId, pageToken = null, retryCo
         throw new Error("Authentication token expired. Please sign in again.");
       }
 
+      if (
+        response.status === 403 &&
+        (!errorData?.error?.status || errorData.error.status === "PERMISSION_DENIED") &&
+        (JSON.stringify(errorData).includes("ACCESS_TOKEN_SCOPE_INSUFFICIENT") ||
+          errorData?.error?.message?.includes("insufficient authentication scopes"))
+      ) {
+        clearTokenData();
+        throw new Error("INSUFFICIENT_OAUTH_SCOPES: Request had insufficient authentication scopes.");
+      }
+
       throw new Error(
         `HTTP error! status: ${response.status}, details: ${JSON.stringify(errorData.error || errorData)}`
       );
@@ -198,6 +208,20 @@ export const useCloudLoggingLogin = (onSuccess, onError) => {
   return useGoogleLogin({
     onSuccess: (tokenResponse) => {
       log("Google OAuth login successful", tokenResponse);
+      const hasRequiredScope = hasGrantedAnyScopeGoogle(
+        tokenResponse,
+        "https://www.googleapis.com/auth/logging.read",
+        "https://www.googleapis.com/auth/cloud-platform.read-only"
+      );
+      if (!hasRequiredScope) {
+        clearTokenData();
+        if (onError) {
+          onError({
+            error: "Missing required Cloud Logging OAuth permission. Please check the permission box when signing in.",
+          });
+        }
+        return;
+      }
       const expiryTime = Date.now() + (tokenResponse.expires_in || 3600) * 1000;
       sessionStorage.setItem("cloudLogging_token", tokenResponse.access_token);
       sessionStorage.setItem("cloudLogging_token_expiry", expiryTime.toString());
